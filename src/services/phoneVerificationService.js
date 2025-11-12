@@ -1,9 +1,20 @@
 // Phone verification service for communicating with backend API
 // Use environment variable if available, otherwise fallback to localhost for development
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (import.meta.env.PROD 
-    ? 'https://your-backend-url.com/api'  // Update this with your actual backend URL
-    : 'http://localhost:3003/api')
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL
+  if (envUrl) {
+    return envUrl
+  }
+  
+  if (import.meta.env.PROD) {
+    console.error('❌ VITE_API_BASE_URL is not set in production! Please configure it in Vercel environment variables.')
+    throw new Error('Backend API URL is not configured. Please contact support.')
+  }
+  
+  return 'http://localhost:3003/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 /**
  * Send verification code to phone number

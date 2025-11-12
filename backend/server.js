@@ -20,7 +20,8 @@ app.use(cors({
     'https://www.studiply.it',
     'https://studiply.it',
     'https://studiply-*.vercel.app',
-    /^https:\/\/studiply-.*\.vercel\.app$/
+    /^https:\/\/studiply-.*\.vercel\.app$/,
+    /^https:\/\/.*\.onrender\.com$/
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
