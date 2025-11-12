@@ -27,7 +27,10 @@ export const checkAndSendEventReminders = async (userId, userEmail, userName) =>
     
     eventsSnapshot.forEach((docSnap) => {
       const event = docSnap.data()
-      if (!event.date) return
+      if (!event.date) {
+        console.log(`⚠️ Event ${docSnap.id} has no date, skipping`)
+        return
+      }
       
       const eventDate = new Date(event.date)
       eventDate.setHours(0, 0, 0, 0)
@@ -36,8 +39,11 @@ export const checkAndSendEventReminders = async (userId, userEmail, userName) =>
       const daysUntilEvent = Math.ceil((eventDate - today) / (1000 * 60 * 60 * 24))
       const reminderDays = event.reminderDays || 1
       
+      console.log(`📅 Event: ${event.title || 'Untitled'}, Date: ${eventDate.toISOString()}, Days until: ${daysUntilEvent}, Reminder days: ${reminderDays}`)
+      
       // 如果正好是提醒日期（例如提前1天），且事件还没过期
       if (daysUntilEvent === reminderDays && daysUntilEvent > 0) {
+        console.log(`✅ Event "${event.title || 'Untitled'}" matches reminder criteria (${daysUntilEvent} days until event, reminder set for ${reminderDays} days)`)
         remindersToSend.push({
           eventId: docSnap.id,
           event: {
@@ -46,6 +52,8 @@ export const checkAndSendEventReminders = async (userId, userEmail, userName) =>
           },
           daysUntilEvent
         })
+      } else {
+        console.log(`⏭️  Event "${event.title || 'Untitled'}" does not match reminder criteria (${daysUntilEvent} days until event, reminder set for ${reminderDays} days)`)
       }
     })
     
@@ -86,20 +94,36 @@ export const checkAndSendEventReminders = async (userId, userEmail, userName) =>
     
     // 发送每个需要提醒的事件
     let sentCount = 0
+    const sendResults = []
+    
     for (const reminder of remindersToSend) {
+      console.log(`📧 Sending reminder for event: ${reminder.event.title} (${reminder.daysUntilEvent} days until event)`)
       const result = await sendEventReminder(userId, userEmail, userName, reminder.event, reminder.eventId)
+      sendResults.push({
+        eventTitle: reminder.event.title,
+        success: result.success,
+        alreadySent: result.alreadySent,
+        error: result.error
+      })
+      
       if (result.success && !result.alreadySent) {
         sentCount++
+        console.log(`✅ Reminder sent successfully for: ${reminder.event.title}`)
+      } else if (result.alreadySent) {
+        console.log(`⏭️  Reminder already sent today for: ${reminder.event.title}`)
+      } else {
+        console.error(`❌ Failed to send reminder for: ${reminder.event.title}`, result.error)
       }
     }
     
-    console.log(`✅ Sent ${sentCount} event reminder(s)`)
+    console.log(`✅ Sent ${sentCount} event reminder(s) out of ${remindersToSend.length} total`)
     return {
       success: true,
       remindersSent: sentCount,
       totalReminders: remindersToSend.length,
       totalEvents: allEventsInfo.length,
-      eventsInfo: allEventsInfo
+      eventsInfo: allEventsInfo,
+      sendResults: sendResults
     }
   } catch (error) {
     console.error('Error checking event reminders:', error)
@@ -182,21 +206,37 @@ const sendEventReminder = async (userId, userEmail, userName, event, eventId) =>
         event: event.title
       })
       
+      const requestBody = {
+        email: userEmail,
+        eventTitle: event.title,
+        eventDate: event.date,
+        eventTime: event.time,
+        reminderDays: event.reminderDays
+      }
+      
+      console.log('📤 Sending calendar reminder request to backend:', {
+        url: `${API_BASE_URL}/send-calendar-reminder`,
+        email: userEmail,
+        eventTitle: event.title,
+        eventDate: event.date
+      })
+      
       const response = await fetch(`${API_BASE_URL}/send-calendar-reminder`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          email: userEmail,
-          eventTitle: event.title,
-          eventDate: event.date,
-          eventTime: event.time,
-          reminderDays: event.reminderDays
-        })
+        body: JSON.stringify(requestBody)
       })
 
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error(`❌ Backend API error (${response.status}):`, errorText)
+        throw new Error(`Backend API error: ${response.status} - ${errorText}`)
+      }
+
       const result = await response.json()
+      console.log('📥 Backend API response:', result)
       
       if (result.success) {
         // 记录已发送的提醒
@@ -213,7 +253,7 @@ const sendEventReminder = async (userId, userEmail, userName, event, eventId) =>
         throw new Error(result.error || 'Backend email failed')
       }
     } catch (backendError) {
-      console.warn('⚠️ Neo Email failed for calendar reminder, falling back to EmailJS:', backendError)
+      console.warn('⚠️ Neo Email failed for calendar reminder, falling back to EmailJS:', backendError.message || backendError)
       // Continue to EmailJS fallback
     }
     

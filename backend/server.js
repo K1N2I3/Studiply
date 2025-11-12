@@ -599,6 +599,23 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
 
     const logoUrl = 'https://www.studiply.it/studiply-logo.png'
     
+    // Format event date
+    let formattedDate = ''
+    if (eventDate) {
+      try {
+        const date = new Date(eventDate)
+        formattedDate = date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      } catch (error) {
+        console.warn('Error formatting date:', error)
+        formattedDate = eventDate // Fallback to original
+      }
+    }
+    
     const mailOptions = {
       from: `"Studiply Calendar" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
       to: email,
@@ -639,7 +656,7 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
                                 <td>
                                   <h3 style="color: #667eea; margin: 0 0 20px 0; font-size: 22px; font-weight: 700;">${eventTitle}</h3>
                                   <table width="100%" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 8px; padding: 20px;">
-                                    ${eventDate ? `<tr><td style="padding: 8px 0;"><p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.6;"><span style="color: #667eea; font-size: 18px; margin-right: 8px;">📅</span><strong style="color: #667eea;">Date:</strong> ${eventDate}</p></td></tr>` : ''}
+                                    ${formattedDate ? `<tr><td style="padding: 8px 0;"><p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.6;"><span style="color: #667eea; font-size: 18px; margin-right: 8px;">📅</span><strong style="color: #667eea;">Date:</strong> ${formattedDate}</p></td></tr>` : ''}
                                     ${eventTime ? `<tr><td style="padding: 8px 0;"><p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.6;"><span style="color: #667eea; font-size: 18px; margin-right: 8px;">⏰</span><strong style="color: #667eea;">Time:</strong> ${eventTime}</p></td></tr>` : ''}
                                     <tr><td style="padding: 8px 0;"><p style="margin: 0; color: #333333; font-size: 15px; line-height: 1.6;"><span style="color: #667eea; font-size: 18px; margin-right: 8px;">🔔</span><strong style="color: #667eea;">Reminder:</strong> ${reminderDays} day${reminderDays > 1 ? 's' : ''} before</p></td></tr>
                                   </table>
