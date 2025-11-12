@@ -90,6 +90,10 @@ const sendVerificationEmail = async (email, code) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" href="https://www.studiply.it/studiply-logo.png" type="image/png">
+        <link rel="apple-touch-icon" href="https://www.studiply.it/studiply-logo.png">
+        <meta name="msapplication-TileImage" content="https://www.studiply.it/studiply-logo.png">
+        <meta property="og:image" content="https://www.studiply.it/studiply-logo.png">
       </head>
       <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
