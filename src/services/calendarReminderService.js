@@ -173,12 +173,57 @@ const sendEventReminder = async (userId, userEmail, userName, event, eventId) =>
       name: userName || userEmail.split('@')[0]
     }
     
+    // Try Neo Email (backend API) first
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003/api'
+    
+    try {
+      console.log('📧 Attempting to send calendar reminder via Neo Email (backend)...', {
+        to: userEmail,
+        event: event.title
+      })
+      
+      const response = await fetch(`${API_BASE_URL}/send-calendar-reminder`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: userEmail,
+          eventTitle: event.title,
+          eventDate: event.date,
+          eventTime: event.time,
+          reminderDays: event.reminderDays
+        })
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        // 记录已发送的提醒
+        await setDoc(reminderRef, {
+          sent: true,
+          date: new Date(),
+          reminderDays: event.reminderDays,
+          eventTitle: event.title
+        })
+        
+        console.log(`✅ Calendar reminder sent via Neo Email for: ${event.title}`)
+        return { success: true, alreadySent: false }
+      } else {
+        throw new Error(result.error || 'Backend email failed')
+      }
+    } catch (backendError) {
+      console.warn('⚠️ Neo Email failed for calendar reminder, falling back to EmailJS:', backendError)
+      // Continue to EmailJS fallback
+    }
+    
+    // Fallback to EmailJS
     // 发送邮件（使用事件提醒模板）
     // 注意：需要在 EmailJS 中创建模板 ID 为 'template_event_reminder' 的模板
     // 或者使用现有的模板 ID（如果支持这些变量）
     const templateId = emailjsConfig.eventReminderTemplateId || 'template_event_reminder'
     
-    console.log('📧 Sending event reminder email...', {
+    console.log('📧 Sending event reminder email via EmailJS (fallback)...', {
       to: userEmail,
       event: event.title,
       templateId
@@ -200,7 +245,7 @@ const sendEventReminder = async (userId, userEmail, userName, event, eventId) =>
         eventTitle: event.title
       })
       
-      console.log(`✅ Event reminder sent for: ${event.title}`)
+      console.log(`✅ Event reminder sent via EmailJS for: ${event.title}`)
       return { success: true, alreadySent: false }
     } else {
       throw new Error(`EmailJS returned status ${result.status}`)

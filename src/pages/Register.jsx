@@ -254,6 +254,45 @@ const Register = () => {
       // Generate a 6-digit verification code
       const code = Math.floor(100000 + Math.random() * 900000).toString()
       
+      // Validate email before sending
+      if (!formData.email || !formData.email.includes('@')) {
+        setError('Invalid email address')
+        return
+      }
+
+      // Try Neo Email (backend API) first
+      const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003/api'
+      
+      try {
+        console.log('📧 Attempting to send email via Neo Email (backend)...')
+        const response = await fetch(`${API_BASE_URL}/send-verification-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            code: code
+          })
+        })
+
+        const result = await response.json()
+        
+        if (result.success) {
+          console.log('✅ Email sent successfully via Neo Email')
+          setEmailVerificationSent(true)
+          sessionStorage.setItem('verification_code', code)
+          setError('')
+          return // Success, exit function
+        } else {
+          throw new Error(result.error || 'Backend email failed')
+        }
+      } catch (backendError) {
+        console.warn('⚠️ Neo Email failed, falling back to EmailJS:', backendError)
+        // Continue to EmailJS fallback
+      }
+      
+      // Fallback to EmailJS
       // Check if EmailJS is properly configured
       if (emailjsConfig.publicKey === 'YOUR_PUBLIC_KEY' || 
           emailjsConfig.serviceId === 'YOUR_SERVICE_ID' || 
@@ -279,12 +318,7 @@ const Register = () => {
         user_name: formData.name
       }
 
-      // Validate email before sending
-      if (!formData.email || !formData.email.includes('@')) {
-        throw new Error('Invalid email address')
-      }
-
-      console.log('Sending EmailJS with params:', templateParams)
+      console.log('📧 Sending email via EmailJS (fallback)...')
 
       // Send email using EmailJS
       const result = await emailjs.send(
@@ -295,6 +329,7 @@ const Register = () => {
       )
 
       if (result.status === 200) {
+        console.log('✅ Email sent successfully via EmailJS')
         setEmailVerificationSent(true)
         // Store the verification code for comparison
         sessionStorage.setItem('verification_code', code)

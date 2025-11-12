@@ -57,12 +57,17 @@ const User = mongoose.model('User', userSchema)
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
-// Email configuration
+// Email configuration - Neo Email SMTP
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: process.env.SMTP_HOST || 'smtp0001.neo.space',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: process.env.SMTP_PORT === '465' || !process.env.SMTP_PORT, // 465 端口使用 SSL
   auth: {
-    user: process.env.EMAIL_USER,
+    user: process.env.EMAIL_USER || 'noreply@studiply.it',
     pass: process.env.EMAIL_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false // 如果需要
   }
 })
 
@@ -74,7 +79,7 @@ const generateVerificationCode = () => {
 // Send verification email
 const sendVerificationEmail = async (email, code) => {
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
     to: email,
     subject: 'Studiply - Email Verification',
     html: `
@@ -473,6 +478,104 @@ app.post('/api/verify-phone', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to verify phone number'
+    })
+  }
+})
+
+// Send verification email (for frontend to call)
+app.post('/api/send-verification-email', async (req, res) => {
+  try {
+    const { email, code } = req.body
+
+    console.log('📧 Received email verification request:', { email })
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and code are required'
+      })
+    }
+
+    // Validate email format
+    if (!email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email address'
+      })
+    }
+
+    await sendVerificationEmail(email, code)
+    
+    console.log('✅ Verification email sent successfully to:', email)
+    res.json({
+      success: true,
+      message: 'Verification email sent successfully'
+    })
+  } catch (error) {
+    console.error('❌ Error sending verification email:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send verification email'
+    })
+  }
+})
+
+// Send calendar reminder email
+app.post('/api/send-calendar-reminder', async (req, res) => {
+  try {
+    const { email, eventTitle, eventDate, eventTime, reminderDays } = req.body
+
+    console.log('📅 Received calendar reminder request:', { email, eventTitle })
+
+    if (!email || !eventTitle) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and event title are required'
+      })
+    }
+
+    // Validate email format
+    if (!email.includes('@')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid email address'
+      })
+    }
+
+    const mailOptions = {
+      from: `"Studiply Calendar" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
+      to: email,
+      subject: `Reminder: ${eventTitle} - ${reminderDays} day${reminderDays > 1 ? 's' : ''} before`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #333;">Event Reminder</h2>
+          <p>Hello,</p>
+          <p>This is a reminder that you have an upcoming event:</p>
+          <div style="background-color: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 8px;">
+            <h3 style="color: #007bff; margin-top: 0;">${eventTitle}</h3>
+            ${eventDate ? `<p><strong>Date:</strong> ${eventDate}</p>` : ''}
+            ${eventTime ? `<p><strong>Time:</strong> ${eventTime}</p>` : ''}
+            <p><strong>Reminder:</strong> ${reminderDays} day${reminderDays > 1 ? 's' : ''} before</p>
+          </div>
+          <p>Don't forget to prepare for this event!</p>
+          <hr style="margin: 30px 0;">
+          <p style="color: #666; font-size: 12px;">This is an automated reminder from Studiply Calendar.</p>
+        </div>
+      `
+    }
+
+    await transporter.sendMail(mailOptions)
+    
+    console.log('✅ Calendar reminder sent successfully to:', email)
+    res.json({
+      success: true,
+      message: 'Calendar reminder sent successfully'
+    })
+  } catch (error) {
+    console.error('❌ Error sending calendar reminder:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send calendar reminder'
     })
   }
 })
