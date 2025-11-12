@@ -391,7 +391,7 @@ const TutorDashboard = () => {
     if (!user?.id || selectedTab !== 'chat') {
       setChatList([])
       setChatListLoading(false)
-      return
+      return undefined // 明确返回 undefined
     }
     
     setChatListLoading(true)
