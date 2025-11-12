@@ -30,3 +30,10 @@ dist-ssr
 .env.test.local
 .env.production.local
 .vercel
+
+# Large files
+large-files/
+*.mov
+*.mp4
+*.avi
+*.zip
