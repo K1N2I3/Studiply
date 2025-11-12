@@ -71,10 +71,11 @@ const StudentDashboard = () => {
   }, [user?.id])
 
   // 加载聊天列表
-  const loadChatList = useCallback(async () => {
-    if (!user?.id) return
+  useEffect(() => {
+    if (!user?.id || !showChatList) return
     
-    const unsubscribe = listenToChatList(user.id, async (result) => {
+    let unsubscribe
+    unsubscribe = listenToChatList(user.id, async (result) => {
       if (result.success) {
         // 获取每个聊天对象的用户信息（只显示 tutors）
         const chatListWithUsers = await Promise.all(
@@ -110,9 +111,11 @@ const StudentDashboard = () => {
     })
     
     return () => {
-      if (unsubscribe) unsubscribe()
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe()
+      }
     }
-  }, [user?.id])
+  }, [user?.id, showChatList])
 
   useEffect(() => {
     reloadUserProgress()
@@ -639,12 +642,7 @@ const StudentDashboard = () => {
                 View Missions
               </button>
               <button
-                onClick={() => {
-                  setShowChatList(!showChatList)
-                  if (!showChatList && user?.id) {
-                    loadChatList()
-                  }
-                }}
+                onClick={() => setShowChatList(!showChatList)}
                 className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-all ${
                   showChatList
                     ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30'
