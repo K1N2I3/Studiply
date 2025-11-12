@@ -57,16 +57,17 @@ const TutorDashboard = () => {
 
   // 检查用户是否还是tutor
   useEffect(() => {
+    let unsub = null
+    
     if (!user?.id) {
-      return undefined
+      return () => {} // 总是返回清理函数
     }
     
     if (!user.isTutor) {
       showError('Your tutor profile has been removed. You no longer have access to the tutor dashboard.', 'Access Revoked')
-      return undefined
+      return () => {} // 总是返回清理函数
     }
     
-    let unsub = null
     setLoading(true)
     
     const col = collection(db, 'sessions')
@@ -394,14 +395,16 @@ const TutorDashboard = () => {
 
   // 加载聊天列表
   useEffect(() => {
+    let unsubscribe = null
+    
     if (!user?.id || selectedTab !== 'chat') {
       setChatList([])
       setChatListLoading(false)
-      return undefined // 明确返回 undefined
+      return () => {} // 总是返回清理函数
     }
     
     setChatListLoading(true)
-    const unsubscribe = listenToChatList(user.id, async (result) => {
+    unsubscribe = listenToChatList(user.id, async (result) => {
       if (result.success) {
         // 获取每个聊天对象的用户信息
         const chatListWithUsers = await Promise.all(
@@ -448,17 +451,14 @@ const TutorDashboard = () => {
       setChatListLoading(false)
     })
     
-    // 确保 unsubscribe 是函数
-    if (!unsubscribe || typeof unsubscribe !== 'function') {
-      console.error('listenToChatList did not return a cleanup function')
-      return undefined
-    }
-    
+    // 总是返回清理函数
     return () => {
-      try {
-        unsubscribe()
-      } catch (error) {
-        console.error('Error cleaning up chat list listener:', error)
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe()
+        } catch (error) {
+          console.error('Error cleaning up chat list listener:', error)
+        }
       }
     }
   }, [user?.id, selectedTab])
