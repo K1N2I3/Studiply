@@ -28,14 +28,19 @@ import { createMeeting } from '../services/meetingService'
 import RealVideoCall from '../components/RealVideoCall'
 import Avatar from '../components/Avatar'
 import EditTutorProfileModal from '../components/EditTutorProfileModal'
+import { listenToChatList, formatMessageTime } from '../services/chatService'
+import { useNavigate } from 'react-router-dom'
 
 const TutorDashboard = () => {
   const { user } = useSimpleAuth()
   const { isDark } = useTheme()
   const { showSuccess, showError } = useNotification()
+  const navigate = useNavigate()
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState('requests')
+  const [chatList, setChatList] = useState([])
+  const [chatListLoading, setChatListLoading] = useState(false)
   
   // Reset pagination when switching tabs
   const handleTabChange = (tabId) => {
@@ -377,8 +382,66 @@ const TutorDashboard = () => {
   const tabs = [
     { id: 'requests', name: 'Pending Requests', count: pendingRequests.length },
     { id: 'accepted', name: 'Accepted Sessions', count: acceptedSessions.length },
-    { id: 'completed', name: 'Completed Sessions', count: completedSessions.length }
+    { id: 'completed', name: 'Completed Sessions', count: completedSessions.length },
+    { id: 'chat', name: 'Chat', count: chatList.length }
   ]
+
+  // 加载聊天列表
+  useEffect(() => {
+    if (!user?.id || selectedTab !== 'chat') return
+    
+    setChatListLoading(true)
+    const unsubscribe = listenToChatList(user.id, async (result) => {
+      if (result.success) {
+        // 获取每个聊天对象的用户信息
+        const chatListWithUsers = await Promise.all(
+          result.chatList.map(async (chat) => {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', chat.userId))
+              if (userDoc.exists()) {
+                const userData = userDoc.data()
+                return {
+                  ...chat,
+                  user: {
+                    id: chat.userId,
+                    name: userData.name || 'Unknown',
+                    email: userData.email || '',
+                    avatar: userData.avatar || null
+                  }
+                }
+              }
+              return {
+                ...chat,
+                user: {
+                  id: chat.userId,
+                  name: 'Unknown',
+                  email: '',
+                  avatar: null
+                }
+              }
+            } catch (error) {
+              console.error('Error getting user info:', error)
+              return {
+                ...chat,
+                user: {
+                  id: chat.userId,
+                  name: 'Unknown',
+                  email: '',
+                  avatar: null
+                }
+              }
+            }
+          })
+        )
+        setChatList(chatListWithUsers)
+      }
+      setChatListLoading(false)
+    })
+    
+    return () => {
+      if (unsubscribe) unsubscribe()
+    }
+  }, [user?.id, selectedTab])
 
   const renderSessionCard = (session) => (
     <div key={session.id} className={`group backdrop-blur-sm rounded-2xl shadow-lg border p-6 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] overflow-hidden relative ${
@@ -788,6 +851,83 @@ const TutorDashboard = () => {
                   <p className={`text-lg ${
                     isDark ? 'text-gray-300' : 'text-gray-600'
                   }`}>Accepted tutoring sessions will appear here.</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {selectedTab === 'chat' && (
+            <>
+              <h2 className={`text-2xl font-bold ${
+                isDark 
+                  ? 'bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent'
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
+              }`}>Messages from Students</h2>
+              {chatListLoading ? (
+                <div className={`rounded-3xl p-12 border text-center ${
+                  isDark 
+                    ? 'bg-white/10 border-white/20' 
+                    : 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-100'
+                }`}>
+                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl animate-pulse">
+                    <MessageCircle className="w-10 h-10 text-white" />
+                  </div>
+                  <p className={`text-lg ${
+                    isDark ? 'text-gray-300' : 'text-gray-600'
+                  }`}>Loading messages...</p>
+                </div>
+              ) : chatList.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {chatList.map((chat) => (
+                    <div
+                      key={chat.userId}
+                      onClick={() => navigate(`/chat/${chat.userId}`)}
+                      className={`group rounded-2xl border p-6 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] ${
+                        isDark 
+                          ? 'bg-white/10 border-white/20 hover:bg-white/15' 
+                          : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <Avatar user={chat.user} size="lg" className="shadow-lg" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className={`text-lg font-semibold mb-1 ${
+                            isDark ? 'text-white' : 'text-gray-900'
+                          }`}>
+                            {chat.user?.name || 'Unknown Student'}
+                          </h3>
+                          <p className={`text-sm truncate ${
+                            isDark ? 'text-gray-300' : 'text-gray-600'
+                          }`}>
+                            {chat.latestMessage || 'No messages yet'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-xs ${
+                            isDark ? 'text-gray-400' : 'text-gray-500'
+                          }`}>
+                            {chat.latestMessageTime ? formatMessageTime(chat.latestMessageTime) : ''}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={`rounded-3xl p-12 border text-center ${
+                  isDark 
+                    ? 'bg-white/10 border-white/20' 
+                    : 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-100'
+                }`}>
+                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-2xl">
+                    <MessageCircle className="w-10 h-10 text-white" />
+                  </div>
+                  <h3 className={`text-2xl font-bold mb-4 ${
+                    isDark ? 'text-white' : 'text-gray-900'
+                  }`}>No messages yet</h3>
+                  <p className={`text-lg ${
+                    isDark ? 'text-gray-300' : 'text-gray-600'
+                  }`}>Students can start chatting with you from the tutoring page.</p>
                 </div>
               )}
             </>

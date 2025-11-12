@@ -230,3 +230,154 @@ export const formatMessageTime = (timestamp) => {
 export const createChatId = (userId1, userId2) => {
   return [userId1, userId2].sort().join('_')
 }
+
+// 获取所有与特定用户聊天的用户列表（用于显示聊天列表）
+export const getChatList = async (userId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    
+    // 获取所有发送给该用户的消息
+    const q1 = query(
+      messagesRef,
+      where('receiverId', '==', userId)
+    )
+    
+    // 获取所有该用户发送的消息
+    const q2 = query(
+      messagesRef,
+      where('senderId', '==', userId)
+    )
+    
+    const [snapshot1, snapshot2] = await Promise.all([
+      getDocs(q1),
+      getDocs(q2)
+    ])
+    
+    // 收集所有聊天对象ID
+    const chatPartners = new Set()
+    
+    snapshot1.forEach((doc) => {
+      const data = doc.data()
+      chatPartners.add(data.senderId)
+    })
+    
+    snapshot2.forEach((doc) => {
+      const data = doc.data()
+      chatPartners.add(data.receiverId)
+    })
+    
+    // 获取每个聊天对象的最新消息
+    const chatList = []
+    for (const partnerId of chatPartners) {
+      // 获取最新消息
+      const partnerMessages = []
+      
+      snapshot1.forEach((doc) => {
+        const data = doc.data()
+        if (data.senderId === partnerId) {
+          partnerMessages.push({
+            id: doc.id,
+            message: data.message,
+            timestamp: data.timestamp,
+            senderId: data.senderId,
+            receiverId: data.receiverId
+          })
+        }
+      })
+      
+      snapshot2.forEach((doc) => {
+        const data = doc.data()
+        if (data.receiverId === partnerId) {
+          partnerMessages.push({
+            id: doc.id,
+            message: data.message,
+            timestamp: data.timestamp,
+            senderId: data.senderId,
+            receiverId: data.receiverId
+          })
+        }
+      })
+      
+      // 按时间排序，获取最新消息
+      partnerMessages.sort((a, b) => {
+        const timeA = safeToDate(a.timestamp).getTime()
+        const timeB = safeToDate(b.timestamp).getTime()
+        return timeB - timeA
+      })
+      
+      const latestMessage = partnerMessages[0]
+      
+      chatList.push({
+        userId: partnerId,
+        latestMessage: latestMessage?.message || '',
+        latestMessageTime: latestMessage?.timestamp || null,
+        unreadCount: 0 // 可以后续添加未读消息计数
+      })
+    }
+    
+    // 按最新消息时间排序
+    chatList.sort((a, b) => {
+      const timeA = safeToDate(a.latestMessageTime).getTime()
+      const timeB = safeToDate(b.latestMessageTime).getTime()
+      return timeB - timeA
+    })
+    
+    return {
+      success: true,
+      chatList: chatList
+    }
+  } catch (error) {
+    console.error('Error getting chat list:', error)
+    return {
+      success: false,
+      chatList: [],
+      error: 'Failed to get chat list'
+    }
+  }
+}
+
+// 实时监听聊天列表（当有新消息时更新）
+export const listenToChatList = (userId, callback) => {
+  const messagesRef = collection(db, 'messages')
+  
+  // 监听所有相关消息
+  const q1 = query(
+    messagesRef,
+    where('receiverId', '==', userId)
+  )
+  
+  const q2 = query(
+    messagesRef,
+    where('senderId', '==', userId)
+  )
+  
+  let unsubscribe1, unsubscribe2
+  
+  const processChatList = async () => {
+    const result = await getChatList(userId)
+    if (result.success) {
+      callback(result)
+    }
+  }
+  
+  unsubscribe1 = onSnapshot(q1, () => {
+    processChatList()
+  }, (error) => {
+    console.error('Error listening to chat list (receiver):', error)
+  })
+  
+  unsubscribe2 = onSnapshot(q2, () => {
+    processChatList()
+  }, (error) => {
+    console.error('Error listening to chat list (sender):', error)
+  })
+  
+  // 初始加载
+  processChatList()
+  
+  // 返回清理函数
+  return () => {
+    if (unsubscribe1) unsubscribe1()
+    if (unsubscribe2) unsubscribe2()
+  }
+}

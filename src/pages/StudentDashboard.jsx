@@ -34,11 +34,14 @@ import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/fire
 import { joinMeeting } from '../services/meetingService'
 import { useNotification } from '../contexts/NotificationContext'
 import { getUserQuestProgress, updateQuestProgress } from '../services/cloudQuestService'
+import { listenToChatList, formatMessageTime } from '../services/chatService'
+import { useNavigate } from 'react-router-dom'
 
 const StudentDashboard = () => {
   const { user } = useSimpleAuth()
   const { theme, isDark } = useTheme()
   const { showSuccess, showError } = useNotification()
+  const navigate = useNavigate()
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedSession, setSelectedSession] = useState(null)
@@ -51,6 +54,8 @@ const StudentDashboard = () => {
   const [missionsLoading, setMissionsLoading] = useState(false)
   const [missionProcessingId, setMissionProcessingId] = useState(null)
   const [userProgress, setUserProgress] = useState(null)
+  const [chatList, setChatList] = useState([])
+  const [showChatList, setShowChatList] = useState(false)
 
   const reloadUserProgress = useCallback(async () => {
     if (!user?.id) return
@@ -62,6 +67,50 @@ const StudentDashboard = () => {
       console.error('Error loading mission progress:', error)
     } finally {
       setMissionsLoading(false)
+    }
+  }, [user?.id])
+
+  // 加载聊天列表
+  const loadChatList = useCallback(async () => {
+    if (!user?.id) return
+    
+    const unsubscribe = listenToChatList(user.id, async (result) => {
+      if (result.success) {
+        // 获取每个聊天对象的用户信息（只显示 tutors）
+        const chatListWithUsers = await Promise.all(
+          result.chatList.map(async (chat) => {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', chat.userId))
+              if (userDoc.exists()) {
+                const userData = userDoc.data()
+                // 只显示 tutors
+                if (userData.isTutor) {
+                  return {
+                    ...chat,
+                    user: {
+                      id: chat.userId,
+                      name: userData.name || 'Unknown',
+                      email: userData.email || '',
+                      avatar: userData.avatar || null
+                    }
+                  }
+                }
+                return null
+              }
+              return null
+            } catch (error) {
+              console.error('Error getting user info:', error)
+              return null
+            }
+          })
+        )
+        // 过滤掉 null 值
+        setChatList(chatListWithUsers.filter(chat => chat !== null))
+      }
+    })
+    
+    return () => {
+      if (unsubscribe) unsubscribe()
     }
   }, [user?.id])
 
@@ -589,6 +638,24 @@ const StudentDashboard = () => {
               >
                 View Missions
               </button>
+              <button
+                onClick={() => {
+                  setShowChatList(!showChatList)
+                  if (!showChatList && user?.id) {
+                    loadChatList()
+                  }
+                }}
+                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-all ${
+                  showChatList
+                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30'
+                    : isDark
+                      ? 'bg-white/10 text-white/70 hover:bg-white/15'
+                      : 'bg-white/80 text-slate-700 hover:bg-white'
+                }`}
+              >
+                <MessageCircle className="h-4 w-4 inline-block mr-2" />
+                {showChatList ? 'Hide Chat' : 'Chat with Tutors'}
+              </button>
             </div>
           </div>
 
@@ -632,6 +699,76 @@ const StudentDashboard = () => {
             </div>
           </div>
         </section>
+
+        {/* Chat list */}
+        {showChatList && (
+          <section className={`rounded-[32px] border px-6 py-6 backdrop-blur-xl ${
+            isDark ? 'border-white/12 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
+          }`}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>Chat with Tutors</h3>
+              <button
+                onClick={() => setShowChatList(false)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                  isDark ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Close
+              </button>
+            </div>
+            {chatList.length > 0 ? (
+              <div className="space-y-3">
+                {chatList.map((chat) => (
+                  <div
+                    key={chat.userId}
+                    onClick={() => navigate(`/chat/${chat.userId}`)}
+                    className={`group rounded-2xl border p-4 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] ${
+                      isDark 
+                        ? 'bg-white/10 border-white/20 hover:bg-white/15' 
+                        : 'bg-white border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Avatar user={chat.user} size="lg" className="shadow-lg" />
+                      <div className="flex-1 min-w-0">
+                        <h3 className={`text-base font-semibold mb-1 ${
+                          isDark ? 'text-white' : 'text-gray-900'
+                        }`}>
+                          {chat.user?.name || 'Unknown Tutor'}
+                        </h3>
+                        <p className={`text-sm truncate ${
+                          isDark ? 'text-gray-300' : 'text-gray-600'
+                        }`}>
+                          {chat.latestMessage || 'No messages yet'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-xs ${
+                          isDark ? 'text-gray-400' : 'text-gray-500'
+                        }`}>
+                          {chat.latestMessageTime ? formatMessageTime(chat.latestMessageTime) : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className={`rounded-2xl p-8 text-center ${
+                isDark ? 'bg-white/5' : 'bg-slate-50'
+              }`}>
+                <MessageCircle className={`h-12 w-12 mx-auto mb-4 ${
+                  isDark ? 'text-white/40' : 'text-slate-400'
+                }`} />
+                <p className={`text-sm ${
+                  isDark ? 'text-white/60' : 'text-slate-600'
+                }`}>
+                  No messages yet. Start chatting with tutors from the tutoring page.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Rating list */}
         {showRatings && (

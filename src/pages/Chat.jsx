@@ -17,6 +17,9 @@ import {
   formatMessageTime 
 } from '../services/chatService'
 import { getFriendById } from '../services/friendsService'
+import { getUserProfile } from '../services/userService'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 import Avatar from '../components/Avatar'
 
 const Chat = () => {
@@ -57,17 +60,38 @@ const Chat = () => {
     try {
       setLoading(true)
       
-      // 从数据库获取朋友信息
+      // 首先尝试从 friends 获取
       const friendResult = await getFriendById(friendId)
       if (friendResult.success) {
         setFriend(friendResult.friend)
       } else {
-        // 如果没找到朋友信息，使用基本信息
-        setFriend({
-          id: friendId,
-          name: 'Unknown Friend',
-          email: 'unknown@example.com'
-        })
+        // 如果没找到朋友信息，尝试从 users 集合获取（用于 tutor-student 聊天）
+        try {
+          const userDoc = await getDoc(doc(db, 'users', friendId))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            setFriend({
+              id: friendId,
+              name: userData.name || 'User',
+              email: userData.email || '',
+              avatar: userData.avatar || null
+            })
+          } else {
+            // 如果都没找到，使用基本信息
+            setFriend({
+              id: friendId,
+              name: 'Unknown User',
+              email: 'unknown@example.com'
+            })
+          }
+        } catch (error) {
+          console.error('Error getting user from users collection:', error)
+          setFriend({
+            id: friendId,
+            name: 'Unknown User',
+            email: 'unknown@example.com'
+          })
+        }
       }
       
       // 设置实时消息监听

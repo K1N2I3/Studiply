@@ -33,12 +33,14 @@ import TutorReviewsModal from '../components/TutorReviewsModal'
 import RealVideoCall from '../components/RealVideoCall'
 import { useNotification } from '../contexts/NotificationContext'
 import Avatar from '../components/Avatar'
+import { useNavigate } from 'react-router-dom'
 // removed debug: testFirebaseConnection
 
 const Tutoring = () => {
   const { user } = useSimpleAuth()
   const { theme, isDark } = useTheme()
   const { showSuccess, showError } = useNotification()
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('all')
   const [tutors, setTutors] = useState([])
@@ -656,6 +658,17 @@ const Tutoring = () => {
                   </div>
 
                   <div className="mt-6 flex items-center gap-3">
+                    <button
+                      onClick={() => navigate(`/chat/${tutor.id}`)}
+                      className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
+                        isDark 
+                          ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30 hover:-translate-y-0.5' 
+                          : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30 hover:-translate-y-0.5'
+                      }`}
+                    >
+                      <MessageCircle className="h-4 w-4 inline-block mr-2" />
+                      Chat
+                    </button>
                     <button
                       onClick={() => {
                         if (isAccepted) {
