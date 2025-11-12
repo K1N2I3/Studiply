@@ -359,7 +359,10 @@ app.post('/api/send-phone-verification', async (req, res) => {
   try {
     const { phoneNumber } = req.body
 
+    console.log('📞 Received phone verification request:', { phoneNumber })
+
     if (!phoneNumber) {
+      console.log('❌ Phone number is missing')
       return res.status(400).json({
         success: false,
         error: 'Phone number is required'
@@ -368,11 +371,30 @@ app.post('/api/send-phone-verification', async (req, res) => {
 
     // Normalize phone number to E.164 format (remove all non-digit characters except +)
     const cleaned = phoneNumber.trim()
-    const normalizedPhone = cleaned.startsWith('+') 
+    let normalizedPhone = cleaned.startsWith('+') 
       ? '+' + cleaned.slice(1).replace(/\D/g, '')
       : cleaned.replace(/\D/g, '')
-    
+
+    // If normalized phone doesn't start with +, add it (assuming it's missing country code)
+    if (!normalizedPhone.startsWith('+')) {
+      console.log('⚠️ Phone number missing +, adding it')
+      normalizedPhone = '+' + normalizedPhone
+    }
+
+    console.log('📞 Normalized phone number:', normalizedPhone)
+
+    // Validate normalized phone has at least country code + number (minimum 8 digits after +)
+    if (normalizedPhone.length < 10) {
+      console.log('❌ Phone number too short:', normalizedPhone)
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid phone number format. Phone number is too short.'
+      })
+    }
+
     const result = await sendVerificationCode(normalizedPhone)
+    
+    console.log('📞 Twilio result:', result)
     
     if (result.success) {
       res.json({
@@ -386,7 +408,7 @@ app.post('/api/send-phone-verification', async (req, res) => {
       })
     }
   } catch (error) {
-    console.error('Send phone verification error:', error)
+    console.error('❌ Send phone verification error:', error)
     res.status(500).json({
       success: false,
       error: 'Failed to send verification code'

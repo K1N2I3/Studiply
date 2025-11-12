@@ -20,18 +20,34 @@ const client = accountSid && authToken ? twilio(accountSid, authToken) : null
  */
 export const sendVerificationCode = async (phoneNumber) => {
   if (!client) {
+    console.error('❌ Twilio client not initialized. Check environment variables:')
+    console.error('   TWILIO_ACCOUNT_SID:', accountSid ? '✅ Set' : '❌ Missing')
+    console.error('   TWILIO_AUTH_TOKEN:', authToken ? '✅ Set' : '❌ Missing')
+    console.error('   TWILIO_VERIFY_SERVICE_SID:', verifyServiceSid ? '✅ Set' : '❌ Missing')
     return {
       success: false,
-      error: 'Twilio service not configured'
+      error: 'Twilio service not configured. Please contact support.'
     }
   }
 
   try {
+    console.log('📞 Attempting to send verification code to:', phoneNumber)
+    
     // Validate phone number format (basic check)
     if (!phoneNumber || !phoneNumber.startsWith('+')) {
+      console.error('❌ Invalid phone format - missing +:', phoneNumber)
       return {
         success: false,
         error: 'Invalid phone number format. Must include country code (e.g., +1234567890)'
+      }
+    }
+
+    // Additional validation: phone should have at least 10 characters (+country code + number)
+    if (phoneNumber.length < 10) {
+      console.error('❌ Phone number too short:', phoneNumber)
+      return {
+        success: false,
+        error: 'Invalid phone number format. Phone number is too short.'
       }
     }
 
@@ -43,19 +59,24 @@ export const sendVerificationCode = async (phoneNumber) => {
         channel: 'sms'
       })
 
-    console.log('✅ Verification code sent:', verification.sid)
+    console.log('✅ Verification code sent successfully:', verification.sid)
     return {
       success: true,
       sid: verification.sid
     }
   } catch (error) {
-    console.error('❌ Error sending verification code:', error)
+    console.error('❌ Twilio API error:', {
+      code: error.code,
+      message: error.message,
+      status: error.status,
+      phoneNumber
+    })
     
     // Handle specific Twilio errors
     if (error.code === 60200) {
       return {
         success: false,
-        error: 'Invalid phone number format'
+        error: 'Invalid phone number format. Please check the number and try again.'
       }
     } else if (error.code === 60203) {
       return {
@@ -71,7 +92,7 @@ export const sendVerificationCode = async (phoneNumber) => {
     
     return {
       success: false,
-      error: error.message || 'Failed to send verification code'
+      error: error.message || 'Failed to send verification code. Please try again.'
     }
   }
 }
