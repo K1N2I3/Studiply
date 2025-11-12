@@ -402,8 +402,7 @@ const TutorDashboard = () => {
     }
     
     setChatListLoading(true)
-    let unsubscribe
-    unsubscribe = listenToChatList(user.id, async (result) => {
+    const unsubscribe = listenToChatList(user.id, async (result) => {
       if (result.success) {
         // 获取每个聊天对象的用户信息
         const chatListWithUsers = await Promise.all(
@@ -450,9 +449,17 @@ const TutorDashboard = () => {
       setChatListLoading(false)
     })
     
+    // 确保 unsubscribe 是函数
+    if (!unsubscribe || typeof unsubscribe !== 'function') {
+      console.error('listenToChatList did not return a cleanup function')
+      return undefined
+    }
+    
     return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
+      try {
         unsubscribe()
+      } catch (error) {
+        console.error('Error cleaning up chat list listener:', error)
       }
     }
   }, [user?.id, selectedTab])
