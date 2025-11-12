@@ -44,6 +44,7 @@ export const sendVerificationCode = async (phoneNumber) => {
 
   try {
     console.log('📞 Attempting to send verification code to:', phoneNumber)
+    console.log('📞 Using Verify Service SID:', verifyServiceSid)
     
     // Validate phone number format (basic check)
     if (!phoneNumber || !phoneNumber.startsWith('+')) {
@@ -63,6 +64,20 @@ export const sendVerificationCode = async (phoneNumber) => {
       }
     }
 
+    // Try to lookup the phone number first to validate format (optional, but helpful)
+    try {
+      const lookupResult = await client.lookups.v1.phoneNumbers(phoneNumber).fetch()
+      console.log('✅ Phone number lookup successful:', {
+        phoneNumber: lookupResult.phoneNumber,
+        countryCode: lookupResult.countryCode,
+        nationalFormat: lookupResult.nationalFormat
+      })
+    } catch (lookupError) {
+      console.warn('⚠️  Phone number lookup failed (this is OK, continuing anyway):', lookupError.message)
+      // Don't fail if lookup fails, just log it
+    }
+
+    console.log('📞 Creating verification with Verify Service:', verifyServiceSid)
     const verification = await client.verify.v2
       .services(verifyServiceSid)
       .verifications
@@ -91,13 +106,16 @@ export const sendVerificationCode = async (phoneNumber) => {
       // 1. Phone number is not in valid E.164 format
       // 2. Phone number is not a valid/active number
       // 3. Twilio trial account restrictions (can only send to verified numbers)
+      // 4. Verify Service SID is incorrect
       console.error('❌ Twilio 60200: Invalid parameter. Possible reasons:')
       console.error('   1. Phone number format invalid (should be E.164: +[country][number])')
       console.error('   2. Phone number is not a valid/active number')
       console.error('   3. Twilio trial account - can only send to verified numbers')
       console.error('   4. Phone number contains invalid characters')
+      console.error('   5. Verify Service SID might be incorrect')
       console.error('   Phone number received:', phoneNumber)
       console.error('   Phone number length:', phoneNumber.length)
+      console.error('   Verify Service SID:', verifyServiceSid)
       console.error('   Expected format: +[country code][number] (e.g., +393885666661 for Italy)')
       
       // Check if it's a trial account issue
@@ -105,12 +123,27 @@ export const sendVerificationCode = async (phoneNumber) => {
       if (trialCheck) {
         console.error('   ⚠️  This appears to be a Twilio Trial account.')
         console.error('   ⚠️  Trial accounts can only send to verified phone numbers.')
-        console.error('   ⚠️  Please verify the phone number in Twilio Console first.')
+        console.error('   ⚠️  Note: Verified Caller IDs are different from Verify Service.')
+        console.error('   ⚠️  For Verify Service, you still need to verify numbers in:')
+        console.error('   ⚠️  https://console.twilio.com/us1/develop/phone-numbers/manage/verified')
+      }
+      
+      // Try to validate the Verify Service
+      try {
+        const service = await client.verify.v2.services(verifyServiceSid).fetch()
+        console.log('✅ Verify Service exists:', service.friendlyName)
+      } catch (serviceError) {
+        console.error('❌ Verify Service SID might be invalid!')
+        console.error('   Error:', serviceError.message)
+        return {
+          success: false,
+          error: 'Verify Service configuration error. Please check TWILIO_VERIFY_SERVICE_SID in environment variables.'
+        }
       }
       
       return {
         success: false,
-        error: 'Invalid phone number. Please check that the number is correct and active. If you are using a Twilio trial account, you must verify the phone number in Twilio Console first (https://console.twilio.com/us1/develop/phone-numbers/manage/verified).'
+        error: 'Invalid phone number. Please check that the number is correct and active. If you are using a Twilio trial account, you must verify the phone number in Twilio Console first (https://console.twilio.com/us1/develop/phone-numbers/manage/verified). Also ensure your Verify Service SID is correct.'
       }
     } else if (error.code === 60203) {
       return {
