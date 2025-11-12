@@ -17,18 +17,36 @@ const getApiBaseUrl = () => {
 const API_BASE_URL = getApiBaseUrl()
 
 /**
+ * Normalize phone number to E.164 format (removes spaces and other non-digit characters except +)
+ * @param {string} phoneNumber - Phone number in any format
+ * @returns {string} - Phone number in E.164 format (e.g., +393892556888)
+ */
+const normalizePhoneNumber = (phoneNumber) => {
+  if (!phoneNumber) return ''
+  // Keep the + sign if present, then remove all non-digit characters
+  const cleaned = phoneNumber.trim()
+  if (cleaned.startsWith('+')) {
+    return '+' + cleaned.slice(1).replace(/\D/g, '')
+  }
+  return cleaned.replace(/\D/g, '')
+}
+
+/**
  * Send verification code to phone number
  * @param {string} phoneNumber - Phone number in E.164 format
  * @returns {Promise<{success: boolean, error?: string}>}
  */
 export const sendPhoneVerificationCode = async (phoneNumber) => {
   try {
+    // Normalize phone number to E.164 format (remove spaces)
+    const normalizedPhone = normalizePhoneNumber(phoneNumber)
+    
     const response = await fetch(`${API_BASE_URL}/send-phone-verification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ phoneNumber })
+      body: JSON.stringify({ phoneNumber: normalizedPhone })
     })
 
     const data = await response.json()
@@ -50,12 +68,15 @@ export const sendPhoneVerificationCode = async (phoneNumber) => {
  */
 export const verifyPhoneCode = async (phoneNumber, code) => {
   try {
+    // Normalize phone number to E.164 format (remove spaces)
+    const normalizedPhone = normalizePhoneNumber(phoneNumber)
+    
     const response = await fetch(`${API_BASE_URL}/verify-phone`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ phoneNumber, code })
+      body: JSON.stringify({ phoneNumber: normalizedPhone, code })
     })
 
     const data = await response.json()

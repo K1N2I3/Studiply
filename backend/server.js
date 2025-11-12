@@ -366,8 +366,11 @@ app.post('/api/send-phone-verification', async (req, res) => {
       })
     }
 
-    // Normalize phone number (remove spaces, ensure E.164 format)
-    const normalizedPhone = phoneNumber.trim().replace(/\s+/g, '')
+    // Normalize phone number to E.164 format (remove all non-digit characters except +)
+    const cleaned = phoneNumber.trim()
+    const normalizedPhone = cleaned.startsWith('+') 
+      ? '+' + cleaned.slice(1).replace(/\D/g, '')
+      : cleaned.replace(/\D/g, '')
     
     const result = await sendVerificationCode(normalizedPhone)
     
@@ -403,8 +406,11 @@ app.post('/api/verify-phone', async (req, res) => {
       })
     }
 
-    // Normalize phone number
-    const normalizedPhone = phoneNumber.trim().replace(/\s+/g, '')
+    // Normalize phone number to E.164 format (remove all non-digit characters except +)
+    const cleaned = phoneNumber.trim()
+    const normalizedPhone = cleaned.startsWith('+') 
+      ? '+' + cleaned.slice(1).replace(/\D/g, '')
+      : cleaned.replace(/\D/g, '')
 
     const result = await verifyCode(normalizedPhone, code)
     
