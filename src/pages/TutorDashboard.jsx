@@ -66,35 +66,34 @@ const TutorDashboard = () => {
       return undefined
     }
     
-    let unsub
-    const run = async () => {
-      const col = collection(db, 'sessions')
-      const q = query(col, where('tutorId', '==', user?.id))
-      unsub = onSnapshot(q, async (snap) => {
-        const list = []
-        for (const d of snap.docs) {
-          const data = d.data()
-          let student = { id: data.studentId, name: 'Unknown', email: '', avatar: null }
-          try {
-            const sDoc = await getDoc(doc(db, 'users', data.studentId))
-            if (sDoc.exists()) {
-              const sd = sDoc.data()
-              student = { id: data.studentId, name: sd.name || 'Unknown', email: sd.email || '', avatar: sd.avatar || null }
-            }
-          } catch (e) {}
-          list.push({ id: d.id, ...data, student })
-        }
-        list.sort((a, b) => {
-          const ta = safeToMillis(a.createdAt)
-          const tb = safeToMillis(b.createdAt)
-          return tb - ta
-        })
-        setSessions(list)
-        setLoading(false)
-      })
-    }
+    let unsub = null
     setLoading(true)
-    run()
+    
+    const col = collection(db, 'sessions')
+    const q = query(col, where('tutorId', '==', user?.id))
+    unsub = onSnapshot(q, async (snap) => {
+      const list = []
+      for (const d of snap.docs) {
+        const data = d.data()
+        let student = { id: data.studentId, name: 'Unknown', email: '', avatar: null }
+        try {
+          const sDoc = await getDoc(doc(db, 'users', data.studentId))
+          if (sDoc.exists()) {
+            const sd = sDoc.data()
+            student = { id: data.studentId, name: sd.name || 'Unknown', email: sd.email || '', avatar: sd.avatar || null }
+          }
+        } catch (e) {}
+        list.push({ id: d.id, ...data, student })
+      }
+      list.sort((a, b) => {
+        const ta = safeToMillis(a.createdAt)
+        const tb = safeToMillis(b.createdAt)
+        return tb - ta
+      })
+      setSessions(list)
+      setLoading(false)
+    })
+    
     return () => {
       if (unsub && typeof unsub === 'function') {
         unsub()
