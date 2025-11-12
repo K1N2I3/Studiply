@@ -1,0 +1,48 @@
+{
+  "name": "studiply",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "server": "node backend-email-service.js",
+    "setup-agora": "node setup-agora.js",
+    "token-server": "cd server && npm start",
+    "dev-with-token": "concurrently \"npm run token-server\" \"npm run dev\"",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  },
+  "dependencies": {
+    "@emailjs/browser": "^4.3.1",
+    "agora-rtc-sdk-ng": "^4.24.0",
+    "firebase": "^12.2.1",
+    "firebase-admin": "^13.6.0",
+    "lucide-react": "^0.294.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-error-boundary": "^6.0.0",
+    "react-router-dom": "^6.20.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.1.1",
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.5",
+    "eslint": "^8.53.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.4",
+    "express": "^4.21.2",
+    "gh-pages": "^6.1.1",
+    "nodemailer": "^6.10.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.3.6",
+    "terser": "^5.44.0",
+    "vite": "^4.5.0"
+  }
+}

@@ -1,0 +1,5464 @@
+import { db } from '../firebase/config'
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  setDoc, 
+  updateDoc, 
+  query, 
+  where, 
+  orderBy, 
+  serverTimestamp 
+} from 'firebase/firestore'
+
+// 跨学科技能树定义
+export const crossSubjectSkills = {
+  'logical-structuring': {
+    name: 'Logical Structuring',
+    icon: '🧠',
+    description: 'Ability to organize thoughts and arguments coherently',
+    color: 'purple'
+  },
+  'research': {
+    name: 'Research',
+    icon: '🔍',
+    description: 'Skills in finding, evaluating, and synthesizing information',
+    color: 'blue'
+  },
+  'persuasive-argumentation': {
+    name: 'Persuasive Argumentation',
+    icon: '💬',
+    description: 'Ability to construct compelling arguments and defend positions',
+    color: 'green'
+  },
+  'critical-thinking': {
+    name: 'Critical Thinking',
+    icon: '⚡',
+    description: 'Analytical reasoning and problem-solving abilities',
+    color: 'orange'
+  },
+  'communication': {
+    name: 'Communication',
+    icon: '📢',
+    description: 'Effective verbal and written communication skills',
+    color: 'pink'
+  }
+}
+
+// 学科定义
+export const subjects = {
+  italian: {
+    name: 'Italian',
+    icon: '🇮🇹',
+    color: 'green',
+    categories: ['grammar', 'vocabulary', 'conversation']
+  },
+  english: {
+    name: 'English',
+    icon: '🇺🇸',
+    color: 'blue',
+    categories: ['grammar', 'literature', 'writing']
+  },
+  french: {
+    name: 'French',
+    icon: '🇫🇷',
+    color: 'purple',
+    categories: ['grammar', 'vocabulary', 'conversation']
+  },
+  german: {
+    name: 'German',
+    icon: '🇩🇪',
+    color: 'yellow',
+    categories: ['grammar', 'vocabulary']
+  },
+  spanish: {
+    name: 'Spanish',
+    icon: '🇪🇸',
+    color: 'red',
+    categories: ['grammar', 'vocabulary']
+  },
+  mandarin: {
+    name: 'Mandarin',
+    icon: '🇨🇳',
+    color: 'orange',
+    categories: ['characters', 'pinyin']
+  },
+  'individual-society': {
+    name: 'Individual & Society',
+    icon: '👥',
+    color: 'pink',
+    categories: ['psychology', 'sociology']
+  },
+  history: {
+    name: 'History',
+    icon: '📜',
+    color: 'brown',
+    categories: ['ancient', 'medieval', 'modern']
+  },
+  philosophy: {
+    name: 'Philosophy',
+    icon: '🤔',
+    color: 'indigo',
+    categories: ['ethics', 'logic']
+  },
+  stem: {
+    name: 'STEM',
+    icon: '🔬',
+    color: 'emerald',
+    categories: ['science', 'engineering']
+  },
+  mathematics: {
+    name: 'Mathematics',
+    icon: '📐',
+    color: 'blue',
+    categories: ['algebra', 'geometry', 'calculus']
+  },
+  biology: {
+    name: 'Biology',
+    icon: '🧬',
+    color: 'green',
+    categories: ['cell-biology', 'genetics', 'ecology']
+  },
+  chemistry: {
+    name: 'Chemistry',
+    icon: '⚗️',
+    color: 'yellow',
+    categories: ['organic', 'inorganic']
+  },
+  physics: {
+    name: 'Physics',
+    icon: '⚛️',
+    color: 'purple',
+    categories: ['mechanics', 'electricity']
+  },
+  geography: {
+    name: 'Geography',
+    icon: '🌍',
+    color: 'teal',
+    categories: ['physical', 'human']
+  },
+  science: {
+    name: 'Science',
+    icon: '🔬',
+    color: 'cyan',
+    categories: ['general', 'earth']
+  },
+  'computer-science': {
+    name: 'Computer Science',
+    icon: '💻',
+    color: 'gray',
+    categories: ['programming', 'algorithms', 'data-structures']
+  }
+}
+
+// 任务模板定义
+export const questTemplates = {
+  // 意大利语
+  italian: {
+    grammar: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Italian Alphabet & Pronunciation',
+        description: 'Learn the Italian alphabet and basic pronunciation rules',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 80,
+        goldReward: 40,
+        icon: '🇮🇹',
+        timeEstimate: '25 min',
+        skills: ['language-learning', 'pronunciation'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'pronunciation-exercises',
+            description: 'Practice Italian alphabet pronunciation',
+            format: 'audio'
+          }
+        ],
+        resources: ['Italian alphabet guide', 'Audio pronunciation', 'Practice exercises'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Learn the Italian Alphabet',
+            type: 'multiple-choice',
+            question: 'How many letters are in the Italian alphabet?',
+            options: ['21', '26', '25', '24'],
+            correctAnswer: 0,
+            explanation: 'The Italian alphabet has 21 letters, excluding J, K, W, X, and Y which are only used in foreign words.'
+          },
+          {
+            id: 'step-2',
+            title: 'Practice Pronunciation',
+            type: 'text-input',
+            question: 'Write the Italian word for "hello" using the Italian alphabet.',
+            placeholder: 'Type the Italian word for hello...',
+            correctAnswers: ['ciao', 'buongiorno', 'salve'],
+            explanation: 'Common Italian greetings include "ciao" (informal), "buongiorno" (good morning), and "salve" (formal hello).'
+          },
+          {
+            id: 'step-3',
+            title: 'Pronunciation Rules',
+            type: 'multiple-choice',
+            question: 'Which letter combination in Italian makes a "ch" sound like in "church"?',
+            options: ['ch', 'ci', 'ce', 'Both ci and ce'],
+            correctAnswer: 3,
+            explanation: 'In Italian, both "ci" and "ce" make a "ch" sound, as in "ciao" (chow) and "cena" (chena).'
+          }
+        ]
+      }
+    }
+  },
+
+  // 英语
+  english: {
+    grammar: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'English Parts of Speech',
+        description: 'Learn the eight parts of speech in English grammar',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 100,
+        goldReward: 50,
+        icon: '🇺🇸',
+        timeEstimate: '35 min',
+        skills: ['language-learning', 'grammar'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'grammar-identification',
+            description: 'Identify parts of speech in sentences',
+            format: 'text'
+          }
+        ],
+        resources: ['Grammar guide', 'Examples', 'Practice exercises'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Identify Nouns',
+            type: 'multiple-choice',
+            question: 'Which word is a noun in the sentence: "The quick brown fox jumps over the lazy dog"?',
+            options: ['quick', 'fox', 'jumps', 'over'],
+            correctAnswer: 1,
+            explanation: 'A noun is a person, place, thing, or idea. "Fox" is a thing (animal), making it a noun.'
+          },
+          {
+            id: 'step-2',
+            title: 'Identify Verbs',
+            type: 'multiple-choice',
+            question: 'Which word is a verb in the sentence: "She quickly ran to the store"?',
+            options: ['She', 'quickly', 'ran', 'store'],
+            correctAnswer: 2,
+            explanation: 'A verb shows action or state of being. "Ran" shows the action of running.'
+          },
+          {
+            id: 'step-3',
+            title: 'Identify Adjectives',
+            type: 'text-input',
+            question: 'In the sentence "The beautiful red rose bloomed in the garden", identify the adjectives.',
+            placeholder: 'Type the adjectives...',
+            correctAnswers: ['beautiful', 'red'],
+            explanation: 'Adjectives describe nouns. "Beautiful" describes the rose, and "red" describes the color of the rose.'
+          }
+        ]
+      }
+    }
+  },
+
+  // 哲学
+  philosophy: {
+    ethics: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Introduction to Ethics',
+        description: 'Learn about moral philosophy and ethical theories',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 130,
+        goldReward: 65,
+        icon: '🤔',
+        timeEstimate: '50 min',
+        skills: ['critical-thinking', 'logical-structuring'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'ethical-analysis',
+            description: 'Analyze ethical dilemmas using philosophical theories',
+            format: 'text'
+          }
+        ],
+        resources: ['Ethics textbook', 'Case studies', 'Philosophical texts'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Basic Concepts',
+            type: 'multiple-choice',
+            question: 'What is utilitarianism?',
+            options: [
+              'Greatest good for greatest number',
+              'Individual rights',
+              'Divine command',
+              'Social contract'
+            ],
+            correctAnswer: 0,
+            explanation: 'Utilitarianism seeks the greatest good for the greatest number of people.'
+          },
+          {
+            id: 'step-2',
+            title: 'Historical Context',
+            type: 'multiple-choice',
+            question: 'Who wrote "The Republic"?',
+            options: [
+              'Aristotle',
+              'Plato',
+              'Socrates',
+              'Kant'
+            ],
+            correctAnswer: 1,
+            explanation: 'Plato wrote "The Republic", a foundational work of political philosophy.'
+          },
+          {
+            id: 'step-3',
+            title: 'Application',
+            type: 'multiple-choice',
+            question: 'What is the categorical imperative?',
+            options: [
+              'Kant\'s moral principle',
+              'Aristotle\'s virtue',
+              'Plato\'s ideal',
+              'Bentham\'s utility'
+            ],
+            correctAnswer: 0,
+            explanation: 'Kant\'s categorical imperative is a universal moral principle.'
+          }
+        ]
+      }
+    }
+  },
+
+  // 生物
+  biology: {
+    'cell-biology': {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Cell Structure Basics',
+        description: 'Learn about basic cell structure and organelles',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '🧬',
+        timeEstimate: '40 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'cell-diagram',
+            description: 'Label cell organelles and explain functions',
+            format: 'diagram'
+          }
+        ],
+        resources: ['Cell biology textbook', 'Interactive diagrams', 'Video explanations'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Basic Concepts',
+            type: 'multiple-choice',
+            question: 'What is the powerhouse of the cell?',
+            options: [
+              'Mitochondria',
+              'Nucleus',
+              'Ribosome',
+              'Endoplasmic reticulum'
+            ],
+            correctAnswer: 0,
+            explanation: 'Mitochondria are called the powerhouse because they produce ATP energy.'
+          },
+          {
+            id: 'step-2',
+            title: 'Cell Functions',
+            type: 'multiple-choice',
+            question: 'What is the function of the nucleus?',
+            options: [
+              'Control center',
+              'Energy production',
+              'Protein synthesis',
+              'Waste removal'
+            ],
+            correctAnswer: 0,
+            explanation: 'The nucleus controls cell activities and contains genetic material.'
+          },
+          {
+            id: 'step-3',
+            title: 'Plant Processes',
+            type: 'multiple-choice',
+            question: 'What is the process by which plants make food?',
+            options: [
+              'Photosynthesis',
+              'Respiration',
+              'Digestion',
+              'Circulation'
+            ],
+            correctAnswer: 0,
+            explanation: 'Photosynthesis is how plants convert sunlight into food (glucose).'
+          }
+        ]
+      }
+    }
+  },
+
+  // 物理
+  physics: {
+    mechanics: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Newton\'s Laws of Motion',
+        description: 'Learn about the fundamental laws that govern motion',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 140,
+        goldReward: 70,
+        icon: '⚛️',
+        timeEstimate: '45 min',
+        skills: ['scientific-thinking', 'problem-solving'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'motion-analysis',
+            description: 'Analyze motion problems using Newton\'s laws',
+            format: 'text'
+          }
+        ],
+        resources: ['Physics textbook', 'Motion simulations', 'Practice problems'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'First Law',
+            type: 'multiple-choice',
+            question: 'What is Newton\'s first law?',
+            options: [
+              'An object at rest stays at rest',
+              'F = ma',
+              'Every action has an equal reaction',
+              'Energy cannot be created'
+            ],
+            correctAnswer: 0,
+            explanation: 'Newton\'s first law states that an object at rest stays at rest unless acted upon by a force.'
+          },
+          {
+            id: 'step-2',
+            title: 'Energy Concepts',
+            type: 'multiple-choice',
+            question: 'What is the formula for kinetic energy?',
+            options: [
+              'KE = ½mv²',
+              'KE = mv',
+              'KE = mgh',
+              'KE = Fd'
+            ],
+            correctAnswer: 0,
+            explanation: 'Kinetic energy formula is KE = ½mv² where m is mass and v is velocity.'
+          },
+          {
+            id: 'step-3',
+            title: 'Gravity',
+            type: 'multiple-choice',
+            question: 'What is acceleration due to gravity on Earth?',
+            options: [
+              '9.8 m/s²',
+              '10 m/s²',
+              '8.9 m/s²',
+              '11 m/s²'
+            ],
+            correctAnswer: 0,
+            explanation: 'Standard acceleration due to gravity on Earth is approximately 9.8 m/s².'
+          }
+        ]
+      }
+    }
+  },
+
+  // 数学
+  mathematics: {
+    algebra: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Basic Algebra',
+        description: 'Learn fundamental algebraic concepts and problem-solving',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 110,
+        goldReward: 55,
+        icon: '📐',
+        timeEstimate: '35 min',
+        skills: ['logical-thinking', 'problem-solving'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'algebra-problems',
+            description: 'Solve algebraic equations and expressions',
+            format: 'text'
+          }
+        ],
+        resources: ['Algebra textbook', 'Practice problems', 'Step-by-step solutions'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Linear Equations',
+            type: 'multiple-choice',
+            question: 'What is the solution to 2x + 5 = 13?',
+            options: [
+              'x = 4',
+              'x = 9',
+              'x = 6',
+              'x = 8'
+            ],
+            correctAnswer: 0,
+            explanation: '2x + 5 = 13 → 2x = 8 → x = 4'
+          },
+          {
+            id: 'step-2',
+            title: 'Solving for x',
+            type: 'multiple-choice',
+            question: 'What is the value of x in 3x - 7 = 14?',
+            options: [
+              'x = 7',
+              'x = 21',
+              'x = 3',
+              'x = 9'
+            ],
+            correctAnswer: 0,
+            explanation: '3x - 7 = 14 → 3x = 21 → x = 7'
+          },
+          {
+            id: 'step-3',
+            title: 'Factoring',
+            type: 'multiple-choice',
+            question: 'Which is the correct factorization of x² - 9?',
+            options: [
+              '(x + 3)(x - 3)',
+              '(x + 9)(x - 1)',
+              '(x - 3)²',
+              '(x + 3)²'
+            ],
+            correctAnswer: 0,
+            explanation: 'x² - 9 is a difference of squares: (x + 3)(x - 3)'
+          }
+        ]
+      }
+    }
+  },
+
+  // 化学
+  chemistry: {
+    organic: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Organic Chemistry Basics',
+        description: 'Learn fundamental concepts in organic chemistry',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 125,
+        goldReward: 62,
+        icon: '⚗️',
+        timeEstimate: '40 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'molecular-structures',
+            description: 'Draw and identify organic molecular structures',
+            format: 'diagram'
+          }
+        ],
+        resources: ['Chemistry textbook', 'Molecular models', 'Practice exercises'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Atomic Structure',
+            type: 'multiple-choice',
+            question: 'What is the atomic number of carbon?',
+            options: [
+              '6',
+              '12',
+              '14',
+              '8'
+            ],
+            correctAnswer: 0,
+            explanation: 'Carbon has atomic number 6, meaning it has 6 protons.'
+          },
+          {
+            id: 'step-2',
+            title: 'Chemical Formulas',
+            type: 'multiple-choice',
+            question: 'What is the chemical formula for water?',
+            options: [
+              'H₂O',
+              'H₂O₂',
+              'CO₂',
+              'NaCl'
+            ],
+            correctAnswer: 0,
+            explanation: 'Water is composed of 2 hydrogen atoms and 1 oxygen atom: H₂O'
+          },
+          {
+            id: 'step-3',
+            title: 'Avogadro\'s Number',
+            type: 'multiple-choice',
+            question: 'What is Avogadro\'s number?',
+            options: [
+              '6.022 × 10²³',
+              '6.022 × 10²²',
+              '6.022 × 10²⁴',
+              '6.022 × 10²¹'
+            ],
+            correctAnswer: 0,
+            explanation: 'Avogadro\'s number is 6.022 × 10²³ particles per mole.'
+          }
+        ]
+      }
+    }
+  },
+
+  // 历史
+  history: {
+    ancient: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Ancient Civilizations',
+        description: 'Learn about the great ancient civilizations of the world',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 115,
+        goldReward: 57,
+        icon: '📜',
+        timeEstimate: '40 min',
+        skills: ['research', 'memorization'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'timeline-creation',
+            description: 'Create a timeline of ancient civilizations',
+            format: 'text'
+          }
+        ],
+        resources: ['History textbook', 'Maps', 'Archaeological evidence'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Ancient Egypt',
+            type: 'multiple-choice',
+            question: 'Which civilization built the pyramids?',
+            options: [
+              'Ancient Egyptians',
+              'Ancient Greeks',
+              'Ancient Romans',
+              'Ancient Chinese'
+            ],
+            correctAnswer: 0,
+            explanation: 'The Ancient Egyptians built the pyramids as tombs for pharaohs.'
+          },
+          {
+            id: 'step-2',
+            title: 'Roman Empire',
+            type: 'multiple-choice',
+            question: 'What was the capital of the Roman Empire?',
+            options: [
+              'Athens',
+              'Rome',
+              'Constantinople',
+              'Alexandria'
+            ],
+            correctAnswer: 1,
+            explanation: 'Rome was the capital of the Roman Empire.'
+          },
+          {
+            id: 'step-3',
+            title: 'Chinese History',
+            type: 'multiple-choice',
+            question: 'Who was the first emperor of China?',
+            options: [
+              'Qin Shi Huang',
+              'Confucius',
+              'Laozi',
+              'Sun Tzu'
+            ],
+            correctAnswer: 0,
+            explanation: 'Qin Shi Huang was the first emperor of unified China.'
+          }
+        ]
+      }
+    }
+  },
+
+  // 地理
+  geography: {
+    physical: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Physical Geography',
+        description: 'Learn about Earth\'s physical features and processes',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 105,
+        goldReward: 52,
+        icon: '🌍',
+        timeEstimate: '35 min',
+        skills: ['research', 'memorization'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'geographic-analysis',
+            description: 'Analyze physical features and their formation',
+            format: 'text'
+          }
+        ],
+        resources: ['Geography textbook', 'Maps', 'Satellite imagery'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Mountains',
+            type: 'multiple-choice',
+            question: 'What is the highest mountain in the world?',
+            options: [
+              'Mount Everest',
+              'K2',
+              'Kangchenjunga',
+              'Lhotse'
+            ],
+            correctAnswer: 0,
+            explanation: 'Mount Everest is the highest mountain in the world at 8,848 meters.'
+          },
+          {
+            id: 'step-2',
+            title: 'Rivers',
+            type: 'multiple-choice',
+            question: 'What is the longest river in the world?',
+            options: [
+              'Nile',
+              'Amazon',
+              'Yangtze',
+              'Mississippi'
+            ],
+            correctAnswer: 0,
+            explanation: 'The Nile River is the longest river in the world at 6,650 km.'
+          },
+          {
+            id: 'step-3',
+            title: 'Oceans',
+            type: 'multiple-choice',
+            question: 'What is the largest ocean?',
+            options: [
+              'Pacific',
+              'Atlantic',
+              'Indian',
+              'Arctic'
+            ],
+            correctAnswer: 0,
+            explanation: 'The Pacific Ocean is the largest ocean, covering about 46% of Earth\'s water surface.'
+          }
+        ]
+      }
+    }
+  },
+
+  // STEM
+  stem: {
+    science: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Scientific Method',
+        description: 'Learn the fundamental process of scientific inquiry',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '🔬',
+        timeEstimate: '40 min',
+        skills: ['scientific-thinking', 'research'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'experiment-design',
+            description: 'Design a simple scientific experiment',
+            format: 'text'
+          }
+        ],
+        resources: ['Science textbook', 'Lab equipment', 'Research papers'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Scientific Process',
+            type: 'multiple-choice',
+            question: 'What is the scientific method?',
+            options: [
+              'A process for conducting experiments',
+              'A way to prove facts',
+              'A method for making observations',
+              'A way to test ideas'
+            ],
+            correctAnswer: 0,
+            explanation: 'The scientific method is a systematic process for conducting experiments and testing hypotheses.'
+          },
+          {
+            id: 'step-2',
+            title: 'Hypothesis',
+            type: 'multiple-choice',
+            question: 'What is a hypothesis?',
+            options: [
+              'A guess',
+              'A testable explanation',
+              'A fact',
+              'An observation'
+            ],
+            correctAnswer: 1,
+            explanation: 'A hypothesis is a testable explanation for a phenomenon that can be tested through experimentation.'
+          },
+          {
+            id: 'step-3',
+            title: 'Theory vs Law',
+            type: 'multiple-choice',
+            question: 'What is the difference between a theory and a law?',
+            options: [
+              'Theory explains, law describes',
+              'They are the same',
+              'Law explains, theory describes',
+              'No difference'
+            ],
+            correctAnswer: 0,
+            explanation: 'A theory explains why something happens, while a law describes what happens under certain conditions.'
+          }
+        ]
+      }
+    }
+  },
+
+  // 个人与社会
+  'individual-society': {
+    psychology: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Introduction to Psychology',
+        description: 'Learn about the study of mind and behavior',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 130,
+        goldReward: 65,
+        icon: '👥',
+        timeEstimate: '45 min',
+        skills: ['critical-thinking', 'research'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'psychological-analysis',
+            description: 'Analyze psychological concepts and theories',
+            format: 'text'
+          }
+        ],
+        resources: ['Psychology textbook', 'Case studies', 'Research papers'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Learning Theory',
+            type: 'multiple-choice',
+            question: 'What is classical conditioning?',
+            options: [
+              'Learning through association',
+              'Learning through punishment',
+              'Learning through reward',
+              'Learning through observation'
+            ],
+            correctAnswer: 0,
+            explanation: 'Classical conditioning is learning through association, discovered by Pavlov.'
+          },
+          {
+            id: 'step-2',
+            title: 'History of Psychology',
+            type: 'multiple-choice',
+            question: 'Who is considered the father of modern psychology?',
+            options: [
+              'Sigmund Freud',
+              'Wilhelm Wundt',
+              'B.F. Skinner',
+              'Carl Jung'
+            ],
+            correctAnswer: 1,
+            explanation: 'Wilhelm Wundt is considered the father of modern psychology.'
+          },
+          {
+            id: 'step-3',
+            title: 'Nature vs Nurture',
+            type: 'multiple-choice',
+            question: 'What is the difference between nature and nurture?',
+            options: [
+              'Nature is genetics, nurture is environment',
+              'They are the same',
+              'Nature is environment, nurture is genetics',
+              'No difference'
+            ],
+            correctAnswer: 0,
+            explanation: 'Nature refers to genetic influences, while nurture refers to environmental influences.'
+          }
+        ]
+      }
+    }
+  },
+
+  // 计算机科学
+  'computer-science': {
+    programming: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Programming Fundamentals',
+        description: 'Learn basic programming concepts and write your first program',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 150,
+        goldReward: 75,
+        icon: '💻',
+        timeEstimate: '50 min',
+        skills: ['logical-thinking', 'problem-solving', 'programming'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'hello-world',
+            description: 'Write a "Hello World" program',
+            format: 'code'
+          }
+        ],
+        resources: ['Programming tutorial', 'Code editor', 'Sample programs'],
+        steps: [
+          {
+            id: 'step-1',
+            title: 'Variables',
+            type: 'multiple-choice',
+            question: 'What is a variable in programming?',
+            options: [
+              'Storage location for data',
+              'Type of function',
+              'Programming language',
+              'Computer part'
+            ],
+            correctAnswer: 0,
+            explanation: 'A variable is a storage location that holds data that can be changed during program execution.'
+          },
+          {
+            id: 'step-2',
+            title: 'Loops',
+            type: 'multiple-choice',
+            question: 'What is a loop?',
+            options: [
+              'Repeating code',
+              'Stopping code',
+              'Starting code',
+              'Debugging code'
+            ],
+            correctAnswer: 0,
+            explanation: 'A loop is a programming construct that repeats a block of code multiple times.'
+          },
+          {
+            id: 'step-3',
+            title: 'JavaScript Operators',
+            type: 'multiple-choice',
+            question: 'What is the difference between \'==\' and \'===\' in JavaScript?',
+            options: [
+              '== compares values, === compares values and types',
+              'They are the same',
+              '=== compares values, == compares types',
+              'No difference'
+            ],
+            correctAnswer: 0,
+            explanation: '\'==\' compares values with type coercion, while \'===\' compares both values and types strictly.'
+          }
+        ]
+      }
+    }
+  }
+};,
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Cognitive Psychology',
+        description: 'Study memory, perception, and thinking processes',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 150,
+        goldReward: 75,
+        icon: '👥',
+        timeEstimate: '55 min',
+        skills: ['critical-thinking', 'research', 'logical-structuring'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'cognitive-analysis',
+            description: 'Analyze cognitive processes in daily life',
+            format: 'text'
+          }
+        ],
+        resources: ['Cognitive psychology guide', 'Memory studies', 'Perception experiments'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    sociology: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Social Structures',
+        description: 'Learn about social institutions and their functions',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '👥',
+        timeEstimate: '45 min',
+        skills: ['critical-thinking', 'research'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'social-analysis',
+            description: 'Analyze social structures in your community',
+            format: 'text'
+          }
+        ],
+        resources: ['Sociology textbook', 'Social structure examples', 'Community studies'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 历史
+  history: {
+    ancient: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Ancient Civilizations",
+  "description": "Learn about the great ancient civilizations of the world",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 115,
+  "goldReward": 57,
+  "icon": "📜",
+  "timeEstimate": "40 min",
+  "skills": [
+    "research",
+    "memorization"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "timeline-creation",
+      "description": "Create a timeline of ancient civilizations",
+      "format": "text"
+    }
+  ],
+  "resources": [
+    "History textbook",
+    "Maps",
+    "Archaeological evidence"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Ancient Egypt",
+      "type": "multiple-choice",
+      "question": "Which civilization built the pyramids?",
+      "options": [
+        "Ancient Egyptians",
+        "Ancient Greeks",
+        "Ancient Romans",
+        "Ancient Chinese"
+      ],
+      "correctAnswer": 0,
+      "explanation": "The Ancient Egyptians built the pyramids as tombs for pharaohs."
+    },
+    {
+      "id": "step-2",
+      "title": "Roman Empire",
+      "type": "multiple-choice",
+      "question": "What was the capital of the Roman Empire?",
+      "options": [
+        "Athens",
+        "Rome",
+        "Constantinople",
+        "Alexandria"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Rome was the capital of the Roman Empire."
+    },
+    {
+      "id": "step-3",
+      "title": "Chinese History",
+      "type": "multiple-choice",
+      "question": "Who was the first emperor of China?",
+      "options": [
+        "Qin Shi Huang",
+        "Confucius",
+        "Laozi",
+        "Sun Tzu"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Qin Shi Huang was the first emperor of unified China."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Ancient Egypt Deep Dive',
+        description: 'Detailed study of Ancient Egyptian culture, religion, and achievements',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 180,
+        goldReward: 90,
+        icon: '📜',
+        timeEstimate: '60 min',
+        skills: ['research', 'critical-thinking', 'logical-structuring'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'egyptian-analysis',
+            description: 'Analyze Ancient Egyptian contributions to civilization',
+            format: 'text'
+          }
+        ],
+        resources: ['Egyptian history guide', 'Primary sources', 'Archaeological evidence'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-3': {
+        id: 'quest-3',
+        title: 'Ancient Greece & Rome',
+        description: 'Study the contributions of Ancient Greece and Rome to Western civilization',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 160,
+        goldReward: 80,
+        icon: '📜',
+        timeEstimate: '55 min',
+        skills: ['research', 'critical-thinking'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'greco-roman-analysis',
+            description: 'Compare and contrast Greek and Roman contributions',
+            format: 'text'
+          }
+        ],
+        resources: ['Greco-Roman history guide', 'Primary sources', 'Cultural artifacts'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    medieval: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Medieval Europe',
+        description: 'Study the political, social, and cultural aspects of medieval Europe',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 150,
+        goldReward: 75,
+        icon: '📜',
+        timeEstimate: '50 min',
+        skills: ['research', 'critical-thinking'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'medieval-society',
+            description: 'Analyze medieval social structure',
+            format: 'text'
+          }
+        ],
+        resources: ['Medieval history guide', 'Primary sources', 'Historical documents'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'The Crusades',
+        description: 'Study the causes, events, and consequences of the Crusades',
+        type: 'quest',
+        difficulty: 'advanced',
+        xpReward: 200,
+        goldReward: 100,
+        icon: '📜',
+        timeEstimate: '65 min',
+        skills: ['research', 'critical-thinking', 'logical-structuring'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'crusades-analysis',
+            description: 'Analyze the impact of the Crusades on medieval society',
+            format: 'text'
+          }
+        ],
+        resources: ['Crusades history guide', 'Primary sources', 'Historical maps'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    modern: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'World Wars Analysis',
+        description: 'Study the causes and consequences of World War I and II',
+        type: 'quest',
+        difficulty: 'advanced',
+        xpReward: 220,
+        goldReward: 110,
+        icon: '📜',
+        timeEstimate: '70 min',
+        skills: ['research', 'critical-thinking', 'logical-structuring'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'world-wars-analysis',
+            description: 'Compare and analyze the two World Wars',
+            format: 'text'
+          }
+        ],
+        resources: ['World Wars guide', 'Primary sources', 'Historical documents'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 哲学
+  philosophy: {
+    ethics: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Introduction to Ethics",
+  "description": "Learn about moral philosophy and ethical theories",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 130,
+  "goldReward": 65,
+  "icon": "🤔",
+  "timeEstimate": "50 min",
+  "skills": [
+    "critical-thinking",
+    "logical-structuring"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "ethical-analysis",
+      "description": "Analyze ethical dilemmas using philosophical theories",
+      "format": "text"
+    }
+  ],
+  "resources": [
+    "Ethics textbook",
+    "Case studies",
+    "Philosophical texts"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Basic Concepts",
+      "type": "multiple-choice",
+      "question": "What is utilitarianism?",
+      "options": [
+        "Greatest good for greatest number",
+        "Individual rights",
+        "Divine command",
+        "Social contract"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Utilitarianism seeks the greatest good for the greatest number of people."
+    },
+    {
+      "id": "step-2",
+      "title": "Historical Context",
+      "type": "multiple-choice",
+      "question": "Who wrote \"The Republic\"?",
+      "options": [
+        "Aristotle",
+        "Plato",
+        "Socrates",
+        "Kant"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Plato wrote \"The Republic\", a foundational work of political philosophy."
+    },
+    {
+      "id": "step-3",
+      "title": "Application",
+      "type": "multiple-choice",
+      "question": "What is the categorical imperative?",
+      "options": [
+        "Kant's moral principle",
+        "Aristotle's virtue",
+        "Plato's ideal",
+        "Bentham's utility"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Kant's categorical imperative is a universal moral principle."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Utilitarianism vs Deontology',
+        description: 'Compare and contrast utilitarian and deontological ethical theories',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 180,
+        goldReward: 90,
+        icon: '🤔',
+        timeEstimate: '60 min',
+        skills: ['critical-thinking', 'logical-structuring'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'ethical-theory-comparison',
+            description: 'Compare ethical theories using real-world examples',
+            format: 'text'
+          }
+        ],
+        resources: ['Ethical theory guide', 'Case studies', 'Philosophical arguments'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    logic: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Logical Fallacies',
+        description: 'Learn to identify and avoid common logical fallacies',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '🤔',
+        timeEstimate: '45 min',
+        skills: ['critical-thinking', 'logical-structuring'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'fallacy-identification',
+            description: 'Identify logical fallacies in arguments',
+            format: 'text'
+          }
+        ],
+        resources: ['Logic textbook', 'Fallacy examples', 'Practice exercises'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // STEM
+  stem: {
+    science: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Scientific Method",
+  "description": "Learn the fundamental process of scientific inquiry",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 120,
+  "goldReward": 60,
+  "icon": "🔬",
+  "timeEstimate": "40 min",
+  "skills": [
+    "scientific-thinking",
+    "research"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "experiment-design",
+      "description": "Design a simple scientific experiment",
+      "format": "text"
+    }
+  ],
+  "resources": [
+    "Science textbook",
+    "Lab equipment",
+    "Research papers"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Scientific Process",
+      "type": "multiple-choice",
+      "question": "What is the scientific method?",
+      "options": [
+        "A process for conducting experiments",
+        "A way to prove facts",
+        "A method for making observations",
+        "A way to test ideas"
+      ],
+      "correctAnswer": 0,
+      "explanation": "The scientific method is a systematic process for conducting experiments and testing hypotheses."
+    },
+    {
+      "id": "step-2",
+      "title": "Hypothesis",
+      "type": "multiple-choice",
+      "question": "What is a hypothesis?",
+      "options": [
+        "A guess",
+        "A testable explanation",
+        "A fact",
+        "An observation"
+      ],
+      "correctAnswer": 1,
+      "explanation": "A hypothesis is a testable explanation for a phenomenon that can be tested through experimentation."
+    },
+    {
+      "id": "step-3",
+      "title": "Theory vs Law",
+      "type": "multiple-choice",
+      "question": "What is the difference between a theory and a law?",
+      "options": [
+        "Theory explains, law describes",
+        "They are the same",
+        "Law explains, theory describes",
+        "No difference"
+      ],
+      "correctAnswer": 0,
+      "explanation": "A theory explains why something happens, while a law describes what happens under certain conditions."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Data Analysis & Statistics',
+        description: 'Learn to analyze scientific data and use basic statistics',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 150,
+        goldReward: 75,
+        icon: '🔬',
+        timeEstimate: '55 min',
+        skills: ['scientific-thinking', 'data-analysis'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'data-analysis',
+            description: 'Analyze provided scientific data',
+            format: 'text'
+          }
+        ],
+        resources: ['Statistics guide', 'Data analysis tools', 'Example datasets'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    engineering: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Engineering Design Process',
+        description: 'Learn the engineering design process and problem-solving methods',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '🔬',
+        timeEstimate: '45 min',
+        skills: ['problem-solving', 'logical-structuring'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'design-challenge',
+            description: 'Solve an engineering design challenge',
+            format: 'text'
+          }
+        ],
+        resources: ['Engineering design guide', 'Problem-solving methods', 'Design examples'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 数学
+  mathematics: {
+    algebra: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Basic Algebra",
+  "description": "Learn fundamental algebraic concepts and problem-solving",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 110,
+  "goldReward": 55,
+  "icon": "📐",
+  "timeEstimate": "35 min",
+  "skills": [
+    "logical-thinking",
+    "problem-solving"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "algebra-problems",
+      "description": "Solve algebraic equations and expressions",
+      "format": "text"
+    }
+  ],
+  "resources": [
+    "Algebra textbook",
+    "Practice problems",
+    "Step-by-step solutions"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Linear Equations",
+      "type": "multiple-choice",
+      "question": "What is the solution to 2x + 5 = 13?",
+      "options": [
+        "x = 4",
+        "x = 9",
+        "x = 6",
+        "x = 8"
+      ],
+      "correctAnswer": 0,
+      "explanation": "2x + 5 = 13 → 2x = 8 → x = 4"
+    },
+    {
+      "id": "step-2",
+      "title": "Solving for x",
+      "type": "multiple-choice",
+      "question": "What is the value of x in 3x - 7 = 14?",
+      "options": [
+        "x = 7",
+        "x = 21",
+        "x = 3",
+        "x = 9"
+      ],
+      "correctAnswer": 0,
+      "explanation": "3x - 7 = 14 → 3x = 21 → x = 7"
+    },
+    {
+      "id": "step-3",
+      "title": "Factoring",
+      "type": "multiple-choice",
+      "question": "Which is the correct factorization of x² - 9?",
+      "options": [
+        "(x + 3)(x - 3)",
+        "(x + 9)(x - 1)",
+        "(x - 3)²",
+        "(x + 3)²"
+      ],
+      "correctAnswer": 0,
+      "explanation": "x² - 9 is a difference of squares: (x + 3)(x - 3)"
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Quadratic Equations',
+        description: 'Master solving quadratic equations using different methods',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 150,
+        goldReward: 75,
+        icon: '📐',
+        timeEstimate: '50 min',
+        skills: ['mathematical-reasoning', 'problem-solving'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'quadratic-solutions',
+            description: 'Solve quadratic equations using multiple methods',
+            format: 'text'
+          }
+        ],
+        resources: ['Quadratic formula guide', 'Practice problems', 'Graphing calculator'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-3': {
+        id: 'quest-3',
+        title: 'Systems of Equations',
+        description: 'Learn to solve systems of linear equations',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 160,
+        goldReward: 80,
+        icon: '📐',
+        timeEstimate: '55 min',
+        skills: ['mathematical-reasoning', 'problem-solving'],
+        requirements: ['quest-2'],
+        deliverables: [
+          {
+            type: 'system-solutions',
+            description: 'Solve systems of equations using different methods',
+            format: 'text'
+          }
+        ],
+        resources: ['Systems guide', 'Practice problems', 'Graphing methods'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    geometry: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Basic Geometry',
+        description: 'Learn about angles, triangles, and basic geometric shapes',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 110,
+        goldReward: 55,
+        icon: '📐',
+        timeEstimate: '40 min',
+        skills: ['mathematical-reasoning', 'spatial-thinking'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'geometry-problems',
+            description: 'Solve basic geometry problems',
+            format: 'text'
+          }
+        ],
+        resources: ['Geometry textbook', 'Shape diagrams', 'Practice problems'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Trigonometry Basics',
+        description: 'Learn sine, cosine, and tangent functions',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 140,
+        goldReward: 70,
+        icon: '📐',
+        timeEstimate: '50 min',
+        skills: ['mathematical-reasoning', 'spatial-thinking'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'trigonometry-problems',
+            description: 'Solve trigonometry problems',
+            format: 'text'
+          }
+        ],
+        resources: ['Trigonometry guide', 'Unit circle', 'Practice problems'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    calculus: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Introduction to Calculus',
+        description: 'Learn the basic concepts of limits and derivatives',
+        type: 'quest',
+        difficulty: 'advanced',
+        xpReward: 200,
+        goldReward: 100,
+        icon: '📐',
+        timeEstimate: '65 min',
+        skills: ['mathematical-reasoning', 'problem-solving'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'calculus-problems',
+            description: 'Solve basic calculus problems',
+            format: 'text'
+          }
+        ],
+        resources: ['Calculus textbook', 'Limit examples', 'Derivative rules'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 生物
+  biology: {
+    'cell-biology': {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Cell Structure Basics",
+  "description": "Learn about basic cell structure and organelles",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 120,
+  "goldReward": 60,
+  "icon": "🧬",
+  "timeEstimate": "40 min",
+  "skills": [
+    "scientific-thinking",
+    "memorization"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "cell-diagram",
+      "description": "Label cell organelles and explain functions",
+      "format": "diagram"
+    }
+  ],
+  "resources": [
+    "Cell biology textbook",
+    "Interactive diagrams",
+    "Video explanations"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Basic Concepts",
+      "type": "multiple-choice",
+      "question": "What is the powerhouse of the cell?",
+      "options": [
+        "Mitochondria",
+        "Nucleus",
+        "Ribosome",
+        "Endoplasmic reticulum"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Mitochondria are called the powerhouse because they produce ATP energy."
+    },
+    {
+      "id": "step-2",
+      "title": "Cell Functions",
+      "type": "multiple-choice",
+      "question": "What is the function of the nucleus?",
+      "options": [
+        "Control center",
+        "Energy production",
+        "Protein synthesis",
+        "Waste removal"
+      ],
+      "correctAnswer": 0,
+      "explanation": "The nucleus controls cell activities and contains genetic material."
+    },
+    {
+      "id": "step-3",
+      "title": "Plant Processes",
+      "type": "multiple-choice",
+      "question": "What is the process by which plants make food?",
+      "options": [
+        "Photosynthesis",
+        "Respiration",
+        "Digestion",
+        "Circulation"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Photosynthesis is how plants convert sunlight into food (glucose)."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Cell Division Process',
+        description: 'Study mitosis and meiosis processes in detail',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 180,
+        goldReward: 90,
+        icon: '🧬',
+        timeEstimate: '60 min',
+        skills: ['scientific-thinking', 'critical-thinking'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'division-analysis',
+            description: 'Compare and contrast mitosis and meiosis',
+            format: 'text'
+          }
+        ],
+        resources: ['Cell division guide', 'Microscopy images', 'Process diagrams'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-3': {
+        id: 'quest-3',
+        title: 'Cellular Respiration',
+        description: 'Learn about cellular respiration and energy production',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 160,
+        goldReward: 80,
+        icon: '🧬',
+        timeEstimate: '55 min',
+        skills: ['scientific-thinking', 'logical-structuring'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'respiration-diagram',
+            description: 'Create a diagram of cellular respiration process',
+            format: 'diagram'
+          }
+        ],
+        resources: ['Respiration guide', 'Process diagrams', 'Energy cycle examples'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    genetics: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Mendelian Genetics',
+        description: 'Learn about basic genetic principles and inheritance patterns',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 160,
+        goldReward: 80,
+        icon: '🧬',
+        timeEstimate: '55 min',
+        skills: ['scientific-thinking', 'logical-structuring'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'genetic-problems',
+            description: 'Solve genetic inheritance problems',
+            format: 'text'
+          }
+        ],
+        resources: ['Genetics textbook', 'Punnett squares', 'Inheritance examples'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'DNA Structure & Replication',
+        description: 'Study DNA structure and the replication process',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 170,
+        goldReward: 85,
+        icon: '🧬',
+        timeEstimate: '50 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'dna-model',
+            description: 'Create a model of DNA structure',
+            format: 'diagram'
+          }
+        ],
+        resources: ['DNA structure guide', 'Replication diagrams', 'Molecular models'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    ecology: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Ecosystem Dynamics',
+        description: 'Learn about ecosystems, food webs, and ecological relationships',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 130,
+        goldReward: 65,
+        icon: '🧬',
+        timeEstimate: '45 min',
+        skills: ['scientific-thinking', 'critical-thinking'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'food-web',
+            description: 'Create a food web for a specific ecosystem',
+            format: 'diagram'
+          }
+        ],
+        resources: ['Ecology textbook', 'Ecosystem examples', 'Food web templates'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 化学
+  chemistry: {
+    organic: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Organic Chemistry Basics",
+  "description": "Learn fundamental concepts in organic chemistry",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 125,
+  "goldReward": 62,
+  "icon": "⚗️",
+  "timeEstimate": "40 min",
+  "skills": [
+    "scientific-thinking",
+    "memorization"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "molecular-structures",
+      "description": "Draw and identify organic molecular structures",
+      "format": "diagram"
+    }
+  ],
+  "resources": [
+    "Chemistry textbook",
+    "Molecular models",
+    "Practice exercises"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Atomic Structure",
+      "type": "multiple-choice",
+      "question": "What is the atomic number of carbon?",
+      "options": [
+        "6",
+        "12",
+        "14",
+        "8"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Carbon has atomic number 6, meaning it has 6 protons."
+    },
+    {
+      "id": "step-2",
+      "title": "Chemical Formulas",
+      "type": "multiple-choice",
+      "question": "What is the chemical formula for water?",
+      "options": [
+        "H₂O",
+        "H₂O₂",
+        "CO₂",
+        "NaCl"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Water is composed of 2 hydrogen atoms and 1 oxygen atom: H₂O"
+    },
+    {
+      "id": "step-3",
+      "title": "Avogadro's Number",
+      "type": "multiple-choice",
+      "question": "What is Avogadro's number?",
+      "options": [
+        "6.022 × 10²³",
+        "6.022 × 10²²",
+        "6.022 × 10²⁴",
+        "6.022 × 10²¹"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Avogadro's number is 6.022 × 10²³ particles per mole."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Functional Groups',
+        description: 'Learn about common functional groups in organic chemistry',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 160,
+        goldReward: 80,
+        icon: '⚗️',
+        timeEstimate: '55 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'functional-group-identification',
+            description: 'Identify functional groups in organic molecules',
+            format: 'text'
+          }
+        ],
+        resources: ['Functional groups guide', 'Molecular examples', 'Practice exercises'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    inorganic: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Periodic Table & Elements',
+        description: 'Learn about the periodic table and element properties',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '⚗️',
+        timeEstimate: '40 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'element-analysis',
+            description: 'Analyze properties of different elements',
+            format: 'text'
+          }
+        ],
+        resources: ['Periodic table guide', 'Element data', 'Property examples'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 物理
+  physics: {
+    mechanics: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Newton's Laws of Motion",
+  "description": "Learn about the fundamental laws that govern motion",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 140,
+  "goldReward": 70,
+  "icon": "⚛️",
+  "timeEstimate": "45 min",
+  "skills": [
+    "scientific-thinking",
+    "problem-solving"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "motion-analysis",
+      "description": "Analyze motion problems using Newton's laws",
+      "format": "text"
+    }
+  ],
+  "resources": [
+    "Physics textbook",
+    "Motion simulations",
+    "Practice problems"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "First Law",
+      "type": "multiple-choice",
+      "question": "What is Newton's first law?",
+      "options": [
+        "An object at rest stays at rest",
+        "F = ma",
+        "Every action has an equal reaction",
+        "Energy cannot be created"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Newton's first law states that an object at rest stays at rest unless acted upon by a force."
+    },
+    {
+      "id": "step-2",
+      "title": "Energy Concepts",
+      "type": "multiple-choice",
+      "question": "What is the formula for kinetic energy?",
+      "options": [
+        "KE = ½mv²",
+        "KE = mv",
+        "KE = mgh",
+        "KE = Fd"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+    },
+    {
+      "id": "step-3",
+      "title": "Gravity",
+      "type": "multiple-choice",
+      "question": "What is acceleration due to gravity on Earth?",
+      "options": [
+        "9.8 m/s²",
+        "10 m/s²",
+        "8.9 m/s²",
+        "11 m/s²"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Standard acceleration due to gravity on Earth is approximately 9.8 m/s²."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Energy & Work',
+        description: 'Learn about kinetic energy, potential energy, and work',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 150,
+        goldReward: 75,
+        icon: '⚛️',
+        timeEstimate: '50 min',
+        skills: ['scientific-thinking', 'problem-solving'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'energy-calculations',
+            description: 'Calculate energy and work in various scenarios',
+            format: 'text'
+          }
+        ],
+        resources: ['Energy guide', 'Work examples', 'Calculation methods'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    electricity: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Basic Electricity',
+        description: 'Learn about electric current, voltage, and resistance',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 140,
+        goldReward: 70,
+        icon: '⚛️',
+        timeEstimate: '45 min',
+        skills: ['scientific-thinking', 'problem-solving'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'circuit-analysis',
+            description: 'Analyze simple electrical circuits',
+            format: 'diagram'
+          }
+        ],
+        resources: ['Electricity guide', 'Circuit examples', 'Ohm\'s law'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 地理
+  geography: {
+    physical: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Physical Geography",
+  "description": "Learn about Earth's physical features and processes",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 105,
+  "goldReward": 52,
+  "icon": "🌍",
+  "timeEstimate": "35 min",
+  "skills": [
+    "research",
+    "memorization"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "geographic-analysis",
+      "description": "Analyze physical features and their formation",
+      "format": "text"
+    }
+  ],
+  "resources": [
+    "Geography textbook",
+    "Maps",
+    "Satellite imagery"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Mountains",
+      "type": "multiple-choice",
+      "question": "What is the highest mountain in the world?",
+      "options": [
+        "Mount Everest",
+        "K2",
+        "Kangchenjunga",
+        "Lhotse"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Mount Everest is the highest mountain in the world at 8,848 meters."
+    },
+    {
+      "id": "step-2",
+      "title": "Rivers",
+      "type": "multiple-choice",
+      "question": "What is the longest river in the world?",
+      "options": [
+        "Nile",
+        "Amazon",
+        "Yangtze",
+        "Mississippi"
+      ],
+      "correctAnswer": 0,
+      "explanation": "The Nile River is the longest river in the world at 6,650 km."
+    },
+    {
+      "id": "step-3",
+      "title": "Oceans",
+      "type": "multiple-choice",
+      "question": "What is the largest ocean?",
+      "options": [
+        "Pacific",
+        "Atlantic",
+        "Indian",
+        "Arctic"
+      ],
+      "correctAnswer": 0,
+      "explanation": "The Pacific Ocean is the largest ocean, covering about 46% of Earth's water surface."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Climate & Weather',
+        description: 'Learn about different climate zones and weather patterns',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 130,
+        goldReward: 65,
+        icon: '🌍',
+        timeEstimate: '45 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'climate-analysis',
+            description: 'Analyze climate patterns in different regions',
+            format: 'text'
+          }
+        ],
+        resources: ['Climate guide', 'Weather data', 'Climate zone maps'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    human: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Population & Demographics',
+        description: 'Study population distribution and demographic trends',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 110,
+        goldReward: 55,
+        icon: '🌍',
+        timeEstimate: '40 min',
+        skills: ['research', 'data-analysis'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'demographic-analysis',
+            description: 'Analyze population data for different countries',
+            format: 'text'
+          }
+        ],
+        resources: ['Demographics guide', 'Population data', 'Statistical methods'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 科学
+  science: {
+    general: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'States of Matter',
+        description: 'Learn about solids, liquids, gases, and plasma',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 90,
+        goldReward: 45,
+        icon: '🔬',
+        timeEstimate: '30 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'matter-examples',
+            description: 'Identify examples of different states of matter',
+            format: 'text'
+          }
+        ],
+        resources: ['Science textbook', 'State examples', 'Interactive demonstrations'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Chemical Reactions',
+        description: 'Learn about different types of chemical reactions',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 140,
+        goldReward: 70,
+        icon: '🔬',
+        timeEstimate: '50 min',
+        skills: ['scientific-thinking', 'logical-structuring'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'reaction-analysis',
+            description: 'Identify and balance chemical reactions',
+            format: 'text'
+          }
+        ],
+        resources: ['Reaction guide', 'Balancing examples', 'Chemical equations'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    earth: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Earth\'s Layers',
+        description: 'Learn about the structure and composition of Earth\'s layers',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '🔬',
+        timeEstimate: '40 min',
+        skills: ['scientific-thinking', 'memorization'],
+        requirements: [],
+        deliverables: [
+          {
+            type: 'earth-model',
+            description: 'Create a model of Earth\'s layers',
+            format: 'diagram'
+          }
+        ],
+        resources: ['Earth science guide', 'Layer diagrams', 'Composition data'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  },
+
+  // 计算机科学
+  'computer-science': {
+    programming: {
+      'quest-1': {
+  "id": "quest-1",
+  "title": "Programming Fundamentals",
+  "description": "Learn basic programming concepts and write your first program",
+  "type": "quest",
+  "difficulty": "beginner",
+  "xpReward": 150,
+  "goldReward": 75,
+  "icon": "💻",
+  "timeEstimate": "50 min",
+  "skills": [
+    "logical-thinking",
+    "problem-solving",
+    "programming"
+  ],
+  "requirements": [],
+  "deliverables": [
+    {
+      "type": "hello-world",
+      "description": "Write a \"Hello World\" program",
+      "format": "code"
+    }
+  ],
+  "resources": [
+    "Programming tutorial",
+    "Code editor",
+    "Sample programs"
+  ],
+  "steps": [
+    {
+      "id": "step-1",
+      "title": "Variables",
+      "type": "multiple-choice",
+      "question": "What is a variable in programming?",
+      "options": [
+        "Storage location for data",
+        "Type of function",
+        "Programming language",
+        "Computer part"
+      ],
+      "correctAnswer": 0,
+      "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+    },
+    {
+      "id": "step-2",
+      "title": "Loops",
+      "type": "multiple-choice",
+      "question": "What is a loop?",
+      "options": [
+        "Repeating code",
+        "Stopping code",
+        "Starting code",
+        "Debugging code"
+      ],
+      "correctAnswer": 0,
+      "explanation": "A loop is a programming construct that repeats a block of code multiple times."
+    },
+    {
+      "id": "step-3",
+      "title": "JavaScript Operators",
+      "type": "multiple-choice",
+      "question": "What is the difference between '==' and '===' in JavaScript?",
+      "options": [
+        "== compares values, === compares values and types",
+        "They are the same",
+        "=== compares values, == compares types",
+        "No difference"
+      ],
+      "correctAnswer": 0,
+      "explanation": "'==' compares values with type coercion, while '===' compares both values and types strictly."
+    }
+  ]
+}
+    }
+  },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Variables and Data Types',
+        description: 'Learn about variables, data types, and basic operations',
+        type: 'quest',
+        difficulty: 'beginner',
+        xpReward: 120,
+        goldReward: 60,
+        icon: '💻',
+        timeEstimate: '40 min',
+        skills: ['logical-thinking', 'programming'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'variable-program',
+            description: 'Create a program using different data types',
+            format: 'code'
+          }
+        ],
+        resources: ['Data types guide', 'Variable examples', 'Practice exercises'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-3': {
+        id: 'quest-3',
+        title: 'Control Structures',
+        description: 'Learn about if statements, loops, and conditional logic',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 180,
+        goldReward: 90,
+        icon: '💻',
+        timeEstimate: '60 min',
+        skills: ['logical-thinking', 'problem-solving', 'programming'],
+        requirements: ['quest-2'],
+        deliverables: [
+          {
+            type: 'control-program',
+            description: 'Write a program using control structures',
+            format: 'code'
+          }
+        ],
+        resources: ['Control structures guide', 'Logic examples', 'Practice problems'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-4': {
+        id: 'quest-4',
+        title: 'Functions & Modules',
+        description: 'Learn to create and use functions and modules',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 160,
+        goldReward: 80,
+        icon: '💻',
+        timeEstimate: '55 min',
+        skills: ['logical-thinking', 'programming', 'code-organization'],
+        requirements: ['quest-3'],
+        deliverables: [
+          {
+            type: 'function-program',
+            description: 'Create a program using functions and modules',
+            format: 'code'
+          }
+        ],
+        resources: ['Function guide', 'Module examples', 'Code organization'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    algorithms: {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Sorting Algorithms',
+        description: 'Learn about bubble sort, selection sort, and insertion sort',
+        type: 'quest',
+        difficulty: 'advanced',
+        xpReward: 250,
+        goldReward: 125,
+        icon: '💻',
+        timeEstimate: '75 min',
+        skills: ['logical-thinking', 'algorithm-design', 'programming'],
+        requirements: ['quest-4'],
+        deliverables: [
+          {
+            type: 'sorting-implementation',
+            description: 'Implement different sorting algorithms',
+            format: 'code'
+          }
+        ],
+        resources: ['Algorithm guide', 'Sorting visualizations', 'Complexity analysis'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      },
+      'quest-2': {
+        id: 'quest-2',
+        title: 'Search Algorithms',
+        description: 'Learn about linear search, binary search, and their complexities',
+        type: 'quest',
+        difficulty: 'advanced',
+        xpReward: 220,
+        goldReward: 110,
+        icon: '💻',
+        timeEstimate: '70 min',
+        skills: ['logical-thinking', 'algorithm-design', 'programming'],
+        requirements: ['quest-1'],
+        deliverables: [
+          {
+            type: 'search-implementation',
+            description: 'Implement different search algorithms',
+            format: 'code'
+          }
+        ],
+        resources: ['Search algorithm guide', 'Complexity analysis', 'Performance comparison'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    },
+    'data-structures': {
+      'quest-1': {
+        id: 'quest-1',
+        title: 'Arrays & Lists',
+        description: 'Learn about arrays, linked lists, and their operations',
+        type: 'quest',
+        difficulty: 'intermediate',
+        xpReward: 170,
+        goldReward: 85,
+        icon: '💻',
+        timeEstimate: '60 min',
+        skills: ['logical-thinking', 'data-organization', 'programming'],
+        requirements: ['quest-3'],
+        deliverables: [
+          {
+            type: 'data-structure-implementation',
+            description: 'Implement basic data structures',
+            format: 'code'
+          }
+        ],
+        resources: ['Data structures guide', 'Implementation examples', 'Operation analysis'],
+
+        steps: [
+
+          {
+
+            "id": "step-1",
+
+            "title": "Basic Concepts",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          },
+
+          {
+
+            "id": "step-2",
+
+            "title": "Practice Exercise",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+
+            "options": [
+              "KE = ½mv²",
+              "KE = mv",
+              "KE = mgh",
+              "KE = Fd"
+            ],
+
+            "correctAnswer": 1,
+
+            "explanation": "Kinetic energy formula is KE = ½mv² where m is mass and v is velocity."
+
+          },
+
+          {
+
+            "id": "step-3",
+
+            "title": "Application",
+
+            "type": "multiple-choice",
+
+            "question": "What is a variable in programming?",
+            "options": [
+              "Storage location for data",
+              "Type of function",
+              "Programming language",
+              "Computer part"
+            ],
+            "correctAnswer": 0,
+
+            "explanation": "A variable is a storage location that holds data that can be changed during program execution."
+
+          }
+
+        ]
+      }
+    }
+  }
+}
+
+// 获取特定任务数据
+export const getQuestData = (subject, category, questId) => {
+  try {
+    if (!questTemplates[subject] || !questTemplates[subject][category]) {
+      return null
+    }
+    
+    const quest = questTemplates[subject][category][questId]
+    return quest || null
+  } catch (error) {
+    console.error('Error getting quest data:', error)
+    return null
+  }
+}
+
+// 获取用户任务进度
+export const getUserQuestProgress = async (userId) => {
+  try {
+    const progressRef = doc(db, 'questProgress', userId)
+    const progressSnap = await getDoc(progressRef)
+    
+    if (!progressSnap.exists()) {
+      // 创建初始进度
+      const initialProgress = {
+        userId,
+        level: 1,
+        totalXP: 0,
+        gold: 0,
+        completedQuests: [],
+        completedBossBattles: [],
+        skillTrees: {},
+        crossSubjectSkills: {},
+        achievements: [],
+        portfolio: [],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      }
+      
+      // 初始化跨学科技能
+      Object.keys(crossSubjectSkills).forEach(skillId => {
+        initialProgress.crossSubjectSkills[skillId] = {
+          level: 0,
+          xp: 0,
+          maxXp: 100
+        }
+      })
+      
+      await setDoc(progressRef, initialProgress)
+      return initialProgress
+    }
+    
+    return progressSnap.data()
+  } catch (error) {
+    console.error('Error getting user quest progress:', error)
+    throw error
+  }
+}
+
+// 更新任务进度
+export const updateQuestProgress = async (userId, questId, subject, category, questType, xpEarned, goldEarned, deliverables) => {
+  try {
+    const progressRef = doc(db, 'questProgress', userId)
+    const progressSnap = await getDoc(progressRef)
+    
+    let currentProgress = progressSnap.exists() ? progressSnap.data() : await getUserQuestProgress(userId)
+    
+    // 更新基本统计
+    currentProgress.totalXP += xpEarned
+    currentProgress.gold += goldEarned
+    
+    // 添加完成的任务
+    const questKey = `${subject}_${category}_${questId}`
+    if (questType === 'quest') {
+      if (!currentProgress.completedQuests.includes(questKey)) {
+        currentProgress.completedQuests.push(questKey)
+      }
+    } else if (questType === 'boss-battle') {
+      if (!currentProgress.completedBossBattles.includes(questKey)) {
+        currentProgress.completedBossBattles.push(questKey)
+      }
+    }
+    
+    // 更新技能经验
+    const questTemplate = questTemplates[subject]?.[category]?.[questId]
+    if (questTemplate && questTemplate.skills) {
+      questTemplate.skills.forEach(skillId => {
+        if (currentProgress.crossSubjectSkills[skillId]) {
+          currentProgress.crossSubjectSkills[skillId].xp += xpEarned
+          
+          // 检查是否升级
+          if (currentProgress.crossSubjectSkills[skillId].xp >= currentProgress.crossSubjectSkills[skillId].maxXp) {
+            currentProgress.crossSubjectSkills[skillId].level += 1
+            currentProgress.crossSubjectSkills[skillId].xp = 0
+            currentProgress.crossSubjectSkills[skillId].maxXp = currentProgress.crossSubjectSkills[skillId].level * 100
+          }
+        }
+      })
+    }
+    
+    // 添加作品集项目
+    if (deliverables && deliverables.length > 0) {
+      const portfolioItem = {
+        id: questKey,
+        title: questTemplate?.title || 'Completed Quest',
+        subject,
+        category,
+        questType,
+        xpEarned,
+        goldEarned,
+        deliverables,
+        completedAt: serverTimestamp()
+      }
+      currentProgress.portfolio.push(portfolioItem)
+    }
+    
+    // 更新等级
+    const newLevel = Math.floor(currentProgress.totalXP / 1000) + 1
+    if (newLevel > currentProgress.level) {
+      currentProgress.level = newLevel
+    }
+    
+    // 保存更新
+    currentProgress.updatedAt = serverTimestamp()
+    await updateDoc(progressRef, currentProgress)
+    
+    return currentProgress
+  } catch (error) {
+    console.error('Error updating quest progress:', error)
+    throw error
+  }
+}
+
+// 检查任务是否解锁
+export const isQuestUnlocked = (questId, subject, category, userProgress) => {
+  const questTemplate = questTemplates[subject]?.[category]?.[questId]
+  if (!questTemplate) return false
+  
+  // 检查前置任务
+  if (questTemplate.requirements && questTemplate.requirements.length > 0) {
+    return questTemplate.requirements.every(reqId => 
+      userProgress.completedQuests.includes(`${subject}_${category}_${reqId}`)
+    )
+  }
+  
+  return true
+}
+
+// 检查任务是否完成
+export const isQuestCompleted = (questId, subject, category, userProgress) => {
+  const questKey = `${subject}_${category}_${questId}`
+  return userProgress.completedQuests.includes(questKey)
+}
+
+// 获取可用的任务
+export const getAvailableQuests = (subject, category, userProgress) => {
+  const subjectQuests = questTemplates[subject]?.[category] || {}
+  
+  return Object.entries(subjectQuests).map(([questId, quest]) => ({
+    ...quest,
+    id: questId,
+    isUnlocked: isQuestUnlocked(questId, subject, category, userProgress),
+    isCompleted: isQuestCompleted(questId, subject, category, userProgress)
+  }))
+}
+
+// AI导师建议系统
+export const getAIMentorSuggestions = (userProgress) => {
+  const suggestions = []
+  
+  // 基于用户进度生成建议
+  if (userProgress.totalXP < 500) {
+    suggestions.push({
+      id: 'beginner-quest',
+      title: 'Start with Beginner Quests',
+      description: 'Complete some beginner-level quests to build your foundation',
+      priority: 'high',
+      category: 'learning-path'
+    })
+  }
+  
+  if (userProgress.completedQuests.length === 0) {
+    suggestions.push({
+      id: 'first-quest',
+      title: 'Complete Your First Quest',
+      description: 'Choose any available quest to get started on your learning journey',
+      priority: 'high',
+      category: 'motivation'
+    })
+  }
+  
+  return suggestions
+}
+
+// 获取作品集项目
+export const getPortfolioItems = (userProgress) => {
+  return userProgress.portfolio || []
+}

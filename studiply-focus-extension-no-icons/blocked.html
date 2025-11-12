@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Website Blocked - Studiply Focus Mode</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      text-align: center;
+      max-width: 500px;
+      padding: 40px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    
+    .icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+      animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+      }
+      40% {
+        transform: translateY(-10px);
+      }
+      60% {
+        transform: translateY(-5px);
+      }
+    }
+    
+    h1 {
+      font-size: 32px;
+      margin-bottom: 20px;
+      font-weight: bold;
+      background: linear-gradient(45deg, #fff, #e0e7ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    p {
+      font-size: 18px;
+      margin-bottom: 30px;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+    
+    .button {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      padding: 15px 30px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.5);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .progress {
+      margin-top: 30px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+    
+    .progress-item {
+      margin-bottom: 8px;
+    }
+    
+    .motivation {
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: 500;
+      color: #e0e7ff;
+    }
+    
+    .stats {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .stat {
+      text-align: center;
+    }
+    
+    .stat-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: #e0e7ff;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">🚫</div>
+    <h1>Website Blocked</h1>
+    <p>
+      This website is blocked during your Studiply focus session.<br>
+      Stay focused and return to your studies!
+    </p>
+    
+    <a href="https://studiply.it" class="button">
+      🎯 Return to Studiply
+    </a>
+    
+    <div class="progress">
+      <div class="progress-item">Focus session in progress...</div>
+      <div class="motivation">Keep up the great work! 🎯</div>
+    </div>
+    
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-number" id="timeElapsed">--:--</div>
+        <div class="stat-label">Time Focused</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="sitesBlocked">0</div>
+        <div class="stat-label">Sites Blocked</div>
+      </div>
+      <div class="stat">
+        <div class="stat-number" id="productivity">100%</div>
+        <div class="stat-label">Productivity</div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    // Simple timer simulation
+    let startTime = Date.now();
+    
+    function updateTimer() {
+      const elapsed = Date.now() - startTime;
+      const minutes = Math.floor(elapsed / 60000);
+      const seconds = Math.floor((elapsed % 60000) / 1000);
+      
+      document.getElementById('timeElapsed').textContent = 
+        `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    // Update timer every second
+    setInterval(updateTimer, 1000);
+    
+    // Simulate some stats
+    document.getElementById('sitesBlocked').textContent = Math.floor(Math.random() * 5) + 1;
+    
+    // Add some interactivity
+    document.querySelector('.button').addEventListener('click', function() {
+      this.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        this.style.transform = '';
+      }, 150);
+    });
+  </script>
+</body>
+</html>

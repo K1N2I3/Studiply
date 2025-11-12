@@ -1,0 +1,27 @@
+{
+  "name": "studyhub-token-server",
+  "version": "1.0.0",
+  "description": "Token server for Studiply video calling",
+  "main": "token-server.js",
+  "scripts": {
+    "start": "node token-server.js",
+    "dev": "nodemon token-server.js"
+  },
+  "dependencies": {
+    "agora-token": "^2.0.5",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "agora",
+    "token",
+    "video-call",
+    "studyhub"
+  ],
+  "author": "Studiply Team",
+  "license": "MIT"
+}

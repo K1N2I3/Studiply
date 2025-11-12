@@ -1,0 +1,109 @@
+// API service for communicating with backend
+const API_BASE_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://your-backend-url.com/api' 
+  : 'http://localhost:3003/api'
+
+// Helper function to get auth token
+const getAuthToken = () => {
+  return localStorage.getItem('studyHubToken')
+}
+
+// Helper function to set auth token
+const setAuthToken = (token) => {
+  localStorage.setItem('studyHubToken', token)
+}
+
+// Helper function to remove auth token
+const removeAuthToken = () => {
+  localStorage.removeItem('studyHubToken')
+}
+
+// API request helper
+const apiRequest = async (endpoint, options = {}) => {
+  const url = `${API_BASE_URL}${endpoint}`
+  const token = getAuthToken()
+  
+  const config = {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...options.headers
+    },
+    ...options
+  }
+
+  try {
+    const response = await fetch(url, config)
+    const data = await response.json()
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'API request failed')
+    }
+    
+    return data
+  } catch (error) {
+    console.error('API request error:', error)
+    throw error
+  }
+}
+
+// User API functions
+export const userAPI = {
+  // Register new user
+  register: async (userData) => {
+    return apiRequest('/register', {
+      method: 'POST',
+      body: JSON.stringify(userData)
+    })
+  },
+
+  // Login user
+  login: async (email, password) => {
+    const response = await apiRequest('/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password })
+    })
+    
+    if (response.success && response.token) {
+      setAuthToken(response.token)
+    }
+    
+    return response
+  },
+
+  // Logout user
+  logout: () => {
+    removeAuthToken()
+  },
+
+  // Get user profile
+  getProfile: async () => {
+    return apiRequest('/profile')
+  },
+
+  // Verify email
+  verifyEmail: async (email, code) => {
+    return apiRequest('/verify-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, code })
+    })
+  },
+
+  // Resend verification code
+  resendVerification: async (email) => {
+    return apiRequest('/resend-verification', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    })
+  }
+}
+
+// Check if user is authenticated
+export const isAuthenticated = () => {
+  return !!getAuthToken()
+}
+
+// Get stored token
+export const getToken = () => {
+  return getAuthToken()
+}

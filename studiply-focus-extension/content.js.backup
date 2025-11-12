@@ -1,0 +1,51 @@
+// Content script for Studiply Focus Mode Extension
+
+// Check if we're on Studiply website
+if (window.location.hostname.includes('studiply')) {
+  // Listen for messages from the website
+  window.addEventListener('message', (event) => {
+    // Only accept messages from the same origin
+    if (event.origin !== window.location.origin) return;
+    
+    const { type, data } = event.data;
+    
+    if (type === 'STUDIPLY_FOCUS_START') {
+      // Send message to background script
+      chrome.runtime.sendMessage({
+        action: 'startFocus',
+        data: data
+      }, (response) => {
+        if (response && response.success) {
+          // Notify the website that extension is ready
+          window.postMessage({
+            type: 'STUDIPLY_EXTENSION_READY',
+            success: true
+          }, window.location.origin);
+        }
+      });
+    } else if (type === 'STUDIPLY_FOCUS_STOP') {
+      // Send message to background script
+      chrome.runtime.sendMessage({
+        action: 'stopFocus'
+      }, (response) => {
+        if (response && response.success) {
+          // Notify the website that focus mode stopped
+          window.postMessage({
+            type: 'STUDIPLY_EXTENSION_STOPPED',
+            success: true
+          }, window.location.origin);
+        }
+      });
+    }
+  });
+  
+  // Check extension status on page load
+  chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
+    if (response) {
+      window.postMessage({
+        type: 'STUDIPLY_EXTENSION_STATUS',
+        data: response
+      }, window.location.origin);
+    }
+  });
+}

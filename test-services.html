@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studiply - 服务测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .service-status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .success { border-left: 4px solid #4CAF50; }
+        .error { border-left: 4px solid #f44336; }
+        .loading { border-left: 4px solid #ff9800; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .links {
+            margin-top: 30px;
+            text-align: center;
+        }
+        .links a {
+            color: white;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 10px;
+            display: inline-block;
+        }
+        .links a:hover { background: rgba(255, 255, 255, 0.3); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Studiply - 服务状态检查</h1>
+        
+        <div id="frontend-status" class="service-status loading">
+            <h3>前端应用 (端口 3000)</h3>
+            <p id="frontend-text">检查中...</p>
+            <button onclick="testFrontend()">测试前端</button>
+        </div>
+
+        <div id="token-status" class="service-status loading">
+            <h3>Token服务器 (端口 3001)</h3>
+            <p id="token-text">检查中...</p>
+            <button onclick="testTokenServer()">测试Token服务器</button>
+        </div>
+
+        <div id="agora-status" class="service-status loading">
+            <h3>Agora配置</h3>
+            <p id="agora-text">检查中...</p>
+            <button onclick="testAgoraToken()">测试Agora Token生成</button>
+        </div>
+
+        <div class="links">
+            <h3>🔗 快速链接</h3>
+            <a href="http://localhost:3000" target="_blank">📱 打开前端应用</a>
+            <a href="http://localhost:3001/health" target="_blank">🏥 Token服务器健康检查</a>
+        </div>
+    </div>
+
+    <script>
+        // 测试前端应用
+        async function testFrontend() {
+            const status = document.getElementById('frontend-status');
+            const text = document.getElementById('frontend-text');
+            
+            try {
+                const response = await fetch('http://localhost:3000');
+                if (response.ok) {
+                    status.className = 'service-status success';
+                    text.innerHTML = '✅ 前端应用运行正常<br>地址: http://localhost:3000';
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                status.className = 'service-status error';
+                text.innerHTML = `❌ 前端应用连接失败<br>错误: ${error.message}`;
+            }
+        }
+
+        // 测试Token服务器
+        async function testTokenServer() {
+            const status = document.getElementById('token-status');
+            const text = document.getElementById('token-text');
+            
+            try {
+                const response = await fetch('http://localhost:3001/health');
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'ok') {
+                    status.className = 'service-status success';
+                    text.innerHTML = `✅ Token服务器运行正常<br>地址: http://localhost:3001<br>状态: ${data.status}`;
+                } else {
+                    throw new Error(`服务器响应异常: ${data.status}`);
+                }
+            } catch (error) {
+                status.className = 'service-status error';
+                text.innerHTML = `❌ Token服务器连接失败<br>错误: ${error.message}`;
+            }
+        }
+
+        // 测试Agora Token生成
+        async function testAgoraToken() {
+            const status = document.getElementById('agora-status');
+            const text = document.getElementById('agora-text');
+            
+            try {
+                const response = await fetch('http://localhost:3001/api/generate-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        channelName: 'test-channel',
+                        uid: 'test-user-123',
+                        role: 'publisher'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    status.className = 'service-status success';
+                    text.innerHTML = `✅ Agora Token生成成功<br>Channel: ${data.channelName}<br>UID: ${data.uid}<br>Token长度: ${data.token.length} 字符`;
+                } else {
+                    throw new Error(`Token生成失败: ${data.error || '未知错误'}`);
+                }
+            } catch (error) {
+                status.className = 'service-status error';
+                text.innerHTML = `❌ Agora Token生成失败<br>错误: ${error.message}`;
+            }
+        }
+
+        // 页面加载时自动测试所有服务
+        window.onload = function() {
+            testFrontend();
+            testTokenServer();
+            testAgoraToken();
+        };
+    </script>
+</body>
+</html>

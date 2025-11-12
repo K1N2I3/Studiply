@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studiply Focus Mode</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 320px;
+      min-height: 400px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      overflow-x: hidden;
+    }
+    
+    .header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+    }
+    
+    .logo {
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .content {
+      padding: 20px;
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .status.active {
+      background: rgba(34, 197, 94, 0.3);
+      border-color: rgba(34, 197, 94, 0.5);
+    }
+    
+    .status.inactive {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    
+    .status-dot.active {
+      background: #22c55e;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .status-text {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .status-details {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .button.primary {
+      background: #3b82f6;
+      color: white;
+    }
+    
+    .button.primary:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+    
+    .button.secondary {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    
+    .button.secondary:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+    
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .info {
+      font-size: 11px;
+      opacity: 0.7;
+      text-align: center;
+      line-height: 1.4;
+      margin-top: 10px;
+    }
+    
+    .footer {
+      padding: 15px 20px;
+      text-align: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.1);
+    }
+    
+    .footer-text {
+      font-size: 10px;
+      opacity: 0.6;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">
+      🎯 Studiply Focus
+    </div>
+    <div class="subtitle">Stay focused, stay productive</div>
+  </div>
+  
+  <div class="content">
+    <div id="status" class="status inactive">
+      <div class="status-indicator">
+        <div class="status-dot"></div>
+        <span class="status-text">Loading...</span>
+      </div>
+      <div class="status-details">Checking extension status</div>
+    </div>
+    
+    <button id="openStudiply" class="button primary">
+      🌐 Open Studiply
+    </button>
+    
+    <button id="viewSettings" class="button secondary">
+      ⚙️ View Settings
+    </button>
+    
+    <div class="info">
+      Start a focus session on Studiply to activate website blocking
+    </div>
+  </div>
+  
+  <div class="footer">
+    <div class="footer-text">
+      Made with ❤️ by Studiply Team
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
