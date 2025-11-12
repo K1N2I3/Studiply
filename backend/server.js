@@ -98,9 +98,30 @@ const sendVerificationEmail = async (email, code) => {
 
 // API Routes
 
+// Root endpoint (for health checks)
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Studiply API is running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      register: '/api/register',
+      login: '/api/login',
+      verifyEmail: '/api/verify-email',
+      sendPhoneVerification: '/api/send-phone-verification',
+      verifyPhone: '/api/verify-phone'
+    }
+  })
+})
+
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Studiply API is running' })
+  res.json({ 
+    status: 'OK', 
+    message: 'Studiply API is running',
+    timestamp: new Date().toISOString()
+  })
 })
 
 // Register user
