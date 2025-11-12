@@ -57,12 +57,15 @@ const TutorDashboard = () => {
 
   // 检查用户是否还是tutor
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id) {
+      return undefined
+    }
     
     if (!user.isTutor) {
       showError('Your tutor profile has been removed. You no longer have access to the tutor dashboard.', 'Access Revoked')
-      return
+      return undefined
     }
+    
     let unsub
     const run = async () => {
       const col = collection(db, 'sessions')
@@ -92,8 +95,12 @@ const TutorDashboard = () => {
     }
     setLoading(true)
     run()
-    return () => unsub && unsub()
-  }, [user?.id])
+    return () => {
+      if (unsub && typeof unsub === 'function') {
+        unsub()
+      }
+    }
+  }, [user?.id, user?.isTutor])
 
   const loadSessions = async () => {
     try {
