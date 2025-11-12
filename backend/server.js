@@ -57,7 +57,7 @@ const User = mongoose.model('User', userSchema)
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
 // Email configuration
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
