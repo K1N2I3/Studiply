@@ -13,6 +13,18 @@ if (!accountSid || !authToken || !verifyServiceSid) {
 
 const client = accountSid && authToken ? twilio(accountSid, authToken) : null
 
+// Check if this is a trial account (trial accounts can only send to verified numbers)
+const isTrialAccount = async () => {
+  if (!client) return false
+  try {
+    const account = await client.api.accounts(accountSid).fetch()
+    return account.type === 'Trial'
+  } catch (error) {
+    console.warn('⚠️  Could not check Twilio account type:', error.message)
+    return false
+  }
+}
+
 /**
  * Send verification code to phone number
  * @param {string} phoneNumber - Phone number in E.164 format (e.g., +1234567890)
@@ -74,9 +86,31 @@ export const sendVerificationCode = async (phoneNumber) => {
     
     // Handle specific Twilio errors
     if (error.code === 60200) {
+      // Error 60200: Invalid parameter - usually means phone number format is invalid
+      // This can happen if:
+      // 1. Phone number is not in valid E.164 format
+      // 2. Phone number is not a valid/active number
+      // 3. Twilio trial account restrictions (can only send to verified numbers)
+      console.error('❌ Twilio 60200: Invalid parameter. Possible reasons:')
+      console.error('   1. Phone number format invalid (should be E.164: +[country][number])')
+      console.error('   2. Phone number is not a valid/active number')
+      console.error('   3. Twilio trial account - can only send to verified numbers')
+      console.error('   4. Phone number contains invalid characters')
+      console.error('   Phone number received:', phoneNumber)
+      console.error('   Phone number length:', phoneNumber.length)
+      console.error('   Expected format: +[country code][number] (e.g., +393885666661 for Italy)')
+      
+      // Check if it's a trial account issue
+      const trialCheck = await isTrialAccount().catch(() => false)
+      if (trialCheck) {
+        console.error('   ⚠️  This appears to be a Twilio Trial account.')
+        console.error('   ⚠️  Trial accounts can only send to verified phone numbers.')
+        console.error('   ⚠️  Please verify the phone number in Twilio Console first.')
+      }
+      
       return {
         success: false,
-        error: 'Invalid phone number format. Please check the number and try again.'
+        error: 'Invalid phone number. Please check that the number is correct and active. If you are using a Twilio trial account, you must verify the phone number in Twilio Console first (https://console.twilio.com/us1/develop/phone-numbers/manage/verified).'
       }
     } else if (error.code === 60203) {
       return {
