@@ -89,39 +89,50 @@ const sendVerificationEmail = async (email, code) => {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
       </head>
-      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-attachment: fixed;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 60px 20px; min-height: 100vh;">
           <tr>
-            <td align="center">
-              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                <!-- Header with gradient -->
+            <td align="center" valign="top">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 600px;">
+                <!-- Header with logo/icon -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Studiply</h1>
+                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center; position: relative;">
+                    <!-- Logo/Icon Circle -->
+                    <div style="width: 80px; height: 80px; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); border: 3px solid rgba(255, 255, 255, 0.3);">
+                      <span style="font-size: 40px; color: #ffffff;">📚</span>
+                    </div>
+                    <h1 style="color: #ffffff; margin: 0; font-size: 36px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);">Studiply</h1>
+                    <p style="color: rgba(255, 255, 255, 0.9); margin: 10px 0 0 0; font-size: 16px; font-weight: 400;">Learn Together, Achieve More</p>
                   </td>
                 </tr>
                 <!-- Content -->
                 <tr>
-                  <td style="padding: 40px 30px;">
-                    <h2 style="color: #1a1a1a; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Email Verification</h2>
-                    <p style="color: #666666; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">Thank you for registering with Studiply! Please use the verification code below to complete your registration.</p>
+                  <td style="padding: 50px 40px;">
+                    <h2 style="color: #1a1a1a; margin: 0 0 15px 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">Verify Your Email</h2>
+                    <p style="color: #666666; margin: 0 0 35px 0; font-size: 16px; line-height: 1.7;">Welcome to Studiply! We're excited to have you join our learning community. Please verify your email address using the code below.</p>
                     
                     <!-- Verification Code Box -->
-                    <div style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 2px solid #667eea; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;">
-                      <p style="color: #666666; margin: 0 0 10px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Your Verification Code</p>
-                      <div style="background-color: #ffffff; border-radius: 8px; padding: 20px; margin: 15px 0;">
-                        <h1 style="color: #667eea; margin: 0; font-size: 42px; font-weight: 700; letter-spacing: 8px; font-family: 'Courier New', monospace;">${code}</h1>
+                    <div style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 3px solid #667eea; border-radius: 16px; padding: 35px; text-align: center; margin: 35px 0; box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);">
+                      <p style="color: #667eea; margin: 0 0 15px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">Verification Code</p>
+                      <div style="background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%); border-radius: 12px; padding: 25px; margin: 15px 0; box-shadow: inset 0 2px 8px rgba(102, 126, 234, 0.1);">
+                        <h1 style="color: #667eea; margin: 0; font-size: 48px; font-weight: 800; letter-spacing: 10px; font-family: 'Courier New', monospace; text-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);">${code}</h1>
                       </div>
+                      <p style="color: #999999; margin: 15px 0 0 0; font-size: 13px; font-weight: 500;">⏱️ Valid for 10 minutes</p>
                     </div>
                     
-                    <p style="color: #666666; margin: 20px 0 0 0; font-size: 14px; line-height: 1.6;">Enter this code in the application to verify your email address. This code will expire in <strong>10 minutes</strong>.</p>
+                    <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; border-radius: 8px; padding: 20px; margin: 30px 0;">
+                      <p style="color: #666666; margin: 0; font-size: 15px; line-height: 1.6;">
+                        <strong style="color: #667eea;">💡 Next Steps:</strong><br>
+                        Copy the code above and paste it into the verification field in the Studiply app to complete your registration.
+                      </p>
+                    </div>
                   </td>
                 </tr>
                 <!-- Footer -->
                 <tr>
-                  <td style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e9ecef;">
-                    <p style="color: #999999; margin: 0; font-size: 12px; line-height: 1.5;">If you didn't request this verification code, please ignore this email.</p>
-                    <p style="color: #999999; margin: 10px 0 0 0; font-size: 12px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                  <td style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 30px 40px; text-align: center; border-top: 1px solid #e9ecef;">
+                    <p style="color: #999999; margin: 0 0 10px 0; font-size: 13px; line-height: 1.6;">If you didn't create a Studiply account, you can safely ignore this email.</p>
+                    <p style="color: #cccccc; margin: 15px 0 0 0; font-size: 12px; font-weight: 500;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
                   </td>
                 </tr>
               </table>
@@ -588,41 +599,51 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
         </head>
-        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-attachment: fixed;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 60px 20px; min-height: 100vh;">
             <tr>
-              <td align="center">
-                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
-                  <!-- Header with gradient -->
+              <td align="center" valign="top">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3); max-width: 600px;">
+                  <!-- Header with calendar icon -->
                   <tr>
-                    <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 30px; text-align: center;">
-                      <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">📅 Event Reminder</h1>
+                    <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center; position: relative;">
+                      <!-- Calendar Icon Circle -->
+                      <div style="width: 80px; height: 80px; background-color: rgba(255, 255, 255, 0.2); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); border: 3px solid rgba(255, 255, 255, 0.3);">
+                        <span style="font-size: 40px; color: #ffffff;">📅</span>
+                      </div>
+                      <h1 style="color: #ffffff; margin: 0; font-size: 36px; font-weight: 800; letter-spacing: -1px; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);">Event Reminder</h1>
+                      <p style="color: rgba(255, 255, 255, 0.9); margin: 10px 0 0 0; font-size: 16px; font-weight: 400;">Don't miss your upcoming event</p>
                     </td>
                   </tr>
                   <!-- Content -->
                   <tr>
-                    <td style="padding: 40px 30px;">
-                      <h2 style="color: #1a1a1a; margin: 0 0 20px 0; font-size: 24px; font-weight: 600;">Upcoming Event</h2>
-                      <p style="color: #666666; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">This is a reminder that you have an upcoming event:</p>
+                    <td style="padding: 50px 40px;">
+                      <h2 style="color: #1a1a1a; margin: 0 0 15px 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">Upcoming Event</h2>
+                      <p style="color: #666666; margin: 0 0 35px 0; font-size: 16px; line-height: 1.7;">This is a friendly reminder about your scheduled event:</p>
                       
                       <!-- Event Details Box -->
-                      <div style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 2px solid #667eea; border-radius: 12px; padding: 30px; margin: 30px 0;">
-                        <h3 style="color: #667eea; margin: 0 0 20px 0; font-size: 22px; font-weight: 600;">${eventTitle}</h3>
-                        <div style="background-color: #ffffff; border-radius: 8px; padding: 20px; margin-top: 15px;">
-                          ${eventDate ? `<p style="margin: 10px 0; color: #333333; font-size: 16px;"><strong style="color: #667eea;">📅 Date:</strong> ${eventDate}</p>` : ''}
-                          ${eventTime ? `<p style="margin: 10px 0; color: #333333; font-size: 16px;"><strong style="color: #667eea;">⏰ Time:</strong> ${eventTime}</p>` : ''}
-                          <p style="margin: 10px 0 0 0; color: #333333; font-size: 16px;"><strong style="color: #667eea;">🔔 Reminder:</strong> ${reminderDays} day${reminderDays > 1 ? 's' : ''} before</p>
+                      <div style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 3px solid #667eea; border-radius: 16px; padding: 35px; margin: 35px 0; box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);">
+                        <h3 style="color: #667eea; margin: 0 0 25px 0; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">${eventTitle}</h3>
+                        <div style="background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%); border-radius: 12px; padding: 25px; margin-top: 15px; box-shadow: inset 0 2px 8px rgba(102, 126, 234, 0.1);">
+                          ${eventDate ? `<p style="margin: 12px 0; color: #333333; font-size: 17px; font-weight: 500;"><span style="color: #667eea; font-size: 20px; margin-right: 10px;">📅</span><strong style="color: #667eea;">Date:</strong> ${eventDate}</p>` : ''}
+                          ${eventTime ? `<p style="margin: 12px 0; color: #333333; font-size: 17px; font-weight: 500;"><span style="color: #667eea; font-size: 20px; margin-right: 10px;">⏰</span><strong style="color: #667eea;">Time:</strong> ${eventTime}</p>` : ''}
+                          <p style="margin: 12px 0 0 0; color: #333333; font-size: 17px; font-weight: 500;"><span style="color: #667eea; font-size: 20px; margin-right: 10px;">🔔</span><strong style="color: #667eea;">Reminder:</strong> ${reminderDays} day${reminderDays > 1 ? 's' : ''} before</p>
                         </div>
                       </div>
                       
-                      <p style="color: #666666; margin: 20px 0 0 0; font-size: 16px; line-height: 1.6;">Don't forget to prepare for this event!</p>
+                      <div style="background-color: #f8f9fa; border-left: 4px solid #667eea; border-radius: 8px; padding: 20px; margin: 30px 0;">
+                        <p style="color: #666666; margin: 0; font-size: 15px; line-height: 1.6;">
+                          <strong style="color: #667eea;">💡 Tip:</strong><br>
+                          Make sure to prepare everything you need for this event ahead of time!
+                        </p>
+                      </div>
                     </td>
                   </tr>
                   <!-- Footer -->
                   <tr>
-                    <td style="background-color: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e9ecef;">
-                      <p style="color: #999999; margin: 0; font-size: 12px; line-height: 1.5;">This is an automated reminder from Studiply Calendar.</p>
-                      <p style="color: #999999; margin: 10px 0 0 0; font-size: 12px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                    <td style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); padding: 30px 40px; text-align: center; border-top: 1px solid #e9ecef;">
+                      <p style="color: #999999; margin: 0 0 10px 0; font-size: 13px; line-height: 1.6;">This is an automated reminder from Studiply Calendar.</p>
+                      <p style="color: #cccccc; margin: 15px 0 0 0; font-size: 12px; font-weight: 500;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
                     </td>
                   </tr>
                 </table>
