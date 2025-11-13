@@ -59,13 +59,24 @@ const TutorDashboard = () => {
   useEffect(() => {
     let unsub = null
     
+    // 总是先定义清理函数
+    const cleanup = () => {
+      if (unsub && typeof unsub === 'function') {
+        try {
+          unsub()
+        } catch (error) {
+          console.error('Error cleaning up sessions listener:', error)
+        }
+      }
+    }
+    
     if (!user?.id) {
-      return () => {} // 总是返回清理函数
+      return cleanup
     }
     
     if (!user.isTutor) {
       showError('Your tutor profile has been removed. You no longer have access to the tutor dashboard.', 'Access Revoked')
-      return () => {} // 总是返回清理函数
+      return cleanup
     }
     
     setLoading(true)
@@ -95,11 +106,7 @@ const TutorDashboard = () => {
       setLoading(false)
     })
     
-    return () => {
-      if (unsub && typeof unsub === 'function') {
-        unsub()
-      }
-    }
+    return cleanup
   }, [user?.id, user?.isTutor])
 
   const loadSessions = async () => {
@@ -397,10 +404,21 @@ const TutorDashboard = () => {
   useEffect(() => {
     let unsubscribe = null
     
+    // 总是先定义清理函数
+    const cleanup = () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe()
+        } catch (error) {
+          console.error('Error cleaning up chat list listener:', error)
+        }
+      }
+    }
+    
     if (!user?.id || selectedTab !== 'chat') {
       setChatList([])
       setChatListLoading(false)
-      return () => {} // 总是返回清理函数
+      return cleanup
     }
     
     setChatListLoading(true)
@@ -451,16 +469,7 @@ const TutorDashboard = () => {
       setChatListLoading(false)
     })
     
-    // 总是返回清理函数
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        try {
-          unsubscribe()
-        } catch (error) {
-          console.error('Error cleaning up chat list listener:', error)
-        }
-      }
-    }
+    return cleanup
   }, [user?.id, selectedTab])
 
   const renderSessionCard = (session) => (
