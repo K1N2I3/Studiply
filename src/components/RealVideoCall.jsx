@@ -854,8 +854,8 @@ const RealVideoCall = ({ sessionData, onClose }) => {
       remoteVideoRef.current.srcObject = null
     }
 
-    // 重置状态
-    setCallStatus('idle')
+    // 标记状态重置（避免在卸载期间触发额外渲染）
+    setCallStatus(prev => (prev === 'idle' ? prev : 'idle'))
     setRemoteUsers([])
     setIsReconnecting(false)
     setRetryCount(0)
