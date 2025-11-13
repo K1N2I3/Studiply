@@ -329,77 +329,6 @@ const TutorDashboard = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <BookOpen className="w-8 h-8 text-white animate-pulse" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Dashboard</h3>
-          <p className="text-gray-600 text-sm">Loading your tutoring sessions...</p>
-        </div>
-      </div>
-    )
-  }
-
-  const pendingRequests = sessions.filter(s => s.status === 'pending')
-  const acceptedSessions = sessions.filter(s => s.status === 'accepted' || s.status === 'active')
-  const activeSessions = sessions.filter(s => s.status === 'active')
-  const completedSessions = sessions.filter(s => s.status === 'completed')
-  
-  // Pagination logic for completed sessions
-  const totalCompletedPages = Math.ceil(completedSessions.length / sessionsPerPage)
-  const startIndex = (completedPage - 1) * sessionsPerPage
-  const endIndex = startIndex + sessionsPerPage
-  const paginatedCompletedSessions = completedSessions.slice(startIndex, endIndex)
-
-  const summaryCards = [
-    {
-      id: 'pending',
-      title: 'Pending requests',
-      value: pendingRequests.length,
-      description: 'Awaiting your response',
-      iconGradient: 'from-yellow-400 via-orange-400 to-pink-500',
-      accent: 'text-yellow-300',
-      icon: Clock
-    },
-    {
-      id: 'accepted',
-      title: 'Accepted / active',
-      value: acceptedSessions.length,
-      description: 'Ready to host',
-      iconGradient: 'from-emerald-400 via-teal-400 to-emerald-600',
-      accent: 'text-emerald-200',
-      icon: CheckCircle
-    },
-    {
-      id: 'live',
-      title: 'Live now',
-      value: activeSessions.length,
-      description: 'Sessions in progress',
-      iconGradient: 'from-blue-400 via-indigo-400 to-purple-500',
-      accent: 'text-blue-200',
-      icon: Play
-    },
-    {
-      id: 'rating',
-      title: 'Rating',
-      value: user?.rating ? Number(user.rating).toFixed(1) : 'N/A',
-      description: 'Student feedback score',
-      iconGradient: 'from-purple-400 via-pink-400 to-rose-500',
-      accent: 'text-purple-200',
-      icon: Star
-    }
-  ]
-
-  const tabs = [
-    { id: 'requests', name: 'Pending Requests', count: pendingRequests.length },
-    { id: 'accepted', name: 'Accepted Sessions', count: acceptedSessions.length },
-    { id: 'completed', name: 'Completed Sessions', count: completedSessions.length },
-    { id: 'chat', name: 'Chat', count: chatList.length }
-  ]
-
   // 加载聊天列表
   useEffect(() => {
     let unsubscribe = null
@@ -471,6 +400,77 @@ const TutorDashboard = () => {
     
     return cleanup
   }, [user?.id, selectedTab])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <BookOpen className="w-8 h-8 text-white animate-pulse" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Loading Dashboard</h3>
+          <p className="text-gray-600 text-sm">Loading your tutoring sessions...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const pendingRequests = sessions.filter(s => s.status === 'pending')
+  const acceptedSessions = sessions.filter(s => s.status === 'accepted' || s.status === 'active')
+  const activeSessions = sessions.filter(s => s.status === 'active')
+  const completedSessions = sessions.filter(s => s.status === 'completed')
+  
+  // Pagination logic for completed sessions
+  const totalCompletedPages = Math.ceil(completedSessions.length / sessionsPerPage)
+  const startIndex = (completedPage - 1) * sessionsPerPage
+  const endIndex = startIndex + sessionsPerPage
+  const paginatedCompletedSessions = completedSessions.slice(startIndex, endIndex)
+
+  const summaryCards = [
+    {
+      id: 'pending',
+      title: 'Pending requests',
+      value: pendingRequests.length,
+      description: 'Awaiting your response',
+      iconGradient: 'from-yellow-400 via-orange-400 to-pink-500',
+      accent: 'text-yellow-300',
+      icon: Clock
+    },
+    {
+      id: 'accepted',
+      title: 'Accepted / active',
+      value: acceptedSessions.length,
+      description: 'Ready to host',
+      iconGradient: 'from-emerald-400 via-teal-400 to-emerald-600',
+      accent: 'text-emerald-200',
+      icon: CheckCircle
+    },
+    {
+      id: 'live',
+      title: 'Live now',
+      value: activeSessions.length,
+      description: 'Sessions in progress',
+      iconGradient: 'from-blue-400 via-indigo-400 to-purple-500',
+      accent: 'text-blue-200',
+      icon: Play
+    },
+    {
+      id: 'rating',
+      title: 'Rating',
+      value: user?.rating ? Number(user.rating).toFixed(1) : 'N/A',
+      description: 'Student feedback score',
+      iconGradient: 'from-purple-400 via-pink-400 to-rose-500',
+      accent: 'text-purple-200',
+      icon: Star
+    }
+  ]
+
+  const tabs = [
+    { id: 'requests', name: 'Pending Requests', count: pendingRequests.length },
+    { id: 'accepted', name: 'Accepted Sessions', count: acceptedSessions.length },
+    { id: 'completed', name: 'Completed Sessions', count: completedSessions.length },
+    { id: 'chat', name: 'Chat', count: chatList.length }
+  ]
 
   const renderSessionCard = (session) => (
     <div key={session.id} className={`group backdrop-blur-sm rounded-2xl shadow-lg border p-6 hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] overflow-hidden relative ${
