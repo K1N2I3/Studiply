@@ -68,13 +68,28 @@ const Tutoring = () => {
 
   // 实时监听tutor列表变化
   useEffect(() => {
-    if (!user?.id) return
-    
+    let unsubscribe = null
+
+    const cleanup = () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          console.log('🔄 Cleaning up tutor list listener')
+          unsubscribe()
+        } catch (error) {
+          console.error('Error cleaning up tutor list listener:', error)
+        }
+      }
+    }
+
+    if (!user?.id) {
+      return cleanup
+    }
+
     console.log('🔄 Setting up real-time tutor list listener')
     
     // 监听users集合的变化，过滤出tutors
     const usersRef = collection(db, 'users')
-    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+    unsubscribe = onSnapshot(usersRef, (snapshot) => {
       const tutorsList = []
       snapshot.forEach((doc) => {
         try {
@@ -113,10 +128,7 @@ const Tutoring = () => {
       setLoading(false)
     })
     
-    return () => {
-      console.log('🔄 Cleaning up tutor list listener')
-      unsubscribe()
-    }
+    return cleanup
   }, [user?.id])
 
   // 当用户状态变化时重新加载导师列表
