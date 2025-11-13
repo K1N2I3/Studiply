@@ -823,67 +823,71 @@ const RealVideoCall = ({ sessionData, onClose }) => {
     }
   }
 
-  // 清理资源
-  const cleanup = async () => {
-    try {
-      console.log('🧹 清理通话资源...')
-      
-      // 清除定时器
-      clearConnectionTimeout()
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current)
-        retryTimeoutRef.current = null
-      }
+  // 清理资源（保持同步函数，内部运行异步任务）
+  const cleanup = () => {
+    console.log('🧹 清理通话资源...')
 
-      if (durationIntervalRef.current) {
-        clearInterval(durationIntervalRef.current)
-        durationIntervalRef.current = null
-      }
-      
-      // 停止本地轨道
-      localTracksRef.current.forEach(track => {
-        track.stop()
-        track.close()
-      })
-      localTracksRef.current = []
-      
-      // 离开频道
-      if (clientRef.current) {
+    // 清除定时器
+    clearConnectionTimeout()
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current)
+      retryTimeoutRef.current = null
+    }
+
+    if (durationIntervalRef.current) {
+      clearInterval(durationIntervalRef.current)
+      durationIntervalRef.current = null
+    }
+
+    // 停止本地轨道
+    localTracksRef.current.forEach(track => {
+      track.stop()
+      track.close()
+    })
+    localTracksRef.current = []
+
+    // 清理视频元素
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null
+    }
+
+    // 重置状态
+    setCallStatus('idle')
+    setRemoteUsers([])
+    setIsReconnecting(false)
+    setRetryCount(0)
+    setConnectionQuality('good')
+
+    // 异步离开频道（不阻塞 cleanup 返回）
+    if (clientRef.current) {
+      const client = clientRef.current
+      clientRef.current = null
+
+      const leaveChannel = async () => {
         try {
-          await clientRef.current.leave()
+          await client.leave()
           console.log('✅ 已成功离开频道')
         } catch (leaveError) {
-          // 忽略统计数据收集错误和网络不可达错误
-          if (leaveError.message?.includes('statscollector') || 
-              leaveError.message?.includes('ERR_ADDRESS_UNREACHABLE') ||
-              leaveError.message?.includes('net::ERR_ADDRESS_UNREACHABLE')) {
+          if (
+            leaveError.message?.includes('statscollector') ||
+            leaveError.message?.includes('ERR_ADDRESS_UNREACHABLE') ||
+            leaveError.message?.includes('net::ERR_ADDRESS_UNREACHABLE')
+          ) {
             console.log('📊 忽略 Agora 统计数据收集错误（不影响功能）:', leaveError.message)
           } else {
             console.error('❌ 离开频道失败:', leaveError)
           }
         }
-        clientRef.current = null
       }
-      
-      // 清理视频元素
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null
-      }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null
-      }
-      
-      // 重置状态
-      setCallStatus('idle')
-      setRemoteUsers([])
-      setIsReconnecting(false)
-      setRetryCount(0)
-      setConnectionQuality('good')
-      
+
+      leaveChannel().catch(error => {
+        console.error('❌ 清理失败:', error)
+      })
+    } else {
       console.log('✅ 清理完成')
-      
-    } catch (error) {
-      console.error('❌ 清理失败:', error)
     }
   }
 

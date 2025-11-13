@@ -244,43 +244,50 @@ const Meeting = () => {
     }
   }
 
-  // 清理资源
-  const cleanup = async () => {
-    try {
-      console.log('🧹 清理会议资源...')
-      
-      localTracksRef.current.forEach(track => {
-        track.stop()
-        track.close()
-      })
-      localTracksRef.current = []
-      
-      if (clientRef.current) {
+  // 清理资源（保持同步函数，异步操作在内部执行）
+  const cleanup = () => {
+    console.log('🧹 清理会议资源...')
+
+    localTracksRef.current.forEach(track => {
+      track.stop()
+      track.close()
+    })
+    localTracksRef.current = []
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null
+    }
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = null
+    }
+
+    setRemoteUsers([])
+    setConnectionQuality('good')
+
+    if (clientRef.current) {
+      const client = clientRef.current
+      clientRef.current = null
+
+      const leaveChannel = async () => {
         try {
-          await clientRef.current.leave()
+          await client.leave()
         } catch (leaveError) {
-          if (!leaveError.message?.includes('statscollector') && 
-              !leaveError.message?.includes('ERR_ADDRESS_UNREACHABLE')) {
+          if (
+            !leaveError.message?.includes('statscollector') &&
+            !leaveError.message?.includes('ERR_ADDRESS_UNREACHABLE')
+          ) {
             console.error('离开频道失败:', leaveError)
           }
+        } finally {
+          console.log('✅ 清理完成')
         }
-        clientRef.current = null
       }
-      
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null
-      }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = null
-      }
-      
-      setRemoteUsers([])
-      setConnectionQuality('good')
-      
+
+      leaveChannel().catch(error => {
+        console.error('❌ 清理失败:', error)
+      })
+    } else {
       console.log('✅ 清理完成')
-      
-    } catch (error) {
-      console.error('❌ 清理失败:', error)
     }
   }
 
