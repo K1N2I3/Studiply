@@ -19,6 +19,7 @@ app.use(cors({
     'http://localhost:3000',
     'https://www.studiply.it',
     'https://studiply.it',
+    'https://studiply.vercel.app',
     'https://studiply-*.vercel.app',
     /^https:\/\/studiply-.*\.vercel\.app$/,
     /^https:\/\/.*\.onrender\.com$/
@@ -186,6 +187,35 @@ app.get('/api/health', (req, res) => {
     message: 'Studiply API is running',
     timestamp: new Date().toISOString()
   })
+})
+
+// Check if email exists
+app.post('/api/check-email', async (req, res) => {
+  try {
+    const { email } = req.body
+    
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      })
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() })
+    
+    res.json({
+      success: true,
+      exists: !!existingUser,
+      message: existingUser ? 'This email is already registered' : 'Email is available'
+    })
+  } catch (error) {
+    console.error('Error checking email:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check email availability'
+    })
+  }
 })
 
 // Register user

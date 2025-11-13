@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { ChevronLeft, ChevronRight, User, Mail, Lock, Check, BookOpen, Phone, MapPin, Edit3, Search } from 'lucide-react'
+import { User, Mail, Lock, Check, BookOpen, Phone, MapPin, Edit3, Search, Sparkles, ArrowRight } from 'lucide-react'
 import emailjs from '@emailjs/browser'
 import { emailjsConfig } from '../config/emailjs'
 import PhoneVerificationModal from '../components/PhoneVerificationModal'
@@ -23,6 +23,7 @@ const Register = () => {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [emailExists, setEmailExists] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false) // For grade dropdown
   const [schoolDropdownOpen, setSchoolDropdownOpen] = useState(false) // For school dropdown
@@ -32,6 +33,8 @@ const Register = () => {
   const [emailVerificationSent, setEmailVerificationSent] = useState(false)
   const [phoneVerified, setPhoneVerified] = useState(false)
   const [showPhoneVerification, setShowPhoneVerification] = useState(false)
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [stepDirection, setStepDirection] = useState('forward')
   
   const { register } = useSimpleAuth()
   const { isDark } = useTheme()
@@ -41,6 +44,24 @@ const Register = () => {
     setIsVisible(true)
     // Initialize EmailJS
     emailjs.init(emailjsConfig.publicKey)
+    
+    // 禁用页面滚动
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+
+    return () => {
+      // 组件卸载时恢复滚动
+      document.body.style.overflow = ''
+      document.documentElement.style.overflow = ''
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setMousePosition({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
 
   // Close dropdown when clicking outside
@@ -124,6 +145,10 @@ const Register = () => {
       ...formData,
       [e.target.name]: e.target.value
     })
+    // Reset email exists status when email changes
+    if (e.target.name === 'email') {
+      setEmailExists(false)
+    }
     if (error) setError('')
   }
 
@@ -142,11 +167,37 @@ const Register = () => {
         return
       }
 
-      // Note: Email uniqueness will be checked by the backend during registration
-      // We'll let the backend handle this validation
+      // Check if email already exists
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003/api'
+        const response = await fetch(`${API_BASE_URL}/check-email`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ email: email.toLowerCase() })
+        })
 
-      // Email is valid and available
-      setError('')
+        const result = await response.json()
+        
+        if (result.success) {
+          if (result.exists) {
+            setEmailExists(true)
+            setError('This email is already registered. Please use a different email or sign in.')
+            return
+          } else {
+            // Email is available
+            setEmailExists(false)
+            setError('')
+          }
+        } else {
+          setError(result.error || 'Failed to check email availability')
+        }
+      } catch (error) {
+        console.error('Error checking email:', error)
+        // Don't show error if API fails, let backend handle it during registration
+        setError('')
+      }
     }
   }
 
@@ -202,6 +253,12 @@ const Register = () => {
     'Physical Education', 'Psychology', 'Economics', 'Business', 'Languages'
   ]
 
+  const registerHighlights = [
+    'Create quests with multiple formats and difficulty levels',
+    'Invite mentors to review and approve community submissions',
+    'Unlock rewards as you build your personalised learning path'
+  ]
+
   const handleSubjectToggle = (subject) => {
     setFormData(prev => ({
       ...prev,
@@ -214,7 +271,7 @@ const Register = () => {
   const validateStep = (step) => {
     switch (step) {
       case 1:
-        return formData.name && formData.email && formData.password && formData.confirmPassword && formData.password === formData.confirmPassword
+        return formData.name && formData.email && formData.password && formData.confirmPassword && formData.password === formData.confirmPassword && !emailExists
       case 2:
         return formData.school && formData.grade
       case 3:
@@ -229,6 +286,7 @@ const Register = () => {
   const nextStep = () => {
     if (validateStep(currentStep)) {
       setError('')
+      setStepDirection('forward')
       if (currentStep === 4) {
         // 第4步完成后，直接进入第5步邮箱验证
         setCurrentStep(5)
@@ -244,6 +302,7 @@ const Register = () => {
 
   const prevStep = () => {
     setError('')
+    setStepDirection('backward')
     setCurrentStep(currentStep - 1)
   }
 
@@ -384,6 +443,33 @@ const Register = () => {
         setEmailVerified(true)
         sessionStorage.removeItem('verification_code') // Clean up
         setError('')
+        
+        // 自动完成注册并跳转到主页面
+        try {
+          const result = await register({
+            name: formData.name.trim(),
+            email: formData.email.trim().toLowerCase(),
+            password: formData.password.trim(),
+            school: formData.school,
+            grade: formData.grade,
+            phone: formData.phone,
+            location: formData.location,
+            bio: formData.bio,
+            subjects: formData.subjects
+          })
+          
+          if (result.success) {
+            // 注册成功，直接跳转到主页面（用户已自动登录）
+            navigate('/')
+          } else {
+            setError(result.error || 'Registration failed. Please try again.')
+            setEmailVerified(false)
+          }
+        } catch (regError) {
+          console.error('Registration error:', regError)
+          setError('Registration failed. Please try again.')
+          setEmailVerified(false)
+        }
       } else {
         setError('Invalid verification code. Please try again.')
       }
@@ -411,9 +497,9 @@ const Register = () => {
     switch (currentStep) {
       case 1:
         return (
-          <div className="space-y-5">
+          <div className="space-y-3">
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Full Name
@@ -422,10 +508,10 @@ const Register = () => {
                 <input
                   name="name"
                   type="text"
-                  className={`w-full px-4 py-3.5 pl-12 rounded-xl border transition-all ${
+                  className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Enter your full name"
                   value={formData.name}
@@ -433,14 +519,14 @@ const Register = () => {
                   disabled={loading}
                   required
                 />
-                <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                <User className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Email Address
@@ -449,10 +535,10 @@ const Register = () => {
                 <input
                   name="email"
                   type="email"
-                  className={`w-full px-4 py-3.5 pl-12 rounded-xl border transition-all ${
+                  className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Enter your email address"
                   value={formData.email}
@@ -461,14 +547,14 @@ const Register = () => {
                   disabled={loading}
                   required
                 />
-                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Password
@@ -477,10 +563,10 @@ const Register = () => {
                 <input
                   name="password"
                   type="password"
-                  className={`w-full px-4 py-3.5 pl-12 rounded-xl border transition-all ${
+                  className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Create a strong password"
                   value={formData.password}
@@ -488,14 +574,14 @@ const Register = () => {
                   disabled={loading}
                   required
                 />
-                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                <Lock className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Confirm Password
@@ -504,10 +590,10 @@ const Register = () => {
                 <input
                   name="confirmPassword"
                   type="password"
-                  className={`w-full px-4 py-3.5 pl-12 rounded-xl border transition-all ${
+                  className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Confirm your password"
                   value={formData.confirmPassword}
@@ -515,7 +601,7 @@ const Register = () => {
                   disabled={loading}
                   required
                 />
-                <Check className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                <Check className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
               </div>
@@ -525,9 +611,9 @@ const Register = () => {
 
       case 2:
         return (
-          <div className="space-y-5">
+          <div className="space-y-3">
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 School/Institution
@@ -536,10 +622,10 @@ const Register = () => {
                 <div className="relative">
                   <input
                     type="text"
-                    className={`w-full px-4 py-3.5 pl-12 pr-12 rounded-xl border transition-all ${
+                    className={`w-full rounded-lg border text-sm px-10 py-2 transition-all ${
                       isDark
-                        ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                        : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                        ? 'bg-slate-900/70 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/40'
+                        : 'bg-white border-slate-300 text-slate-800 placeholder:text-slate-400 focus:border-purple-400 focus:ring-2 focus:ring-purple-300/40'
                     }`}
                     placeholder="Search for your school..."
                     value={schoolDropdownOpen ? schoolSearchQuery : formData.school}
@@ -557,46 +643,40 @@ const Register = () => {
                     disabled={loading}
                     required
                   />
-                  <BookOpen className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                  <BookOpen className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                     isDark ? 'text-white/60' : 'text-slate-400'
                   }`} />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                    {formData.school && !schoolDropdownOpen && (
-                      <div className="w-2 h-2 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full animate-pulse"></div>
-                    )}
-                    <svg 
-                      className={`w-5 h-5 transition-transform duration-200 ${
-                        isDark ? 'text-white/60' : 'text-slate-400'
-                      } ${schoolDropdownOpen ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
+                  <svg 
+                    className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-transform duration-200 ${
+                      isDark ? 'text-white/60' : 'text-slate-400'
+                    } ${schoolDropdownOpen ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
 
                 {schoolDropdownOpen && (
-                  <div className={`absolute top-full left-0 right-0 mt-2 rounded-2xl border shadow-2xl z-[100] max-h-64 overflow-hidden ${
+                  <div className={`mt-2 rounded-lg border shadow-xl z-20 max-h-56 overflow-hidden ${
                     isDark
-                      ? 'bg-gradient-to-br from-white/12 via-white/6 to-transparent/35 border-white/20 backdrop-blur-xl'
-                      : 'bg-white border-slate-200'
+                      ? 'bg-slate-900 border-slate-700'
+                      : 'bg-white border-slate-300'
                   }`}>
-                    {/* Search bar inside dropdown */}
-                    <div className={`p-3 border-b ${
-                      isDark ? 'border-white/10' : 'border-slate-200'
+                    <div className={`p-2 border-b ${
+                      isDark ? 'border-slate-700' : 'border-slate-200'
                     }`}>
                       <div className="relative">
-                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${
-                          isDark ? 'text-white/60' : 'text-slate-400'
+                        <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
+                          isDark ? 'text-slate-400' : 'text-slate-400'
                         }`} />
                         <input
                           type="text"
-                          className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm ${
+                          className={`w-full pl-9 pr-3 py-2 rounded-md border text-sm ${
                             isDark
-                              ? 'bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400/50'
-                              : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300'
+                              ? 'bg-slate-800 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-400 focus:outline-none'
+                              : 'bg-white border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-purple-400 focus:outline-none'
                           }`}
                           placeholder="Search schools..."
                           value={schoolSearchQuery}
@@ -605,20 +685,21 @@ const Register = () => {
                         />
                       </div>
                     </div>
-                    {/* School list */}
-                    <div className="max-h-48 overflow-y-auto">
+                    <div className={`max-h-40 overflow-y-auto ${
+                      isDark ? 'divide-slate-700' : 'divide-slate-200'
+                    } divide-y`}>
                       {filteredSchools.length > 0 ? (
-                        filteredSchools.map((school, index) => (
+                        filteredSchools.map((school) => (
                           <button
                             key={school}
                             type="button"
-                            className={`w-full px-4 py-3 text-left transition-all duration-200 flex items-center justify-between ${
+                            className={`w-full px-3 py-2.5 text-left text-sm transition-colors flex items-center justify-between ${
                               formData.school === school
                                 ? isDark
-                                  ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-white border-l-4 border-purple-400'
-                                  : 'bg-purple-50 text-purple-700 border-l-4 border-purple-500'
+                                  ? 'bg-purple-600 text-white'
+                                  : 'bg-purple-100 text-purple-700'
                                 : isDark
-                                  ? 'text-white/90 hover:bg-white/10 hover:text-white'
+                                  ? 'text-white hover:bg-slate-800'
                                   : 'text-slate-700 hover:bg-slate-50'
                             }`}
                             onClick={() => {
@@ -637,34 +718,32 @@ const Register = () => {
                             role="option"
                             aria-selected={formData.school === school}
                           >
-                            <span className="font-medium text-sm">{school}</span>
+                            <span>{school}</span>
                             {formData.school === school && (
-                              <Check className={`w-4 h-4 ${
+                              <Check className={`w-4 h-4 flex-shrink-0 ${
                                 isDark ? 'text-white' : 'text-purple-600'
                               }`} />
                             )}
                           </button>
                         ))
                       ) : (
-                        <div className={`px-4 py-6 text-center ${
-                          isDark ? 'text-white/60' : 'text-slate-500'
+                        <div className={`px-4 py-4 text-center text-sm ${
+                          isDark ? 'text-slate-400' : 'text-slate-500'
                         }`}>
-                          <p className="text-sm">No schools found</p>
-                          <p className="text-xs mt-1">Try a different search term</p>
+                          No schools found
                         </div>
                       )}
                     </div>
-                    {/* Option to add custom school */}
                     {schoolSearchQuery && !filteredSchools.some(s => s.toLowerCase() === schoolSearchQuery.toLowerCase()) && (
-                      <div className={`p-3 border-t ${
-                        isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'
+                      <div className={`p-2 border-t ${
+                        isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-white'
                       }`}>
                         <button
                           type="button"
-                          className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          className={`w-full px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                             isDark
-                              ? 'bg-white/10 text-white hover:bg-white/15 border border-white/20'
-                              : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                              ? 'bg-slate-800 text-white hover:bg-slate-700'
+                              : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                           }`}
                           onClick={() => {
                             setFormData(prev => ({ ...prev, school: schoolSearchQuery }))
@@ -682,7 +761,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Grade Level
@@ -690,10 +769,10 @@ const Register = () => {
               <div className="relative dropdown-container">
                 <button
                   type="button"
-                  className={`w-full px-4 py-3.5 pl-12 pr-12 text-left flex items-center justify-between rounded-xl border transition-all ${
+                  className={`w-full px-4 py-2 text-left flex items-center justify-between rounded-lg border text-sm transition-all ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-slate-900/70 border-slate-600 text-white focus:border-purple-400 focus:ring-2 focus:ring-purple-400/30'
+                      : 'bg-white border-slate-300 text-slate-800 focus:border-purple-400 focus:ring-2 focus:ring-purple-300/40'
                   }`}
                   onClick={() => setDropdownOpen(!dropdownOpen)}
                   onKeyDown={(e) => {
@@ -706,49 +785,46 @@ const Register = () => {
                   aria-expanded={dropdownOpen}
                   aria-haspopup="listbox"
                 >
-                  <div className="flex items-center gap-3">
-                    <BookOpen className={`w-5 h-5 ${
+                  <div className="flex items-center gap-2">
+                    <BookOpen className={`w-4 h-4 ${
                       isDark ? 'text-white/60' : 'text-slate-400'
                     }`} />
-                    <span className={formData.grade ? (isDark ? 'text-white' : 'text-slate-900') : (isDark ? 'text-white/50' : 'text-slate-400')}>
+                    <span className={`${formData.grade ? (isDark ? 'text-white' : 'text-slate-800') : (isDark ? 'text-white/50' : 'text-slate-400')}`}>
                       {formData.grade || 'Select your grade level'}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {formData.grade && (
-                      <div className="w-2 h-2 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-full animate-pulse"></div>
-                    )}
-                    <svg 
-                      className={`w-5 h-5 transition-transform duration-200 ${
-                        isDark ? 'text-white/60' : 'text-slate-400'
-                      } ${dropdownOpen ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
+                  <svg 
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isDark ? 'text-white/60' : 'text-slate-400'
+                    } ${dropdownOpen ? 'rotate-180' : ''}`} 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </button>
 
                 {dropdownOpen && (
-                  <div className={`absolute top-full left-0 right-0 mt-2 rounded-2xl border shadow-2xl z-[100] max-h-64 overflow-y-auto ${
+                  <div className={`mt-2 rounded-lg border shadow-xl z-20 max-h-44 overflow-y-auto ${
                     isDark
-                      ? 'bg-gradient-to-br from-white/12 via-white/6 to-transparent/35 border-white/20 backdrop-blur-xl'
-                      : 'bg-white border-slate-200'
+                      ? 'bg-slate-900 border-slate-700'
+                      : 'bg-white border-slate-300'
                   }`} role="listbox">
-                    <div className="py-2">
-                      {grades.map((grade, index) => (
+                    <div className={`py-1 ${
+                      isDark ? 'divide-slate-700' : 'divide-slate-200'
+                    } divide-y`}>
+                      {grades.map((grade) => (
                         <button
                           key={grade}
                           type="button"
-                          className={`w-full px-4 py-3 text-left transition-all duration-200 flex items-center justify-between ${
+                          className={`w-full px-3 py-2.5 text-left text-sm transition-colors flex items-center justify-between ${
                             formData.grade === grade
                               ? isDark
-                                ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-white border-l-4 border-purple-400'
-                                : 'bg-purple-50 text-purple-700 border-l-4 border-purple-500'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-purple-100 text-purple-700'
                               : isDark
-                                ? 'text-white/90 hover:bg-white/10 hover:text-white'
+                                ? 'text-white hover:bg-slate-800'
                                 : 'text-slate-700 hover:bg-slate-50'
                           }`}
                           onClick={() => {
@@ -765,9 +841,9 @@ const Register = () => {
                           role="option"
                           aria-selected={formData.grade === grade}
                         >
-                          <span className="font-medium">{grade}</span>
+                          <span>{grade}</span>
                           {formData.grade === grade && (
-                            <Check className={`w-4 h-4 ${
+                            <Check className={`w-4 h-4 flex-shrink-0 ${
                               isDark ? 'text-white' : 'text-purple-600'
                             }`} />
                           )}
@@ -783,9 +859,9 @@ const Register = () => {
 
       case 3:
         return (
-          <div className="space-y-5">
+          <div className="space-y-3">
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Phone Number {formData.phone && phoneVerified && (
@@ -796,10 +872,10 @@ const Register = () => {
                 <input
                   name="phone"
                   type="tel"
-                  className={`w-full px-4 py-3.5 pl-12 rounded-xl border transition-all ${
+                  className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Enter your phone number (e.g., +1234567890)"
                   value={formData.phone}
@@ -812,7 +888,7 @@ const Register = () => {
                   }}
                   disabled={loading}
                 />
-                <Phone className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                <Phone className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
               </div>
@@ -832,7 +908,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Location <span className="text-xs font-normal opacity-70">(Optional)</span>
@@ -841,17 +917,17 @@ const Register = () => {
                 <input
                   name="location"
                   type="text"
-                  className={`w-full px-4 py-3.5 pl-12 rounded-xl border transition-all ${
+                  className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Enter your city, state"
                   value={formData.location}
                   onChange={handleChange}
                   disabled={loading}
                 />
-                <MapPin className={`absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 ${
+                <MapPin className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
               </div>
@@ -861,9 +937,9 @@ const Register = () => {
 
       case 4:
         return (
-          <div className="space-y-5">
+          <div className="space-y-3">
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Bio <span className="text-xs font-normal opacity-70">(Optional)</span>
@@ -884,7 +960,7 @@ const Register = () => {
             </div>
 
             <div>
-              <label className={`block text-sm font-semibold mb-2 ${
+              <label className={`block text-xs font-semibold mb-1.5 ${
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Subjects of Interest <span className="text-xs font-normal opacity-70">(Optional)</span>
@@ -978,10 +1054,10 @@ const Register = () => {
                   maxLength="6"
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                  className={`w-full px-4 py-3.5 rounded-xl border text-center text-lg font-mono tracking-widest transition-all ${
+                  className={`w-full px-4 py-3.5 rounded-xl border text-center text-lg font-mono tracking-widest transition-all input-focus-effect ${
                     isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                      : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="123456"
                   disabled={loading}
@@ -1006,7 +1082,7 @@ const Register = () => {
                       : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
                   }`}
                 >
-                  {loading ? 'Verifying...' : 'Verify Email'}
+                  {loading ? (emailVerified ? 'Creating account...' : 'Verifying...') : 'Verify Email & Create Account'}
                 </button>
 
                 <button
@@ -1038,212 +1114,293 @@ const Register = () => {
     }
   }
 
+  const stepAnimationClass = stepDirection === 'forward' ? 'step-enter-right' : 'step-enter-left'
+  const progressPercent = ((currentStep - 1) / (steps.length - 1)) * 100
+
   return (
-    <div className={`min-h-screen relative overflow-hidden ${
-      isDark
-        ? 'bg-gradient-to-br from-[#120b2c] via-[#1a1240] to-[#09071b] text-white'
-        : 'bg-gradient-to-br from-indigo-100 via-purple-100 to-rose-100 text-slate-900'
-    }`}>
+    <div
+      className={`fixed inset-0 h-screen w-screen overflow-hidden ${
+        isDark
+          ? 'bg-gradient-to-br from-[#08051a] via-[#120b2c] to-[#1c1142] text-white'
+          : 'bg-gradient-to-br from-[#f4f2ff] via-[#f9f0ff] to-[#ffe9f5] text-slate-900'
+      }`}
+      style={{ paddingTop: '64px' }}
+    >
       <style>{`
-        .hide-scrollbar::-webkit-scrollbar { width: 0; height: 0; }
-        .hide-scrollbar { scrollbar-width: none; }
+        @keyframes floatSlow {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes slideInLeft {
+          from { opacity: 0; transform: translateX(-40px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(40px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .step-enter-left {
+          animation: slideInLeft 0.55s ease-out both;
+        }
+        .step-enter-right {
+          animation: slideInRight 0.55s ease-out both;
+        }
+        .input-focus-effect {
+          transition: all 0.3s ease;
+        }
+        .input-focus-effect:focus {
+          transform: translateY(-2px);
+          box-shadow: 0 18px 38px -20px rgba(99, 102, 241, 0.55);
+        }
+        .wave-panel-left {
+          position: relative;
+          overflow: hidden;
+          isolation: isolate;
+        }
+        .wave-panel-left::before,
+        .wave-panel-left::after {
+          content: '';
+          position: absolute;
+          right: -140px;
+          width: 260px;
+          height: 260px;
+          background: var(--panel-overlay, rgba(255,255,255,0.9));
+          border-radius: 50%;
+          opacity: 0.9;
+          filter: blur(0.5px);
+        }
+        .wave-panel-left::before { top: -120px; }
+        .wave-panel-left::after { bottom: -120px; }
+        .wave-panel-left .glow-accent {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at 30% 35%, rgba(255,255,255,0.25), transparent 60%),
+                      radial-gradient(circle at 70% 70%, rgba(255,255,255,0.18), transparent 55%);
+          opacity: 0.85;
+        }
+        .floating-node {
+          animation: floatSlow 7s ease-in-out infinite;
+        }
       `}</style>
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-36 left-1/2 h-96 w-96 -translate-x-1/2 rounded-full bg-purple-500/30 blur-3xl animate-pulse" />
-        <div className="absolute top-1/2 right-12 h-80 w-80 rounded-full bg-pink-400/25 blur-[120px] animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-10 left-10 h-72 w-72 rounded-full bg-blue-400/20 blur-[120px] animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-indigo-400/15 blur-[100px] animate-pulse" style={{ animationDelay: '0.5s' }} />
-      </div>
 
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-6 pb-20 overflow-visible">
-        <div className={`w-full max-w-2xl transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'} overflow-visible`}>
-          {/* Logo and Title */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500 text-white shadow-2xl mb-4">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-              </svg>
-            </div>
-            <h1 className={`text-4xl md:text-5xl font-black mb-3 ${
-              isDark
-                ? 'bg-gradient-to-r from-purple-300 via-pink-300 to-blue-300 bg-clip-text text-transparent'
-                : 'bg-gradient-to-r from-purple-700 via-pink-600 to-blue-700 bg-clip-text text-transparent'
-            }`}>
-              Create Your Account
-            </h1>
-            <p className={`text-lg ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
-              Join Studiply and start your learning journey
-            </p>
-          </div>
-
-          {/* Progress Steps */}
-          <div className={`mb-8 rounded-[28px] border px-6 py-6 shadow-xl backdrop-blur-xl ${
-            isDark ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
-          }`}>
-            <div className="relative">
-              <div className="flex items-start justify-between">
-                {steps.map((step, index) => (
-                  <div key={step.number} className="flex flex-col items-center relative z-10 flex-1">
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-full text-base font-bold transition-all duration-500 ${
-                      currentStep >= step.number
-                        ? isDark
-                          ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white shadow-lg scale-110'
-                          : 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white shadow-lg scale-110'
-                        : isDark
-                          ? 'bg-white/10 border-2 border-white/20 text-white/60'
-                          : 'bg-slate-100 border-2 border-slate-200 text-slate-400'
-                    }`}>
-                      {currentStep > step.number ? (
-                        <Check className="w-5 h-5" />
-                      ) : (
-                        step.number
-                      )}
-                    </div>
-                    <div className="mt-3 text-center px-1">
-                      <p className={`text-xs font-bold transition-colors duration-300 ${
-                        currentStep >= step.number
-                          ? isDark ? 'text-white' : 'text-slate-900'
-                          : isDark ? 'text-white/60' : 'text-slate-500'
-                      }`}>
-                        {step.title}
-                      </p>
-                      <p className={`text-xs mt-1 leading-tight min-h-[2.5rem] flex items-center justify-center ${
-                        isDark ? 'text-white/50' : 'text-slate-500'
-                      }`}>
-                        {step.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Background line */}
-              <div className={`absolute top-6 left-6 right-6 h-1 rounded-full ${
-                isDark ? 'bg-white/10' : 'bg-slate-200'
-              }`}>
-                <div 
-                  className={`h-full rounded-full transition-all duration-1000 ease-out ${
-                    isDark
-                      ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500'
-                      : 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500'
-                  }`}
-                  style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Form Card */}
-          <div className={`rounded-[32px] border px-8 py-9 shadow-2xl backdrop-blur-xl ${
-            isDark ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
-          }`}>
-            {error && (
-              <div className={`mb-6 p-4 rounded-2xl border ${
-                isDark ? 'bg-red-500/20 border-red-400/30 text-red-300' : 'bg-red-50 border-red-200 text-red-700'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                  <p className="font-medium text-sm">{error}</p>
-                </div>
-              </div>
-            )}
-
-              <form onSubmit={handleSubmit}>
-                {renderStepContent()}
-
-                    {/* Navigation Buttons */}
-                    <div className="flex justify-between items-center mt-8">
-                      {currentStep > 1 && (
-                        <button
-                          type="button"
-                          onClick={prevStep}
-                          disabled={loading}
-                          className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:-translate-y-0.5 ${
-                            isDark
-                              ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15 hover:border-white/30'
-                              : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'
-                          } ${dropdownOpen || schoolDropdownOpen ? 'blur-sm pointer-events-none' : ''}`}
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                          Back
-                        </button>
-                      )}
-
-                      {currentStep < 5 ? (
-                        <button
-                          type="button"
-                          onClick={nextStep}
-                          disabled={loading}
-                          className={`ml-auto inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl ${
-                            isDark
-                              ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white hover:from-purple-600 hover:via-pink-600 hover:to-blue-600'
-                              : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
-                          } ${dropdownOpen || schoolDropdownOpen ? 'blur-sm pointer-events-none' : ''}`}
-                        >
-                          Continue
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <button
-                          type="submit"
-                          disabled={loading || (currentStep === 5 && !emailVerified)}
-                          className={`ml-auto inline-flex items-center gap-2 px-8 py-3 rounded-2xl font-semibold shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none ${
-                            isDark
-                              ? 'bg-gradient-to-r from-emerald-500 via-blue-500 to-purple-500 text-white hover:from-emerald-600 hover:via-blue-600 hover:to-purple-600'
-                              : 'bg-gradient-to-r from-emerald-500 to-blue-600 text-white hover:from-emerald-600 hover:to-blue-700'
-                          } ${dropdownOpen || schoolDropdownOpen ? 'blur-sm pointer-events-none' : ''}`}
-                        >
-                          {loading ? (
-                            <>
-                              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/0/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              Creating Account...
-                            </>
-                          ) : (
-                            <>
-                              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                              </svg>
-                              Create Account
-                            </>
-                          )}
-                        </button>
-                      )}
-                    </div>
-              </form>
-
-            <div className={`mt-6 text-center transition-all duration-300 ${dropdownOpen ? 'blur-sm pointer-events-none' : ''}`}>
-              <p className={`text-sm ${
-                isDark ? 'text-white/70' : 'text-slate-600'
-              }`}>
-                Already have an account?{' '}
-                <Link
-                  to="/login"
-                  className={`font-semibold transition-colors hover:underline ${
-                    isDark ? 'text-purple-300 hover:text-purple-200' : 'text-purple-600 hover:text-purple-700'
-                  }`}
-                >
-                  Sign in here
-                </Link>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Phone Verification Modal */}
-        <PhoneVerificationModal
-          isOpen={showPhoneVerification}
-          onClose={() => setShowPhoneVerification(false)}
-          phoneNumber={formData.phone}
-          onVerified={() => {
-            setPhoneVerified(true)
-            setShowPhoneVerification(false)
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(20)].map((_, index) => (
+          <span
+            key={index}
+            className={`floating-node absolute rounded-full ${
+              isDark ? 'bg-white/10' : 'bg-purple-200/40'
+            }`}
+            style={{
+              width: `${Math.random() * 4 + 2}px`,
+              height: `${Math.random() * 4 + 2}px`,
+              top: `${Math.random() * 100}%`,
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 6}s`
+            }}
+          />
+        ))}
+        <div
+          className="absolute left-[-120px] top-[-140px] h-[440px] w-[440px] rounded-full blur-[120px] opacity-45"
+          style={{
+            background: 'radial-gradient(circle, rgba(129,140,248,0.55) 0%, rgba(99,102,241,0.3) 60%, transparent 75%)'
+          }}
+        />
+        <div
+          className="absolute right-[-180px] bottom-[-120px] h-[460px] w-[460px] rounded-full blur-[140px] opacity-40"
+          style={{
+            background: 'radial-gradient(circle, rgba(236,72,153,0.48) 0%, rgba(79,70,229,0.28) 60%, transparent 80%)'
           }}
         />
       </div>
+
+      <div className="relative z-10 flex h-full w-full items-center justify-center px-4 py-4 overflow-hidden">
+        <div className="w-full max-w-5xl flex-shrink-0 max-h-[calc(100vh-96px)]">
+          <div
+            className={`grid overflow-hidden rounded-[28px] border shadow-[0_40px_120px_-40px_rgba(79,70,229,0.4)] backdrop-blur-2xl md:grid-cols-[0.7fr_1.3fr] w-full min-h-[540px] max-h-[calc(100vh-96px)] ${
+              isDark ? 'border-white/10 bg-white/5' : 'border-white/70 bg-white/60'
+            }`}
+          >
+            <div
+              className="wave-panel-left info-panel-enter relative hidden md:flex items-center justify-center bg-gradient-to-br from-[#5f48ff] via-[#7c3aed] to-[#ec4899] min-h-[540px]"
+              style={{ '--panel-overlay': isDark ? 'rgba(12,16,32,0.92)' : '#ffffff' }}
+            >
+              <div className="glow-accent" />
+              <div className="relative z-10 mx-auto flex max-w-sm flex-col gap-4 px-8 py-8 text-white">
+                <span className="inline-flex w-max items-center gap-2 rounded-full border border-white/45 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.35em]">
+                  Plan ahead
+                </span>
+                <h2 className="text-2xl font-bold leading-tight">
+                  Shape the Quest Academy experience in just five guided steps.
+                </h2>
+                <p className="text-xs text-white/85">
+                  Craft quests, invite tutors, and unlock collaborative learning areas tailored to your skills.
+                </p>
+                <ul className="space-y-2 text-xs text-white/90">
+                  {registerHighlights.map((highlight) => (
+                    <li key={highlight} className="flex items-start gap-2.5">
+                      <span className="mt-[2px] rounded-full bg-white/15 p-1">
+                        <Check className="h-3.5 w-3.5" />
+                      </span>
+                      <span>{highlight}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  to="/login"
+                  className="cta-button mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-white/90 px-5 py-2.5 text-sm font-semibold text-purple-600 shadow-lg transition hover:-translate-y-1 hover:bg-white"
+                >
+                  Back to login
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+
+            <div
+              className={`form-panel-enter relative flex flex-col gap-5 p-6 sm:p-8 overflow-y-auto ${
+                isDark ? 'bg-slate-950/85 text-white' : 'bg-white text-slate-900'
+              }`}
+            >
+              <div className="space-y-3">
+                <div className="flex flex-col gap-6">
+                   <div>
+                     <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-purple-500 mb-2">
+                       Step {currentStep} of {steps.length}
+                     </p>
+                     <h1 className="text-2xl font-bold sm:text-3xl mb-2">
+                       Create your Studiply account
+                     </h1>
+                     <p className={`text-xs leading-relaxed ${isDark ? 'text-white/70' : 'text-slate-500'}`}>
+                       Tell us a little bit about you so we can match you with the right quests, mentors, and missions.
+                     </p>
+                   </div>
+                  <div className="w-full">
+                    <div className="relative">
+                      {/* Progress line background */}
+                      <div className={`absolute left-0 right-0 top-6 h-0.5 rounded-full ${
+                        isDark ? 'bg-white/10' : 'bg-slate-200'
+                      }`} />
+                      {/* Progress line fill */}
+                      <div
+                        className="absolute left-0 top-6 h-0.5 rounded-full transition-all duration-500 ease-out"
+                        style={{
+                          width: `${Math.min(Math.max(progressPercent, 0), 100)}%`,
+                          background: 'linear-gradient(90deg, #8b5cf6 0%, #ec4899 100%)'
+                        }}
+                      />
+                      {/* Steps */}
+                      <div className="relative flex justify-between items-start">
+                        {steps.map((step, index) => {
+                          const isActive = currentStep === step.number
+                          const isComplete = currentStep > step.number
+                          const isUpcoming = currentStep < step.number
+                          return (
+                            <div key={step.number} className="flex flex-col items-center gap-2 flex-1 max-w-[20%]">
+                              {/* Step circle */}
+                              <div className="relative">
+                                <span
+                                  className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold transition-all duration-300 relative z-10 ${
+                                    isComplete
+                                      ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/40'
+                                      : isActive
+                                        ? 'bg-gradient-to-br from-purple-600 to-pink-500 text-white shadow-xl shadow-purple-500/50 scale-110 ring-4 ring-purple-500/20'
+                                        : isDark
+                                          ? 'bg-slate-700/50 border-2 border-slate-600 text-slate-400'
+                                          : 'bg-slate-100 border-2 border-slate-300 text-slate-400'
+                                  }`}
+                                >
+                                  {isComplete ? (
+                                    <Check className="h-5 w-5" />
+                                  ) : (
+                                    <span className={isActive ? 'text-white' : ''}>{step.number}</span>
+                                  )}
+                                </span>
+                                {/* Active step pulse effect */}
+                                {isActive && (
+                                  <span className="absolute inset-0 rounded-full bg-purple-500/30 animate-ping" />
+                                )}
+                              </div>
+                              {/* Step label */}
+                              <span className={`text-[10px] font-medium uppercase tracking-wider text-center leading-tight ${
+                                isActive
+                                  ? isDark ? 'text-purple-300 font-semibold' : 'text-purple-600 font-semibold'
+                                  : isComplete
+                                    ? isDark ? 'text-emerald-400' : 'text-emerald-600'
+                                    : isDark ? 'text-white/50' : 'text-slate-400'
+                              }`}>
+                                {step.title}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`${stepAnimationClass}`}>
+                  {renderStepContent()}
+                </div>
+
+                <div className={`flex flex-col gap-3 border-t pt-4 ${isDark ? 'border-white/10' : 'border-slate-200'}`}>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {currentStep > 1 ? (
+                      <button
+                        type="button"
+                        onClick={prevStep}
+                        disabled={loading}
+                        className={`inline-flex items-center gap-2 rounded-full border px-6 py-3 text-sm font-semibold transition hover:-translate-y-1 hover:shadow-md ${
+                          isDark
+                            ? 'border-white/20 bg-white/10 text-white hover:bg-white/15'
+                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <ArrowRight className="h-4 w-4 rotate-180" />
+                        Back
+                      </button>
+                    ) : (
+                      <span className="hidden sm:block" />
+                    )}
+
+                    {currentStep < 5 ? (
+                      <button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={loading}
+                        className={`cta-button inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#6366f1] via-[#8b5cf6] to-[#ec4899] px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-1 hover:shadow-2xl ${
+                          dropdownOpen || schoolDropdownOpen ? 'pointer-events-none opacity-60' : ''
+                        }`}
+                      >
+                        Continue
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      // 第5步（邮箱验证）不显示按钮，验证成功后自动完成注册并跳转
+                      <span className="hidden sm:block" />
+                    )}
+                  </div>
+
+                  <p className={`text-center text-sm ${isDark ? 'text-white/60' : 'text-slate-500'} sm:hidden`}>
+                    Already registered?{' '}
+                    <Link to="/login" className="font-semibold text-purple-500 hover:text-purple-600 hover:underline">
+                      Sign in here
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <PhoneVerificationModal
+        isOpen={showPhoneVerification}
+        onClose={() => setShowPhoneVerification(false)}
+        phoneNumber={formData.phone}
+        onVerified={() => {
+          setPhoneVerified(true)
+          setShowPhoneVerification(false)
+        }}
+      />
     </div>
   )
 }

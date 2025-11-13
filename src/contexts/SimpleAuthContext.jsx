@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { simpleRegister, simpleLogin, simpleLogout, getUserDetails } from '../firebase/simpleAuth'
+import { useTheme } from './ThemeContext'
 
 const SimpleAuthContext = createContext()
 
@@ -14,6 +15,7 @@ export const useSimpleAuth = () => {
 export const SimpleAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const { toggleTheme } = useTheme()
 
   useEffect(() => {
     // 检查localStorage中的用户信息
@@ -68,6 +70,12 @@ export const SimpleAuthProvider = ({ children }) => {
       await simpleLogout()
       setUser(null)
       localStorage.removeItem('simpleUser')
+      // 强制切换到浅色模式
+      localStorage.setItem('theme', 'light')
+      document.documentElement.setAttribute('data-theme', 'light')
+      if (toggleTheme) {
+        toggleTheme('light')
+      }
     } catch (error) {
       console.error('Logout error:', error)
     }

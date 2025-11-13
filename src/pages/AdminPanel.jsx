@@ -30,6 +30,7 @@ import {
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useNotification } from '../contexts/NotificationContext'
 import { useNavigate } from 'react-router-dom'
+import { useTheme } from '../contexts/ThemeContext'
 import { collection, getDocs, query, where, orderBy, doc, getDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { safeToDate, formatTimestamp } from '../utils/timestampUtils'
@@ -48,6 +49,7 @@ const AdminPanel = () => {
   const { user, logout } = useSimpleAuth()
   const { showError, showSuccess } = useNotification()
   const navigate = useNavigate()
+  const { toggleTheme } = useTheme()
   const [activeTab, setActiveTab] = useState('tutor-accounts')
   const [tutors, setTutors] = useState([])
   const [allUsers, setAllUsers] = useState([])
@@ -491,7 +493,8 @@ const AdminPanel = () => {
       if (deleteItem.id === user.id) {
         console.log('🚪 Deleting current user account, logging out...')
         await logout()
-        navigate('/login')
+        toggleTheme('light')
+        navigate('/', { replace: true })
         showSuccess('Your account has been deleted. You have been logged out.', 'Account Deleted')
       }
     } catch (error) {

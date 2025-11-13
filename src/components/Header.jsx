@@ -26,6 +26,10 @@ import {
 import Avatar from './Avatar'
 import NotificationDropdown from './NotificationDropdown'
 import FullScreenNotification from './FullScreenNotification'
+import ExtensionDownload from '../pages/ExtensionDownload'
+import ProtectedRoute from './ProtectedRoute'
+import AdminRoute from './AdminRoute'
+import { useTheme } from '../contexts/ThemeContext'
 
 // Import pages for logged-in users
 import Homepage from '../pages/Homepage'
@@ -48,23 +52,13 @@ import SettingsPage from '../pages/Settings'
 import CalendarPage from '../pages/Calendar'
 import FocusTestModal from './FocusTestModal'
 import useFocusTest from '../hooks/useFocusTest'
-            <Route 
-              path="/extension-download" 
-              element={ 
-                <ProtectedRoute> 
-                  <ExtensionDownload /> 
-                </ProtectedRoute> 
-              } 
-            />
-import ExtensionDownload from '../pages/ExtensionDownload'
-import ProtectedRoute from './ProtectedRoute'
-import AdminRoute from './AdminRoute'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { user, logout, reloadUser } = useSimpleAuth()
   const location = useLocation()
   const navigate = useNavigate()
+  const { toggleTheme } = useTheme()
   const [unread, setUnread] = useState(0)
   const [openNotif, setOpenNotif] = useState(false)
   const hoverCloseTimerRef = React.useRef(null)
@@ -465,6 +459,7 @@ const Header = () => {
                 try {
                   await logout()
                 } finally {
+                  toggleTheme('light')
                   navigate('/', { replace: true })
                 }
               }}

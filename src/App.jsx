@@ -2,7 +2,7 @@ import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { SimpleAuthProvider, useSimpleAuth } from './contexts/SimpleAuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
-import { ThemeProvider } from './contexts/ThemeContext'
+import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 
 // Import pages
 import Home from './pages/Home'
@@ -35,6 +35,13 @@ import ProtectedRoute from './components/ProtectedRoute'
 function AppContent() {
   const { user } = useSimpleAuth()
   const location = useLocation()
+  const { isDark, toggleTheme } = useTheme()
+
+  useEffect(() => {
+    if (!user && isDark) {
+      toggleTheme('light')
+    }
+  }, [user, isDark, toggleTheme])
 
   // 检查是否有macOS应用回调参数
   const urlParams = new URLSearchParams(location.search)
