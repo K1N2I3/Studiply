@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, 
-  Send, 
   User, 
   MoreVertical,
   Phone,
@@ -108,8 +107,7 @@ const Chat = () => {
     }
   }
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault()
+  const sendCurrentMessage = async () => {
     if (!newMessage.trim() || sending) return
     
     try {
@@ -125,6 +123,18 @@ const Chat = () => {
       console.error('Error sending message:', error)
     } finally {
       setSending(false)
+    }
+  }
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault()
+    await sendCurrentMessage()
+  }
+
+  const handleMessageKeyDown = async (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      await sendCurrentMessage()
     }
   }
 
@@ -236,7 +246,7 @@ const Chat = () => {
             } flex flex-col`}
             style={{ minHeight: '0' }}
           >
-            <div className="flex-1 overflow-y-auto pr-2">
+            <div className="flex-1 overflow-y-auto pr-2 hide-scrollbar">
               <div className="space-y-4">
                 {messages.length > 0 ? (
                   messages.map((message, index) => {
@@ -311,32 +321,23 @@ const Chat = () => {
               isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'
             }`}
           >
-            <form onSubmit={handleSendMessage} className="flex items-end gap-3">
+            <form onSubmit={handleSendMessage} className="flex items-stretch">
               <div className="flex-1">
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={handleMessageKeyDown}
                   placeholder={`Message ${friend?.name || 'your friend'}...`}
-                  className={`w-full resize-none rounded-2xl border px-4 py-3 text-sm transition focus:ring-2 focus:ring-purple-500 focus:outline-none ${
+                  className={`w-full resize-none rounded-2xl border px-5 py-4 text-sm transition focus:ring-2 focus:ring-purple-500 focus:outline-none hide-scrollbar ${
                     isDark
                       ? 'border-white/15 bg-white/5 text-white placeholder-white/40'
                       : 'border-slate-200 bg-white text-slate-900 placeholder-slate-400'
                   }`}
                   rows={1}
                   disabled={sending}
+                  style={{ minHeight: '52px' }}
                 />
               </div>
-              <button
-                type="submit"
-                disabled={!newMessage.trim() || sending}
-                className="rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 p-3 text-white shadow-lg shadow-purple-500/30 transition hover:-translate-y-0.5 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {sending ? (
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-              </button>
             </form>
           </div>
         </div>
