@@ -910,7 +910,7 @@ const TutorDashboard = () => {
                   {chatList.map((chat) => (
                     <div
                       key={chat.userId}
-                      onClick={() => navigate(`/chat/${chat.userId}`)}
+                      onClick={() => navigate(`/chat/${chat.userId}`, { state: { from: 'tutor-dashboard' } })}
                       className={`group rounded-2xl border p-6 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] ${
                         isDark 
                           ? 'bg-white/10 border-white/20 hover:bg-white/15' 

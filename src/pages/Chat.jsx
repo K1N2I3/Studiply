@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { 
   ArrowLeft, 
   User, 
@@ -24,11 +24,22 @@ import Avatar from '../components/Avatar'
 const Chat = () => {
   const { friendId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useSimpleAuth()
   const { isDark } = useTheme()
   const [friend, setFriend] = useState(null)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
+  const fromPage = location.state?.from
+  const backConfig = {
+    'tutoring': { path: '/tutoring', label: 'Back to tutoring' },
+    'friends': { path: '/friends', label: 'Back to friends' },
+    'student-dashboard': { path: '/student-dashboard', label: 'Back to dashboard' },
+    'tutor-dashboard': { path: '/tutor-dashboard', label: 'Back to dashboard' }
+  }
+  const defaultBack = { path: '/friends', label: 'Back to friends' }
+  const backTarget = backConfig[fromPage] || defaultBack
+
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const messagesEndRef = useRef(null)
@@ -192,7 +203,7 @@ const Chat = () => {
           >
             <div className="flex items-center gap-5">
               <button
-                onClick={() => navigate('/friends')}
+                onClick={() => navigate(backTarget.path)}
                 className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition ${
                   isDark
                     ? 'bg-white/10 text-white/80 hover:bg-white/15 hover:text-white'
@@ -200,7 +211,7 @@ const Chat = () => {
                 }`}
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back to friends
+                {backTarget.label}
               </button>
               <div className="flex items-center gap-4">
                 <div className="relative">

@@ -435,7 +435,7 @@ const Friends = () => {
 
                         <div className="flex gap-3">
                           <button
-                            onClick={() => navigate(`/chat/${friend.id}`)}
+                              onClick={() => navigate(`/chat/${friend.id}`, { state: { from: 'friends' } })}
                             className="flex-1 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition hover:-translate-y-0.5 hover:shadow-xl"
                           >
                             <div className="flex items-center justify-center gap-2">

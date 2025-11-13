@@ -671,7 +671,7 @@ const Tutoring = () => {
 
                   <div className="mt-6 flex items-center gap-3">
                     <button
-                      onClick={() => navigate(`/chat/${tutor.id}`)}
+                      onClick={() => navigate(`/chat/${tutor.id}`, { state: { from: 'tutoring' } })}
                       className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
                         isDark 
                           ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30 hover:-translate-y-0.5' 

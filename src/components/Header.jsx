@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { subscribeUnreadCount, markAllNotificationsRead } from '../services/notificationService'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { Link, useLocation, Routes, Route } from 'react-router-dom'
+import { Link, useLocation, Routes, Route, useNavigate } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { getUserQuestProgress, LEVEL_CONFIG } from '../services/questService'
 import { 
@@ -64,6 +64,7 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const { user, logout, reloadUser } = useSimpleAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
   const [openNotif, setOpenNotif] = useState(false)
   const hoverCloseTimerRef = React.useRef(null)
@@ -460,7 +461,13 @@ const Header = () => {
               <p className="text-xs text-slate-400 truncate">{user?.email || ''}</p>
             </div>
             <button
-              onClick={logout}
+              onClick={async () => {
+                try {
+                  await logout()
+                } finally {
+                  navigate('/', { replace: true })
+                }
+              }}
               className="p-1 text-slate-400 hover:text-white transition-colors"
               title="Logout"
             >
