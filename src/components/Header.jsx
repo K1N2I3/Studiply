@@ -94,9 +94,24 @@ const Header = () => {
   }
 
   useEffect(() => {
-    if (!user?.id) return
-    const unsub = subscribeUnreadCount(user?.id, (count) => setUnread(count))
-    return () => unsub && unsub()
+    let unsub = null
+    
+    const cleanup = () => {
+      if (unsub && typeof unsub === 'function') {
+        try {
+          unsub()
+        } catch (error) {
+          console.error('Error cleaning up unread count listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id) {
+      return cleanup
+    }
+    
+    unsub = subscribeUnreadCount(user?.id, (count) => setUnread(count))
+    return cleanup
   }, [user?.id])
 
   // 处理macOS应用回调
@@ -117,13 +132,28 @@ const Header = () => {
 
   // 实时监听用户tutor状态变化
   useEffect(() => {
-    if (!user?.id) return
+    let unsubscribe = null
+    
+    const cleanup = () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          console.log('🔄 Cleaning up user tutor status listener')
+          unsubscribe()
+        } catch (error) {
+          console.error('Error cleaning up user tutor status listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id) {
+      return cleanup
+    }
     
     console.log('🔄 Setting up user tutor status listener for:', user.id, 'Current isTutor:', user.isTutor)
     
     // 监听用户文档的实时变化
     const userRef = doc(db, 'users', user.id)
-    const unsubscribe = onSnapshot(userRef, (doc) => {
+    unsubscribe = onSnapshot(userRef, (doc) => {
       if (doc.exists()) {
         const userData = doc.data()
         const isTutor = userData.isTutor && userData.tutorProfile
@@ -155,21 +185,33 @@ const Header = () => {
       setUserIsTutor(user.isTutor)
     })
     
-    return () => {
-      console.log('🔄 Cleaning up user tutor status listener')
-      unsubscribe()
-    }
+    return cleanup
   }, [user?.id])
 
   // 监听用户进度数据的实时变化
   useEffect(() => {
-    if (!user?.id) return
+    let unsubscribe = null
+    
+    const cleanup = () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          console.log('🔄 Cleaning up user progress listener')
+          unsubscribe()
+        } catch (error) {
+          console.error('Error cleaning up user progress listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id) {
+      return cleanup
+    }
     
     console.log('🔄 Setting up user progress listener for:', user.id)
     
     // 监听studyprogress集合的实时变化
     const userProgressRef = doc(db, 'studyprogress', user.id)
-    const unsubscribe = onSnapshot(userProgressRef, (doc) => {
+    unsubscribe = onSnapshot(userProgressRef, (doc) => {
       if (doc.exists()) {
         const progress = doc.data()
         
@@ -198,10 +240,7 @@ const Header = () => {
       console.error('❌ Error listening to user progress:', error)
     })
     
-    return () => {
-      console.log('🔄 Cleaning up user progress listener')
-      unsubscribe()
-    }
+    return cleanup
   }, [user?.id])
 
   // 获取导航项目配置

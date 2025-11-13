@@ -21,9 +21,24 @@ const NotificationDropdown = ({ open, onClose, onMouseEnter, onMouseLeave }) => 
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (!user?.id) return
-    const unsub = subscribeNotifications(user?.id, setItems, 20)
-    return () => unsub && unsub()
+    let unsub = null
+    
+    const cleanup = () => {
+      if (unsub && typeof unsub === 'function') {
+        try {
+          unsub()
+        } catch (error) {
+          console.error('Error cleaning up notifications listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id) {
+      return cleanup
+    }
+    
+    unsub = subscribeNotifications(user?.id, setItems, 20)
+    return cleanup
   }, [user?.id])
 
   // 悬停交互由父组件托管，此处不再监听全局点击关闭

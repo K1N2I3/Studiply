@@ -72,9 +72,22 @@ const StudentDashboard = () => {
 
   // 加载聊天列表
   useEffect(() => {
-    if (!user?.id || !showChatList) return
+    let unsubscribe = null
     
-    let unsubscribe
+    const cleanup = () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        try {
+          unsubscribe()
+        } catch (error) {
+          console.error('Error cleaning up chat list listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id || !showChatList) {
+      return cleanup
+    }
+    
     unsubscribe = listenToChatList(user.id, async (result) => {
       if (result.success) {
         // 获取每个聊天对象的用户信息（只显示 tutors）
@@ -110,11 +123,7 @@ const StudentDashboard = () => {
       }
     })
     
-    return () => {
-      if (unsubscribe && typeof unsubscribe === 'function') {
-        unsubscribe()
-      }
-    }
+    return cleanup
   }, [user?.id, showChatList])
 
   useEffect(() => {
@@ -122,58 +131,70 @@ const StudentDashboard = () => {
   }, [reloadUserProgress])
 
   useEffect(() => {
-    if (!user?.id) return
-    let unsub
-    const run = async () => {
-      const col = collection(db, 'sessions')
-      const q = query(col, where('studentId', '==', user?.id))
-      unsub = onSnapshot(q, async (snap) => {
-        const list = []
-        for (const d of snap.docs) {
-          const data = d.data()
-          let tutor = { id: data.tutorId, name: 'Unknown', email: '', avatar: null }
-          try {
-            const tDoc = await getDoc(doc(db, 'users', data.tutorId))
-            if (tDoc.exists()) {
-              const td = tDoc.data()
-              tutor = { id: data.tutorId, name: td.name || 'Unknown', email: td.email || '', avatar: td.avatar || null }
-            }
-          } catch (e) {}
-          
-          // Debug info: Print session data
-          console.log('📊 Student received session update:', {
-            sessionId: d.id,
-            status: data.status,
-            meetingCode: data.meetingCode,
-            tutorId: data.tutorId,
-            studentId: data.studentId,
-            allData: data // Print all data for debugging
-          })
-          
-          // Check button display conditions
-          const shouldShowButton = (data.status === 'accepted' || data.status === 'active')
-          console.log('🔘 Button display check:', {
-            sessionId: d.id,
-            status: data.status,
-            shouldShowButton: shouldShowButton,
-            buttonText: data.status === 'active' ? 'Join Meeting' : 'Waiting for Meeting'
-          })
-          
-          list.push({ id: d.id, ...data, tutor })
+    let unsub = null
+    
+    const cleanup = () => {
+      if (unsub && typeof unsub === 'function') {
+        try {
+          unsub()
+        } catch (error) {
+          console.error('Error cleaning up sessions listener:', error)
         }
-        // Sort locally by creation time in descending order (if exists)
-        list.sort((a, b) => {
-          const ta = safeToMillis(a.createdAt)
-          const tb = safeToMillis(b.createdAt)
-          return tb - ta
-        })
-        setSessions(list)
-        setLoading(false)
-      })
+      }
     }
+    
+    if (!user?.id) {
+      return cleanup
+    }
+    
     setLoading(true)
-    run()
-    return () => unsub && unsub()
+    const col = collection(db, 'sessions')
+    const q = query(col, where('studentId', '==', user?.id))
+    unsub = onSnapshot(q, async (snap) => {
+      const list = []
+      for (const d of snap.docs) {
+        const data = d.data()
+        let tutor = { id: data.tutorId, name: 'Unknown', email: '', avatar: null }
+        try {
+          const tDoc = await getDoc(doc(db, 'users', data.tutorId))
+          if (tDoc.exists()) {
+            const td = tDoc.data()
+            tutor = { id: data.tutorId, name: td.name || 'Unknown', email: td.email || '', avatar: td.avatar || null }
+          }
+        } catch (e) {}
+        
+        // Debug info: Print session data
+        console.log('📊 Student received session update:', {
+          sessionId: d.id,
+          status: data.status,
+          meetingCode: data.meetingCode,
+          tutorId: data.tutorId,
+          studentId: data.studentId,
+          allData: data // Print all data for debugging
+        })
+        
+        // Check button display conditions
+        const shouldShowButton = (data.status === 'accepted' || data.status === 'active')
+        console.log('🔘 Button display check:', {
+          sessionId: d.id,
+          status: data.status,
+          shouldShowButton: shouldShowButton,
+          buttonText: data.status === 'active' ? 'Join Meeting' : 'Waiting for Meeting'
+        })
+        
+        list.push({ id: d.id, ...data, tutor })
+      }
+      // Sort locally by creation time in descending order (if exists)
+      list.sort((a, b) => {
+        const ta = safeToMillis(a.createdAt)
+        const tb = safeToMillis(b.createdAt)
+        return tb - ta
+      })
+      setSessions(list)
+      setLoading(false)
+    })
+    
+    return cleanup
   }, [user?.id])
 
   const loadSessions = async () => {
