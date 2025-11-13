@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { SimpleAuthProvider, useSimpleAuth } from './contexts/SimpleAuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
@@ -83,6 +83,71 @@ function AppContent() {
 }
 
 function App() {
+  useEffect(() => {
+    let hideTimeout = null
+
+    const updateVirtualScrollbar = () => {
+      const doc = document.documentElement
+      const scrollHeight = doc.scrollHeight
+      const clientHeight = doc.clientHeight
+      const scrollTop = window.pageYOffset || doc.scrollTop || 0
+      const trackMargin = 24
+      const trackHeight = Math.max(clientHeight - trackMargin * 2, 40)
+
+      document.body.style.setProperty('--virtual-scrollbar-top', `${trackMargin}px`)
+      document.body.style.setProperty('--virtual-track-height', `${trackHeight}px`)
+
+      if (scrollHeight <= clientHeight) {
+        document.body.classList.remove('show-scrollbar')
+        document.body.style.setProperty('--virtual-thumb-height', '0px')
+        document.body.style.setProperty('--virtual-thumb-offset', '0px')
+        return false
+      }
+
+      const scrollable = scrollHeight - clientHeight
+      const thumbHeight = Math.max((clientHeight / scrollHeight) * trackHeight, 40)
+      const maxThumbOffset = trackHeight - thumbHeight
+      const thumbOffset = scrollable > 0 ? (scrollTop / scrollable) * maxThumbOffset : 0
+
+      document.body.style.setProperty('--virtual-thumb-height', `${thumbHeight}px`)
+      document.body.style.setProperty('--virtual-thumb-offset', `${thumbOffset}px`)
+      return true
+    }
+
+    const activateScrollbar = () => {
+      const hasScrollableContent = updateVirtualScrollbar()
+      if (!hasScrollableContent) {
+        return
+      }
+      document.body.classList.add('show-scrollbar')
+      if (hideTimeout) {
+        clearTimeout(hideTimeout)
+      }
+      hideTimeout = setTimeout(() => {
+        document.body.classList.remove('show-scrollbar')
+      }, 1000)
+    }
+
+    const listenerOptions = { passive: true }
+    window.addEventListener('wheel', activateScrollbar, listenerOptions)
+    window.addEventListener('scroll', activateScrollbar, listenerOptions)
+    window.addEventListener('touchmove', activateScrollbar, listenerOptions)
+    window.addEventListener('resize', updateVirtualScrollbar, listenerOptions)
+
+    updateVirtualScrollbar()
+
+    return () => {
+      window.removeEventListener('wheel', activateScrollbar, listenerOptions)
+      window.removeEventListener('scroll', activateScrollbar, listenerOptions)
+      window.removeEventListener('touchmove', activateScrollbar, listenerOptions)
+      window.removeEventListener('resize', updateVirtualScrollbar, listenerOptions)
+      if (hideTimeout) {
+        clearTimeout(hideTimeout)
+      }
+      document.body.classList.remove('show-scrollbar')
+    }
+  }, [])
+
   return (
     <ThemeProvider>
       <NotificationProvider>
