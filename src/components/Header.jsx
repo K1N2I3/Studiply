@@ -238,11 +238,16 @@ const Header = () => {
         const userData = doc.data()
         const isTutor = userData.isTutor && userData.tutorProfile
         
+        // 更新 Studiply Pass 状态
+        const hasPass = userData.hasStudiplyPass === true || userData.studiplyPass === true
+        setHasStudiplyPass(hasPass)
+        
         console.log('👤 User status update:', { 
           isTutor: userData.isTutor, 
           hasProfile: !!userData.tutorProfile,
           currentIsTutor: isTutor,
-          previousIsTutor: userIsTutor
+          previousIsTutor: userIsTutor,
+          hasStudiplyPass: hasPass
         })
         
         // 如果用户之前是tutor，现在不是了，显示通知
@@ -258,6 +263,8 @@ const Header = () => {
         }
         
         setUserIsTutor(isTutor)
+      } else {
+        setHasStudiplyPass(false)
       }
     }, (error) => {
       console.error('❌ Error listening to user changes:', error)
