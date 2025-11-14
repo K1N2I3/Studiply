@@ -48,8 +48,14 @@ const ChatWithTutor = () => {
   useEffect(() => {
     if (tutorId && user?.id) {
       loadChatData()
-      // 标记来自这个 tutor 的未读消息为已读
-      markMessagesFromTutorAsRead()
+      // 延迟标记消息为已读，给用户时间查看消息
+      const markReadTimeout = setTimeout(() => {
+        markMessagesFromTutorAsRead()
+      }, 3000) // 3秒后标记为已读
+      
+      return () => {
+        clearTimeout(markReadTimeout)
+      }
     }
     
     return () => {
@@ -59,7 +65,7 @@ const ChatWithTutor = () => {
     }
   }, [tutorId, user])
 
-  // 标记来自这个 tutor 的未读消息为已读
+  // 标记来自这个 tutor 的未读消息为已读（延迟执行）
   const markMessagesFromTutorAsRead = async () => {
     if (!tutorId || !user?.id) return
     try {
@@ -68,7 +74,8 @@ const ChatWithTutor = () => {
         messagesRef,
         where('receiverId', '==', user.id),
         where('senderId', '==', tutorId),
-        where('read', '==', false)
+        where('read', '==', false),
+        where('chatType', '==', 'tutor') // 确保只标记 tutor 类型的消息
       )
       const snapshot = await getDocs(q)
       const updatePromises = []
@@ -77,6 +84,7 @@ const ChatWithTutor = () => {
         updatePromises.push(updateDoc(messageRef, { read: true }))
       })
       await Promise.all(updatePromises)
+      console.log(`✅ Marked ${snapshot.size} tutor messages as read`)
     } catch (error) {
       console.error('Error marking tutor messages as read:', error)
     }

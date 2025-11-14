@@ -602,6 +602,39 @@ export const subscribeUnreadTutorMessagesCount = (userId, callback) => {
   }
 }
 
+// 获取有未读消息的 tutor 列表
+export const getUnreadTutorsList = async (userId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false),
+      where('chatType', '==', 'tutor')
+    )
+    
+    const snapshot = await getDocs(q)
+    const tutorIds = new Set()
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data()
+      tutorIds.add(data.senderId)
+    })
+    
+    return {
+      success: true,
+      tutorIds: Array.from(tutorIds)
+    }
+  } catch (error) {
+    console.error('Error getting unread tutors list:', error)
+    return {
+      success: false,
+      tutorIds: [],
+      error: 'Failed to get unread tutors list'
+    }
+  }
+}
+
 // 获取与特定朋友的未读消息数量
 export const getUnreadMessagesFromFriend = async (userId, friendId) => {
   try {

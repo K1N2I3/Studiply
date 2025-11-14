@@ -34,7 +34,7 @@ import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/fire
 import { joinMeeting } from '../services/meetingService'
 import { useNotification } from '../contexts/NotificationContext'
 import { getUserQuestProgress, updateQuestProgress } from '../services/cloudQuestService'
-import { listenToChatList, formatMessageTime, getUnreadTutorMessagesCount } from '../services/chatService'
+import { listenToChatList, formatMessageTime, getUnreadTutorMessagesCount, subscribeUnreadTutorMessagesCount } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
 
 const StudentDashboard = () => {
@@ -57,6 +57,7 @@ const StudentDashboard = () => {
   const [chatList, setChatList] = useState([])
   const [showChatList, setShowChatList] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
+  const [unreadTutors, setUnreadTutors] = useState([]) // 存储有未读消息的 tutor 列表
 
   const reloadUserProgress = useCallback(async () => {
     if (!user?.id) return
@@ -131,27 +132,50 @@ const StudentDashboard = () => {
     reloadUserProgress()
   }, [reloadUserProgress])
 
-  // 页面加载时检查来自 Tutors 的未读消息
+  // 实时监听来自 Tutors 的未读消息
   useEffect(() => {
-    const checkUnreadTutorMessages = async () => {
-      if (!user?.id) return
+    if (!user?.id) return
+    
+    // 使用实时监听来更新未读消息计数
+    const unsubscribe = subscribeUnreadTutorMessagesCount(user.id, async (count) => {
+      setUnreadMessageCount(count)
       
-      try {
-        // 获取来自 Tutors 的未读消息数量
-        const result = await getUnreadTutorMessagesCount(user.id)
-        if (result.success && result.count > 0) {
-          // 保存未读消息数量用于显示提示
-          setUnreadMessageCount(result.count)
-        } else {
-          setUnreadMessageCount(0)
+      // 如果有未读消息，获取 tutor 列表
+      if (count > 0) {
+        try {
+          const result = await getUnreadTutorsList(user.id)
+          if (result.success && result.tutorIds.length > 0) {
+            // 获取每个 tutor 的信息
+            const tutorPromises = result.tutorIds.map(async (tutorId) => {
+              try {
+                const tutorDoc = await getDoc(doc(db, 'users', tutorId))
+                if (tutorDoc.exists()) {
+                  return { id: tutorId, name: tutorDoc.data().name || 'Tutor' }
+                }
+              } catch (error) {
+                console.error('Error getting tutor info:', error)
+              }
+              return null
+            })
+            
+            const tutors = (await Promise.all(tutorPromises)).filter(Boolean)
+            setUnreadTutors(tutors)
+          } else {
+            setUnreadTutors([])
+          }
+        } catch (error) {
+          console.error('Error getting unread tutors list:', error)
         }
-      } catch (error) {
-        console.error('Error checking unread tutor messages:', error)
-        setUnreadMessageCount(0)
+      } else {
+        setUnreadTutors([])
+      }
+    })
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
       }
     }
-    
-    checkUnreadTutorMessages()
   }, [user?.id])
 
   useEffect(() => {
@@ -648,19 +672,21 @@ const StudentDashboard = () => {
                   <p className={`font-semibold ${
                     isDark ? 'text-white' : 'text-slate-900'
                   }`}>
-                    You have {unreadMessageCount} unread message{unreadMessageCount > 1 ? 's' : ''}
+                    You have {unreadMessageCount} unread message{unreadMessageCount > 1 ? 's' : ''} from {unreadTutors.length > 0 ? unreadTutors.map(t => t.name).join(', ') : 'tutors'}
                   </p>
                   <p className={`text-sm mt-0.5 ${
                     isDark ? 'text-white/70' : 'text-slate-600'
                   }`}>
-                    Click on "Chat with Tutors" or "Friends" to view your messages
+                    {unreadTutors.length > 0 
+                      ? `Click "View Messages" to chat with ${unreadTutors.length === 1 ? unreadTutors[0].name : 'your tutors'}`
+                      : 'Click "View Messages" to view your messages'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => {
                   setShowChatList(true)
-                  setUnreadMessageCount(0)
+                  // 不要手动设置计数为 0，让实时监听自动更新
                 }}
                 className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
                   isDark
