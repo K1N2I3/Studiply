@@ -22,7 +22,10 @@ import {
   Calendar,
   GraduationCap,
   Sword,
-  Shield
+  Shield,
+  Crown,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react'
 import Avatar from './Avatar'
 import NotificationDropdown from './NotificationDropdown'
@@ -71,6 +74,7 @@ const Header = () => {
   const [showProfileDeletedNotification, setShowProfileDeletedNotification] = useState(false)
   const [userIsTutor, setUserIsTutor] = useState(user?.isTutor || false)
   const [userProgress, setUserProgress] = useState(null)
+  const [hasStudiplyPass, setHasStudiplyPass] = useState(user?.hasStudiplyPass || false)
   
   // 专注测试功能
   const {
@@ -549,7 +553,7 @@ const Header = () => {
         </nav>
 
         {/* 底部用户区域 */}
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-slate-700 space-y-3">
           <div className="flex items-center space-x-3">
             <Avatar user={user} size="sm" className="border border-slate-500" />
             <div className="flex-1 min-w-0">
@@ -575,6 +579,46 @@ const Header = () => {
               </svg>
             </button>
           </div>
+
+          {/* Studiply Pass Upgrade Prompt */}
+          {user && !hasStudiplyPass && (
+            <div 
+              onClick={() => navigate('/rewards')}
+              className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 p-3 cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02]"
+            >
+              {/* Animated background */}
+              <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-white rounded-full -translate-y-10 translate-x-10 animate-pulse"></div>
+                <div className="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full translate-y-8 -translate-x-8 animate-pulse delay-1000"></div>
+              </div>
+              
+              <div className="relative flex items-center gap-3">
+                <div className="flex-shrink-0 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-white mb-0.5">You are using a free account</p>
+                  <p className="text-xs text-white/90 flex items-center gap-1 group-hover:gap-2 transition-all">
+                    Upgrade to Pro
+                    <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <Sparkles className="w-4 h-4 text-white/80" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Premium Badge (if user has pass) */}
+          {user && hasStudiplyPass && (
+            <div className="rounded-xl bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 p-2">
+              <div className="flex items-center gap-2">
+                <Crown className="w-4 h-4 text-yellow-400" />
+                <p className="text-xs font-semibold text-yellow-300">Studiply Pass Pro</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
