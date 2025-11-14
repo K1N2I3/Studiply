@@ -1,243 +1,141 @@
 import React, { useState, useEffect } from 'react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { getUserQuestProgress, LEVEL_CONFIG } from '../services/cloudQuestService'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from '../firebase/config'
 import { 
   Star, 
   Crown, 
   Gift, 
-  Sparkles, 
   Trophy,
-  CheckCircle,
-  ArrowRight,
-  Gem,
-  Diamond,
-  Shield,
-  Sword,
-  Rocket,
-  Heart,
-  Brain,
-  Eye,
-  Flame,
-  Target,
   Award,
   Medal,
   Coins,
-  Wallet,
-  CreditCard,
+  Zap,
+  Flame,
+  Target,
+  Rocket,
+  Sparkles,
+  TrendingUp,
+  Calendar,
+  Clock,
+  CheckCircle2,
   Lock,
   Unlock,
-  Infinity,
-  Timer,
-  Users,
+  Gem,
+  Diamond,
+  Heart,
+  Brain,
   BookOpen,
   GraduationCap,
-  Zap
+  Users,
+  BarChart3,
+  ArrowRight,
+  GiftIcon,
+  Sparkle
 } from 'lucide-react'
 
 const Rewards = () => {
   const { user } = useSimpleAuth()
-  const { theme, isDark } = useTheme()
-  const [animationComplete, setAnimationComplete] = useState(false)
-  const [selectedPass, setSelectedPass] = useState(null)
-  const [hoveredCard, setHoveredCard] = useState(null)
-  const [paymentMethod, setPaymentMethod] = useState('paypal')
+  const { isDark } = useTheme()
+  const [userProgress, setUserProgress] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [selectedTab, setSelectedTab] = useState('overview')
 
-  // 启动动画 - 给用户时间准备
+  // 实时监听用户进度
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimationComplete(true)
-    }, 3000)
-    return () => clearTimeout(timer)
-  }, [])
-
-  // PayPal支付处理
-  const handlePayPalPayment = async (pass) => {
-    try {
-      // 这里应该集成PayPal SDK
-      // 对于演示，我们显示一个模拟的支付流程
-      console.log('Processing PayPal payment for:', pass.name, '€' + pass.price)
-      
-      // 模拟支付成功
-      alert(`PayPal支付成功！\n\n套餐: ${pass.name}\n价格: €${pass.price}\n\n感谢您的购买！`)
-      
-      // 这里应该调用后端API来确认支付并激活用户账户
-      // await confirmPayment(pass.id, paymentMethod, pass.price)
-      
-    } catch (error) {
-      console.error('Payment error:', error)
-      alert('支付失败，请重试。')
+    if (!user?.id) {
+      setLoading(false)
+      return
     }
+
+    const userProgressRef = doc(db, 'studyprogress', user.id)
+    const unsubscribe = onSnapshot(userProgressRef, async (doc) => {
+      if (doc.exists()) {
+        const progress = doc.data()
+        const levelProgress = LEVEL_CONFIG.calculateLevelProgress(progress.totalXP || 0)
+        setUserProgress({
+          ...progress,
+          levelProgress: levelProgress
+        })
+      } else {
+        // 如果没有数据，创建默认进度
+        const defaultProgress = {
+          totalXP: 0,
+          currentLevel: 1,
+          gold: 0,
+          completedQuests: [],
+          achievements: [],
+          levelProgress: LEVEL_CONFIG.calculateLevelProgress(0)
+        }
+        setUserProgress(defaultProgress)
+      }
+      setLoading(false)
+    }, (error) => {
+      console.error('Error listening to user progress:', error)
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [user?.id])
+
+  // 成就列表
+  const allAchievements = [
+    { id: 'first_quest', name: 'First Steps', description: 'Complete your first quest', icon: Star, color: 'from-yellow-400 to-orange-500', rarity: 'common' },
+    { id: 'level_5', name: 'Rising Star', description: 'Reach level 5', icon: Rocket, color: 'from-blue-400 to-cyan-500', rarity: 'common' },
+    { id: 'level_10', name: 'Experienced Learner', description: 'Reach level 10', icon: Trophy, color: 'from-purple-400 to-pink-500', rarity: 'rare' },
+    { id: 'level_20', name: 'Knowledge Seeker', description: 'Reach level 20', icon: Crown, color: 'from-indigo-400 to-purple-500', rarity: 'rare' },
+    { id: 'level_30', name: 'Master Scholar', description: 'Reach level 30', icon: Gem, color: 'from-emerald-400 to-teal-500', rarity: 'epic' },
+    { id: 'level_50', name: 'Legendary Academic', description: 'Reach level 50', icon: Diamond, color: 'from-amber-400 to-yellow-500', rarity: 'legendary' },
+    { id: 'gold_1000', name: 'Wealthy Scholar', description: 'Accumulate 1000 gold', icon: Coins, color: 'from-yellow-400 to-amber-500', rarity: 'rare' },
+    { id: 'quest_master', name: 'Quest Master', description: 'Complete 50 quests', icon: Target, color: 'from-red-400 to-rose-500', rarity: 'epic' },
+    { id: 'streak_7', name: 'Week Warrior', description: 'Maintain a 7-day streak', icon: Flame, color: 'from-orange-400 to-red-500', rarity: 'rare' },
+    { id: 'streak_30', name: 'Monthly Champion', description: 'Maintain a 30-day streak', icon: Sparkles, color: 'from-pink-400 to-purple-500', rarity: 'epic' },
+  ]
+
+  const userAchievements = userProgress?.achievements || []
+  const unlockedAchievements = allAchievements.filter(ach => userAchievements.includes(ach.id))
+  const lockedAchievements = allAchievements.filter(ach => !userAchievements.includes(ach.id))
+
+  // 计算统计数据
+  const stats = {
+    totalQuests: userProgress?.completedQuests?.length || 0,
+    totalXP: userProgress?.totalXP || 0,
+    currentLevel: userProgress?.currentLevel || 1,
+    gold: userProgress?.gold || 0,
+    achievements: unlockedAchievements.length,
+    totalAchievements: allAchievements.length
   }
 
-  // 处理支付按钮点击
-  const handlePayment = (pass) => {
-    if (paymentMethod === 'paypal') {
-      handlePayPalPayment(pass)
-    } else {
-      // 其他支付方式
-      alert('其他支付方式暂未开通，请使用PayPal支付。')
-    }
+  const levelProgress = userProgress?.levelProgress || {
+    currentLevel: 1,
+    nextLevel: 2,
+    progressXP: 0,
+    requiredXP: 100,
+    progressPercentage: 0
   }
 
-  // Epic theme-based animation component
-  const EpicAnimation = () => {
+  // 奖励商店物品
+  const shopItems = [
+    { id: 'theme_dark', name: 'Dark Theme', description: 'Unlock dark mode theme', price: 100, icon: Sparkle, available: true },
+    { id: 'badge_premium', name: 'Premium Badge', description: 'Show off your premium status', price: 500, icon: Crown, available: true },
+    { id: 'avatar_frame', name: 'Golden Frame', description: 'Exclusive avatar frame', price: 300, icon: Award, available: true },
+    { id: 'title_legend', name: 'Legend Title', description: 'Custom title: "Legend"', price: 1000, icon: Star, available: true },
+  ]
+
+  if (loading) {
     return (
-      <div className="relative w-full h-80 rounded-3xl overflow-hidden">
-        <div className={`absolute inset-0 rounded-3xl blur-xl ${
-          isDark 
-            ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 shadow-2xl shadow-purple-500/20' 
-            : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 shadow-2xl shadow-purple-300/30'
-        }`}></div>
-        <div className={`relative backdrop-blur-sm rounded-3xl shadow-2xl border overflow-hidden ${
-          isDark 
-            ? 'bg-white/10 border-white/20' 
-            : 'bg-white/80 border-white/20'
-        }`}>
-          <div className="bg-gradient-to-br from-purple-600 via-pink-600 to-indigo-600 p-8 text-white relative overflow-hidden h-full">
-            {/* Background decorations */}
-            <div className="absolute inset-0 opacity-20">
-              <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full -translate-x-16 -translate-y-16 animate-pulse"></div>
-              <div className="absolute top-0 right-0 w-24 h-24 bg-white rounded-full translate-x-12 -translate-y-12 animate-pulse delay-1000"></div>
-              <div className="absolute bottom-0 left-0 w-28 h-28 bg-white rounded-full -translate-x-14 translate-y-14 animate-pulse delay-2000"></div>
-              <div className="absolute bottom-0 right-0 w-20 h-20 bg-white rounded-full translate-x-10 translate-y-10 animate-pulse delay-3000"></div>
-            </div>
-            
-            <div className="relative z-10 text-center h-full flex flex-col justify-center">
-              <div className="mb-6">
-                <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Gift className="w-12 h-12 text-white animate-bounce" />
-                </div>
-                <h2 className="text-3xl font-bold mb-2">Epic Rewards Await</h2>
-                <p className="text-white/80 text-lg">Unlock legendary privileges and exclusive benefits</p>
-              </div>
-              
-              <div className="flex justify-center space-x-4">
-                <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
-                  <Crown className="w-5 h-5" />
-                  <span className="font-bold">Premium Access</span>
-                </div>
-                <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
-                  <Zap className="w-5 h-5" />
-                  <span className="font-bold">Exclusive Features</span>
-                </div>
-                <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-xl">
-                  <Trophy className="w-5 h-5" />
-                  <span className="font-bold">VIP Status</span>
-                </div>
-              </div>
-            </div>
-          </div>
+      <div className={`min-h-screen flex items-center justify-center ${
+        isDark ? 'bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900' : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'
+      }`}>
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className={`text-lg ${isDark ? 'text-white' : 'text-gray-700'}`}>Loading your rewards...</p>
         </div>
       </div>
     )
   }
-
-  // Epic Studiply Pass data
-  const studiplyPasses = [
-    {
-      id: 'basic',
-      name: 'Studiply Pass',
-      subtitle: 'Essential Learning',
-      price: 8.99,
-      originalPrice: 17.99,
-      icon: <Star className="w-8 h-8 text-yellow-400" />,
-      color: 'from-yellow-500 via-orange-500 to-red-500',
-      borderColor: 'border-yellow-400',
-      glowColor: 'shadow-yellow-500/20',
-      features: [
-        'Unlimited video calls',
-        'Exclusive study badges',
-        'Priority customer support',
-        'Monthly free courses',
-        'Study progress tracking',
-        'Personalized study plans'
-      ],
-      level: 'Bronze'
-    },
-    {
-      id: 'pro',
-      name: 'Studiply Pass Pro',
-      subtitle: 'Advanced Learning',
-      price: 17.99,
-      originalPrice: 35.99,
-      icon: <Crown className="w-8 h-8 text-purple-400" />,
-      color: 'from-purple-500 via-pink-500 to-rose-500',
-      borderColor: 'border-purple-500',
-      glowColor: 'shadow-purple-500/20',
-      features: [
-        'All Studiply Pass features',
-        'Unlimited 1-on-1 tutoring',
-        'Exclusive tutor matching',
-        'Advanced learning analytics',
-        'Priority booking slots',
-        'Exclusive study community',
-        'Custom learning paths',
-        '24/7 dedicated support'
-      ],
-      level: 'Gold'
-    },
-    {
-      id: 'legendary',
-      name: 'Studiply Pass Legendary',
-      subtitle: 'Ultimate Learning',
-      price: 35.99,
-      originalPrice: 71.99,
-      icon: <Diamond className="w-8 h-8 text-cyan-400" />,
-      color: 'from-cyan-500 via-blue-500 to-indigo-500',
-      borderColor: 'border-cyan-500',
-      glowColor: 'shadow-cyan-500/20',
-      features: [
-        'All Pro features',
-        'AI-powered learning coach',
-        'Exclusive masterclasses',
-        'Personal learning concierge',
-        'Early access to new features',
-        'Exclusive study retreats',
-        'Lifetime access to premium content',
-        'VIP community membership'
-      ],
-      level: 'Legendary'
-    }
-  ]
-
-  const benefits = [
-    {
-      icon: <Zap className="w-8 h-8" />,
-      title: 'Lightning Fast Learning',
-      description: 'Accelerate your learning with exclusive tools and resources',
-      color: 'from-yellow-500 to-orange-500'
-    },
-    {
-      icon: <Shield className="w-8 h-8" />,
-      title: 'Premium Support',
-      description: 'Get 24/7 dedicated support from our expert team',
-      color: 'from-blue-500 to-cyan-500'
-    },
-    {
-      icon: <Crown className="w-8 h-8" />,
-      title: 'Exclusive Access',
-      description: 'Unlock member-only features and priority services',
-      color: 'from-purple-500 to-pink-500'
-    },
-    {
-      icon: <Trophy className="w-8 h-8" />,
-      title: 'Achievement System',
-      description: 'Earn exclusive badges and unlock legendary achievements',
-      color: 'from-green-500 to-emerald-500'
-    },
-    {
-      icon: <Users className="w-8 h-8" />,
-      title: 'VIP Community',
-      description: 'Join an exclusive community of dedicated learners',
-      color: 'from-indigo-500 to-purple-500'
-    },
-    {
-      icon: <Rocket className="w-8 h-8" />,
-      title: 'Future Features',
-      description: 'Get early access to cutting-edge learning innovations',
-      color: 'from-pink-500 to-rose-500'
-    }
-  ]
 
   return (
     <div className={`min-h-screen ${
@@ -246,290 +144,462 @@ const Rewards = () => {
         : 'bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50'
     }`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Epic Header */}
-        <div className="text-center mb-12">
-          <div className="relative inline-block">
-            <div className={`absolute inset-0 rounded-3xl blur-xl ${
-              isDark 
-                ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 shadow-2xl shadow-purple-500/20' 
-                : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 shadow-2xl shadow-purple-300/30'
-            }`}></div>
-            <div className={`relative backdrop-blur-sm rounded-3xl shadow-2xl border px-8 py-6 ${
-              isDark 
-                ? 'bg-white/10 border-white/20' 
-                : 'bg-white/80 border-white/20'
-            }`}>
-              <h1 className={`text-5xl font-bold mb-2 ${
-                isDark 
-                  ? 'bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent' 
-                  : 'bg-gradient-to-r from-purple-700 to-pink-700 bg-clip-text text-transparent'
-              }`}>
-                🎁 Epic Rewards
-              </h1>
-              <p className={`text-xl ${
-                isDark ? 'text-white/70' : 'text-gray-600'
-              }`}>
-                Unlock legendary privileges and transform your learning journey
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Method Selection */}
-        <div className="text-center mb-8">
-          <div className={`inline-flex items-center space-x-4 p-4 rounded-2xl border ${
-            isDark 
-              ? 'bg-white/10 border-white/20' 
-              : 'bg-white/80 border-gray-200'
+        {/* Header */}
+        <div className="mb-8">
+          <div className={`relative rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+            isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
           }`}>
-            <span className={`font-medium ${
-              isDark ? 'text-white' : 'text-gray-700'
-            }`}>支付方式:</span>
-            <div className="flex items-center space-x-2">
-              <input
-                type="radio"
-                id="paypal"
-                name="payment"
-                value="paypal"
-                checked={paymentMethod === 'paypal'}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-4 h-4 text-blue-600"
-              />
-              <label htmlFor="paypal" className={`flex items-center space-x-2 cursor-pointer ${
-                isDark ? 'text-white' : 'text-gray-700'
-              }`}>
-                <span className="text-blue-600 font-bold">PayPal</span>
-                <span className="text-sm">(推荐)</span>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Epic Animation Showcase */}
-        <div className="mb-12">
-          <EpicAnimation />
-        </div>
-
-        {/* Epic Pass Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {studiplyPasses.map((pass) => (
-            <div
-              key={pass.id}
-              className="relative group z-10"
-              onMouseEnter={() => setHoveredCard(pass.id)}
-              onMouseLeave={() => setHoveredCard(null)}
-            >
-              <div className={`absolute inset-0 rounded-3xl blur-xl transition-all duration-500 group-hover:blur-2xl ${
-                isDark 
-                  ? `bg-gradient-to-r ${pass.color} shadow-2xl ${pass.glowColor}` 
-                  : `bg-gradient-to-r ${pass.color} shadow-2xl ${pass.glowColor}`
-              }`}></div>
-              <div className={`relative backdrop-blur-sm rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 group-hover:scale-105 ${
-                isDark 
-                  ? 'bg-white/10 border-white/20 group-hover:border-white/40' 
-                  : 'bg-white/90 border-white/20 group-hover:border-white/40'
-              }`}>
-
-                {/* Pass header */}
-                <div className={`bg-gradient-to-br ${pass.color} p-6 text-white relative overflow-hidden`}>
-                  <div className="absolute inset-0 opacity-20">
-                    <div className="absolute top-0 right-0 w-20 h-20 bg-white rounded-full -translate-y-10 translate-x-10 animate-pulse"></div>
-                    <div className="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full translate-y-8 -translate-x-8 animate-pulse delay-1000"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-indigo-500/20"></div>
+            <div className="relative p-8">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex-1 text-center md:text-left">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide mb-4">
+                    <Gift className="h-4 w-4" /> Rewards Center
                   </div>
-                  <div className="relative z-10 text-center">
-                    <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                      {pass.icon}
-                    </div>
-                    <h3 className="text-2xl font-bold mb-1">{pass.name}</h3>
-                    <p className="text-white/80 text-sm mb-4">{pass.subtitle}</p>
-                    
-                    {/* Level badge */}
-                    <div className="inline-flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full mb-4">
-                      <Medal className="w-4 h-4" />
-                      <span className="text-sm font-bold">{pass.level}</span>
-                    </div>
-                    
-                    {/* Price */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-center space-x-2">
-                        <span className="text-4xl font-bold">€{pass.price}</span>
-                        <span className="text-lg line-through text-white/60">€{pass.originalPrice}</span>
-                      </div>
-                      <p className="text-sm text-green-300 font-semibold">Save €{(pass.originalPrice - pass.price).toFixed(0)}</p>
-                    </div>
-                  </div>
+                  <h1 className={`text-4xl md:text-5xl font-black tracking-tight mb-3 ${
+                    isDark
+                      ? 'bg-gradient-to-r from-purple-200 via-pink-200 to-indigo-200 bg-clip-text text-transparent'
+                      : 'bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent'
+                  }`}>
+                    Welcome back, {user?.name || 'Scholar'}!
+                  </h1>
+                  <p className={`text-lg ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                    Track your progress, unlock achievements, and claim your rewards
+                  </p>
                 </div>
-
-                {/* Features */}
-                <div className="p-6">
-                  <div className="space-y-3 mb-6">
-                    {pass.features.map((feature, index) => (
-                      <div key={index} className="flex items-center space-x-3">
-                        <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                        <span className={`text-sm ${
-                          isDark ? 'text-gray-300' : 'text-gray-700'
-                        }`}>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Purchase button */}
-                  <button
-                    className={`w-full py-4 rounded-2xl font-bold text-white transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 bg-gradient-to-r ${pass.color} hover:opacity-90 flex items-center justify-center space-x-2`}
-                    onClick={() => handlePayment(pass)}
-                  >
-                    <span>Pay with PayPal</span>
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Epic Benefits Grid */}
-        <div className="mb-12">
-          <div className="text-center mb-8">
-            <h2 className={`text-3xl font-bold mb-2 ${
-              isDark 
-                ? 'bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent'
-                : 'bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent'
-            }`}>
-              Why Choose Epic Rewards?
-            </h2>
-            <p className={`text-lg ${
-              isDark ? 'text-gray-300' : 'text-gray-600'
-            }`}>Discover the legendary benefits that await you</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {benefits.map((benefit, index) => (
-              <div key={index} className="relative group">
-                <div className={`absolute inset-0 rounded-3xl blur-xl transition-all duration-500 group-hover:blur-2xl ${
-                  isDark 
-                    ? `bg-gradient-to-r ${benefit.color} shadow-2xl shadow-${benefit.color.split('-')[1]}-500/20` 
-                    : `bg-gradient-to-r ${benefit.color} shadow-2xl shadow-${benefit.color.split('-')[1]}-300/30`
-                }`}></div>
-                <div className={`relative backdrop-blur-sm rounded-3xl shadow-2xl border overflow-hidden transition-all duration-300 group-hover:scale-105 ${
-                  isDark 
-                    ? 'bg-white/10 border-white/20 group-hover:border-white/40' 
-                    : 'bg-white/90 border-white/20 group-hover:border-white/40'
+                
+                {/* Level Badge */}
+                <div className={`relative rounded-2xl border p-6 text-center ${
+                  isDark ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/20 to-pink-500/20' : 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50'
                 }`}>
-                  <div className={`bg-gradient-to-br ${benefit.color} p-6 text-white relative overflow-hidden`}>
-                    <div className="absolute inset-0 opacity-20">
-                      <div className="absolute top-0 right-0 w-16 h-16 bg-white rounded-full -translate-y-8 translate-x-8 animate-pulse"></div>
-                      <div className="absolute bottom-0 left-0 w-12 h-12 bg-white rounded-full translate-y-6 -translate-x-6 animate-pulse delay-1000"></div>
-                    </div>
-                    <div className="relative z-10 text-center">
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                        {benefit.icon}
-                      </div>
-                      <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
-                      <p className="text-white/80 text-sm">{benefit.description}</p>
-                    </div>
+                  <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg">
+                    <Crown className="w-10 h-10 text-white" />
+                  </div>
+                  <div className={`text-3xl font-bold mb-1 ${
+                    isDark ? 'text-white' : 'text-purple-600'
+                  }`}>
+                    Level {stats.currentLevel}
+                  </div>
+                  <div className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                    {levelProgress.progressXP} / {levelProgress.requiredXP} XP
                   </div>
                 </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
 
-        {/* Epic Stats */}
-        <div className="relative mb-12">
-          <div className={`absolute inset-0 rounded-3xl blur-xl ${
-            isDark 
-              ? 'bg-gradient-to-r from-indigo-500/20 to-purple-500/20 shadow-2xl shadow-indigo-500/10' 
-              : 'bg-gradient-to-r from-indigo-500/10 to-purple-500/10 shadow-2xl shadow-indigo-300/20'
-          }`}></div>
-          <div className={`relative backdrop-blur-sm rounded-3xl shadow-2xl border p-8 ${
-            isDark 
-              ? 'bg-white/10 border-white/20' 
-              : 'bg-white/80 border-white/20'
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
+            isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
           }`}>
-            <div className="text-center mb-8">
-              <h3 className={`text-2xl font-bold mb-2 ${
-                isDark 
-                  ? 'bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent'
-                  : 'bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent'
-              }`}>
-                Join the Elite Learning Community
-              </h3>
-              <p className={`text-lg ${
-                isDark ? 'text-gray-300' : 'text-gray-600'
-              }`}>Over 100,000 students have transformed their learning journey</p>
+            <div className="flex items-center justify-between mb-2">
+              <div className={`p-2 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500`}>
+                <Star className="w-5 h-5 text-white" />
+              </div>
+              <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {stats.totalXP.toLocaleString()}
+              </span>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Users className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-3xl font-bold text-blue-600 mb-2">100K+</div>
-                <div className={`text-sm ${
-                  isDark ? 'text-gray-300' : 'text-gray-600'
-                }`}>Active Learners</div>
+            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Total XP</p>
+          </div>
+
+          <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
+            isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className={`p-2 rounded-lg bg-gradient-to-br from-yellow-500 to-amber-500`}>
+                <Coins className="w-5 h-5 text-white" />
               </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Trophy className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-3xl font-bold text-green-600 mb-2">95%</div>
-                <div className={`text-sm ${
-                  isDark ? 'text-gray-300' : 'text-gray-600'
-                }`}>Success Rate</div>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Star className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-3xl font-bold text-purple-600 mb-2">4.9/5</div>
-                <div className={`text-sm ${
-                  isDark ? 'text-gray-300' : 'text-gray-600'
-                }`}>User Rating</div>
-              </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <Rocket className="w-8 h-8 text-white" />
-                </div>
-                <div className="text-3xl font-bold text-orange-600 mb-2">24/7</div>
-                <div className={`text-sm ${
-                  isDark ? 'text-gray-300' : 'text-gray-600'
-                }`}>Support</div>
-              </div>
+              <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {stats.gold.toLocaleString()}
+              </span>
             </div>
+            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Gold</p>
+          </div>
+
+          <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
+            isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className={`p-2 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500`}>
+                <Trophy className="w-5 h-5 text-white" />
+              </div>
+              <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {stats.totalQuests}
+              </span>
+            </div>
+            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Quests</p>
+          </div>
+
+          <div className={`rounded-2xl border p-6 backdrop-blur-xl ${
+            isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className={`p-2 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500`}>
+                <Award className="w-5 h-5 text-white" />
+              </div>
+              <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                {stats.achievements}/{stats.totalAchievements}
+              </span>
+            </div>
+            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Achievements</p>
           </div>
         </div>
 
-        {/* User Welcome */}
-        {user && (
-          <div className="text-center">
-            <div className="relative inline-block">
-              <div className={`absolute inset-0 rounded-3xl blur-xl ${
-                isDark 
-                  ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 shadow-2xl shadow-green-500/10' 
-                  : 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 shadow-2xl shadow-green-300/20'
-              }`}></div>
-              <div className={`relative backdrop-blur-sm rounded-3xl shadow-2xl border px-8 py-6 ${
-                isDark 
-                  ? 'bg-white/10 border-white/20' 
-                  : 'bg-white/80 border-white/20'
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto">
+          {[
+            { id: 'overview', label: 'Overview', icon: BarChart3 },
+            { id: 'achievements', label: 'Achievements', icon: Trophy },
+            { id: 'progress', label: 'Progress', icon: TrendingUp },
+            { id: 'shop', label: 'Reward Shop', icon: Gift }
+          ].map(tab => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setSelectedTab(tab.id)}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all whitespace-nowrap ${
+                  selectedTab === tab.id
+                    ? isDark
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                      : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                    : isDark
+                      ? 'bg-white/5 text-white/70 hover:bg-white/10'
+                      : 'bg-white text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Tab Content */}
+        <div className="space-y-6">
+          {/* Overview Tab */}
+          {selectedTab === 'overview' && (
+            <>
+              {/* Level Progress */}
+              <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+                isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
               }`}>
-                <p className={`text-lg ${
-                  isDark ? 'text-gray-300' : 'text-gray-600'
+                <div className="p-8">
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Level Progress
+                    </h2>
+                    <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                      isDark ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
+                    }`}>
+                      Level {levelProgress.currentLevel} → {levelProgress.nextLevel}
+                    </span>
+                  </div>
+                  
+                  <div className="relative">
+                    <div className={`h-6 rounded-full overflow-hidden ${
+                      isDark ? 'bg-white/10' : 'bg-slate-200'
+                    }`}>
+                      <div 
+                        className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-indigo-500 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+                        style={{ width: `${Math.min(levelProgress.progressPercentage, 100)}%` }}
+                      >
+                        {levelProgress.progressPercentage > 10 && (
+                          <span className="text-xs font-bold text-white">
+                            {levelProgress.progressPercentage}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between mt-2 text-sm">
+                      <span className={isDark ? 'text-white/70' : 'text-slate-600'}>
+                        {levelProgress.progressXP} XP
+                      </span>
+                      <span className={isDark ? 'text-white/70' : 'text-slate-600'}>
+                        {levelProgress.requiredXP} XP needed
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Achievements */}
+              {unlockedAchievements.length > 0 && (
+                <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+                  isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
                 }`}>
-                  Welcome back, <span className={`font-bold ${
-                    isDark ? 'text-yellow-400' : 'text-purple-600'
-                  }`}>{user.name}</span>! 
-                </p>
-                <p className={`text-sm mt-2 ${
-                  isDark ? 'text-gray-400' : 'text-gray-500'
-                }`}>
-                  Choose your epic learning journey and unlock legendary privileges today!
-                </p>
+                  <div className="p-8">
+                    <h2 className={`text-2xl font-bold mb-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Recent Achievements
+                    </h2>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {unlockedAchievements.slice(-4).reverse().map(achievement => {
+                        const Icon = achievement.icon
+                        return (
+                          <div
+                            key={achievement.id}
+                            className={`relative rounded-2xl border p-4 backdrop-blur-xl transition-all hover:scale-105 ${
+                              isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+                            }`}
+                          >
+                            <div className={`w-12 h-12 bg-gradient-to-br ${achievement.color} rounded-xl flex items-center justify-center mb-3 mx-auto`}>
+                              <Icon className="w-6 h-6 text-white" />
+                            </div>
+                            <h3 className={`text-sm font-bold text-center mb-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                              {achievement.name}
+                            </h3>
+                            <p className={`text-xs text-center ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
+                              {achievement.description}
+                            </p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Achievements Tab */}
+          {selectedTab === 'achievements' && (
+            <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+              isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+            }`}>
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    All Achievements
+                  </h2>
+                  <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
+                    isDark ? 'bg-purple-500/20 text-purple-300' : 'bg-purple-100 text-purple-700'
+                  }`}>
+                    {unlockedAchievements.length} / {allAchievements.length} Unlocked
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Unlocked Achievements */}
+                  {unlockedAchievements.map(achievement => {
+                    const Icon = achievement.icon
+                    return (
+                      <div
+                        key={achievement.id}
+                        className={`relative rounded-2xl border p-6 backdrop-blur-xl transition-all hover:scale-105 ${
+                          isDark ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10' : 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`w-16 h-16 bg-gradient-to-br ${achievement.color} rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg`}>
+                            <Icon className="w-8 h-8 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                                {achievement.name}
+                              </h3>
+                              <CheckCircle2 className="w-5 h-5 text-green-500" />
+                            </div>
+                            <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                              {achievement.description}
+                            </p>
+                            <span className={`inline-block mt-2 text-xs font-semibold px-2 py-1 rounded-full ${
+                              achievement.rarity === 'legendary' ? 'bg-amber-500/20 text-amber-300' :
+                              achievement.rarity === 'epic' ? 'bg-purple-500/20 text-purple-300' :
+                              achievement.rarity === 'rare' ? 'bg-blue-500/20 text-blue-300' :
+                              'bg-slate-500/20 text-slate-300'
+                            }`}>
+                              {achievement.rarity.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Locked Achievements */}
+                  {lockedAchievements.map(achievement => {
+                    const Icon = achievement.icon
+                    return (
+                      <div
+                        key={achievement.id}
+                        className={`relative rounded-2xl border p-6 backdrop-blur-xl opacity-60 ${
+                          isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`w-16 h-16 bg-slate-400 rounded-xl flex items-center justify-center flex-shrink-0`}>
+                            <Lock className="w-8 h-8 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className={`font-bold mb-1 ${isDark ? 'text-white/50' : 'text-slate-400'}`}>
+                              {achievement.name}
+                            </h3>
+                            <p className={`text-sm ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
+                              {achievement.description}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Progress Tab */}
+          {selectedTab === 'progress' && (
+            <div className="space-y-6">
+              <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+                isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+              }`}>
+                <div className="p-8">
+                  <h2 className={`text-2xl font-bold mb-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Learning Statistics
+                  </h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className={`rounded-2xl border p-6 ${
+                      isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500">
+                          <BookOpen className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Quests Completed</p>
+                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {stats.totalQuests}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`rounded-2xl border p-6 ${
+                      isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
+                          <TrendingUp className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Total Experience</p>
+                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {stats.totalXP.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`rounded-2xl border p-6 ${
+                      isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-yellow-500 to-amber-500">
+                          <Coins className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Gold Earned</p>
+                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {stats.gold.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`rounded-2xl border p-6 ${
+                      isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+                    }`}>
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500">
+                          <Trophy className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>Achievement Rate</p>
+                          <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                            {Math.round((stats.achievements / stats.totalAchievements) * 100)}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Shop Tab */}
+          {selectedTab === 'shop' && (
+            <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+              isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+            }`}>
+              <div className="p-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Reward Shop
+                  </h2>
+                  <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
+                    isDark ? 'bg-yellow-500/20 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'
+                  }`}>
+                    <Coins className="w-5 h-5 text-yellow-500" />
+                    <span className={`font-bold ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                      {stats.gold} Gold
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {shopItems.map(item => {
+                    const Icon = item.icon || Gift
+                    const canAfford = stats.gold >= item.price
+                    return (
+                      <div
+                        key={item.id}
+                        className={`relative rounded-2xl border p-6 backdrop-blur-xl transition-all hover:scale-105 ${
+                          canAfford
+                            ? isDark ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10' : 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50'
+                            : isDark ? 'border-white/12 bg-white/6 opacity-60' : 'border-white/80 bg-white opacity-60'
+                        }`}
+                      >
+                        <div className={`w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-4 mx-auto shadow-lg`}>
+                          <Icon className="w-8 h-8 text-white" />
+                        </div>
+                        <h3 className={`text-lg font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {item.name}
+                        </h3>
+                        <p className={`text-sm text-center mb-4 ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                          {item.description}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Coins className="w-5 h-5 text-yellow-500" />
+                            <span className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                              {item.price}
+                            </span>
+                          </div>
+                          <button
+                            disabled={!canAfford}
+                            className={`px-4 py-2 rounded-xl font-semibold transition-all ${
+                              canAfford
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                                : 'bg-slate-400 text-white cursor-not-allowed'
+                            }`}
+                          >
+                            {canAfford ? 'Purchase' : 'Insufficient Gold'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
