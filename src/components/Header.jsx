@@ -25,7 +25,7 @@ import {
   Shield,
   Crown,
   Sparkles,
-  ArrowRight
+  X
 } from 'lucide-react'
 import Avatar from './Avatar'
 import NotificationDropdown from './NotificationDropdown'
@@ -74,7 +74,8 @@ const Header = () => {
   const [showProfileDeletedNotification, setShowProfileDeletedNotification] = useState(false)
   const [userIsTutor, setUserIsTutor] = useState(user?.isTutor || false)
   const [userProgress, setUserProgress] = useState(null)
-  const [hasStudiplyPass, setHasStudiplyPass] = useState(user?.hasStudiplyPass || false)
+  const [hasStudiplyPass, setHasStudiplyPass] = useState(false)
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(true)
   
   // 专注测试功能
   const {
@@ -238,8 +239,8 @@ const Header = () => {
         const userData = doc.data()
         const isTutor = userData.isTutor && userData.tutorProfile
         
-        // 更新 Studiply Pass 状态
-        const hasPass = userData.hasStudiplyPass === true || userData.studiplyPass === true
+        // 检查是否有 Studiply Pass
+        const hasPass = userData.hasStudiplyPass === true || userData.studiplyPass === true || userData.subscription === 'pro' || userData.subscription === 'legendary'
         setHasStudiplyPass(hasPass)
         
         console.log('👤 User status update:', { 
@@ -263,13 +264,12 @@ const Header = () => {
         }
         
         setUserIsTutor(isTutor)
-      } else {
-        setHasStudiplyPass(false)
       }
     }, (error) => {
       console.error('❌ Error listening to user changes:', error)
       // 如果监听失败，回退到用户当前状态
       setUserIsTutor(user.isTutor)
+      setHasStudiplyPass(false)
     })
     
     return cleanup
@@ -560,72 +560,70 @@ const Header = () => {
         </nav>
 
         {/* 底部用户区域 */}
-        <div className="p-4 border-t border-slate-700 space-y-3">
-          <div className="flex items-center space-x-3">
-            <Avatar user={user} size="sm" className="border border-slate-500" />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2">
-                <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
-              </div>
-              <p className="text-xs text-slate-400 truncate">{user?.email || ''}</p>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  await logout()
-                } finally {
-                  toggleTheme('light')
-                  navigate('/', { replace: true })
-                }
-              }}
-              className="p-1 text-slate-400 hover:text-white transition-colors"
-              title="Logout"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Studiply Pass Upgrade Prompt */}
-          {user && !hasStudiplyPass && (
-            <div 
-              onClick={() => navigate('/rewards')}
-              className="group relative overflow-hidden rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 p-3 cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02]"
-            >
-              {/* Animated background */}
-              <div className="absolute inset-0 opacity-20">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-white rounded-full -translate-y-10 translate-x-10 animate-pulse"></div>
-                <div className="absolute bottom-0 left-0 w-16 h-16 bg-white rounded-full translate-y-8 -translate-x-8 animate-pulse delay-1000"></div>
-              </div>
-              
-              <div className="relative flex items-center gap-3">
-                <div className="flex-shrink-0 w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-white" />
+        <div className="border-t border-slate-700">
+          {/* 升级提示 - 如果没有 Studiply Pass */}
+          {!hasStudiplyPass && showUpgradePrompt && (
+            <div className="p-3 mx-3 mt-3 mb-2 rounded-xl bg-gradient-to-r from-purple-600/20 via-pink-600/20 to-indigo-600/20 border border-purple-500/30 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-indigo-500/10 animate-pulse"></div>
+              <div className="relative flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <Sparkles className="w-4 h-4 text-white" />
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-white mb-0.5">You are using a free account</p>
-                  <p className="text-xs text-white/90 flex items-center gap-1 group-hover:gap-2 transition-all">
+                  <p className="text-xs font-semibold text-white mb-1">You are using a free account</p>
+                  <Link
+                    to="/rewards"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    onClick={() => setShowUpgradePrompt(false)}
+                  >
+                    <Crown className="w-3 h-3" />
                     Upgrade to Pro
-                    <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-                  </p>
+                  </Link>
                 </div>
-                <div className="flex-shrink-0">
-                  <Sparkles className="w-4 h-4 text-white/80" />
-                </div>
+                <button
+                  onClick={() => setShowUpgradePrompt(false)}
+                  className="flex-shrink-0 p-1 text-white/60 hover:text-white transition-colors"
+                  title="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
           )}
 
-          {/* Premium Badge (if user has pass) */}
-          {user && hasStudiplyPass && (
-            <div className="rounded-xl bg-gradient-to-r from-yellow-500/20 to-amber-500/20 border border-yellow-500/30 p-2">
-              <div className="flex items-center gap-2">
-                <Crown className="w-4 h-4 text-yellow-400" />
-                <p className="text-xs font-semibold text-yellow-300">Studiply Pass Pro</p>
+          {/* 用户信息 */}
+          <div className="p-4">
+            <div className="flex items-center space-x-3">
+              <Avatar user={user} size="sm" className="border border-slate-500" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2">
+                  <p className="text-sm font-medium text-white truncate">{user?.name || 'User'}</p>
+                  {hasStudiplyPass && (
+                    <Crown className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" title="Studiply Pass Pro" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 truncate">{user?.email || ''}</p>
               </div>
+              <button
+                onClick={async () => {
+                  try {
+                    await logout()
+                  } finally {
+                    toggleTheme('light')
+                    navigate('/', { replace: true })
+                  }
+                }}
+                className="p-1 text-slate-400 hover:text-white transition-colors"
+                title="Logout"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
