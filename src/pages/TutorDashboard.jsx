@@ -28,7 +28,7 @@ import { createMeeting } from '../services/meetingService'
 import RealVideoCall from '../components/RealVideoCall'
 import Avatar from '../components/Avatar'
 import EditTutorProfileModal from '../components/EditTutorProfileModal'
-import { listenToChatList, formatMessageTime } from '../services/chatService'
+import { listenToChatList, formatMessageTime, subscribeUnreadStudentMessagesCount, getUnreadStudentsList } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
 
 const TutorDashboard = () => {
@@ -41,6 +41,9 @@ const TutorDashboard = () => {
   const [selectedTab, setSelectedTab] = useState('requests')
   const [chatList, setChatList] = useState([])
   const [chatListLoading, setChatListLoading] = useState(false)
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0)
+  const [unreadStudents, setUnreadStudents] = useState([]) // 存储有未读消息的 student 列表
+  const [showChatList, setShowChatList] = useState(false)
   
   // Reset pagination when switching tabs
   const handleTabChange = (tabId) => {
@@ -109,46 +112,51 @@ const TutorDashboard = () => {
     return cleanup
   }, [user?.id, user?.isTutor])
 
-  // 页面加载时标记来自 Friends（学生）的未读消息为已读
+  // 实时监听来自 Students 的未读消息
   useEffect(() => {
-    const markFriendMessagesAsRead = async () => {
-      if (!user?.id) return
-      try {
-        // 获取所有未读消息
-        const messagesRef = collection(db, 'messages')
-        const q = query(
-          messagesRef,
-          where('receiverId', '==', user.id),
-          where('read', '==', false)
-        )
-        const snapshot = await getDocs(q)
-        
-        // 只标记来自 Friends（非 tutor）的消息为已读
-        const updatePromises = []
-        for (const docSnapshot of snapshot.docs) {
-          const messageData = docSnapshot.data()
-          try {
-            const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
-            if (senderDoc.exists()) {
-              const senderData = senderDoc.data()
-              // 如果发送者不是 tutor，则标记为已读
-              if (!senderData.isTutor) {
-                const messageRef = doc(db, 'messages', docSnapshot.id)
-                updatePromises.push(updateDoc(messageRef, { read: true }))
+    if (!user?.id || !user?.isTutor) return
+    
+    // 使用实时监听来更新未读消息计数
+    const unsubscribe = subscribeUnreadStudentMessagesCount(user.id, async (count) => {
+      setUnreadMessageCount(count)
+      
+      // 如果有未读消息，获取 student 列表
+      if (count > 0) {
+        try {
+          const result = await getUnreadStudentsList(user.id)
+          if (result.success && result.studentIds.length > 0) {
+            // 获取每个 student 的信息
+            const studentPromises = result.studentIds.map(async (studentId) => {
+              try {
+                const studentDoc = await getDoc(doc(db, 'users', studentId))
+                if (studentDoc.exists()) {
+                  return { id: studentId, name: studentDoc.data().name || 'Student' }
+                }
+              } catch (error) {
+                console.error('Error getting student info:', error)
               }
-            }
-          } catch (error) {
-            console.error('Error checking sender:', error)
+              return null
+            })
+            
+            const students = (await Promise.all(studentPromises)).filter(Boolean)
+            setUnreadStudents(students)
+          } else {
+            setUnreadStudents([])
           }
+        } catch (error) {
+          console.error('Error getting unread students list:', error)
         }
-        await Promise.all(updatePromises)
-      } catch (error) {
-        console.error('Error marking friend messages as read:', error)
+      } else {
+        setUnreadStudents([])
+      }
+    })
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
       }
     }
-    
-    markFriendMessagesAsRead()
-  }, [user?.id])
+  }, [user?.id, user?.isTutor])
 
   const loadSessions = async () => {
     try {

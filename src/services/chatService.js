@@ -692,6 +692,155 @@ export const getUnreadTutorsList = async (userId) => {
   }
 }
 
+// 获取来自 Students 的未读消息数量（用于 Tutor Dashboard）
+export const getUnreadStudentMessagesCount = async (tutorId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    // 查询：receiverId == tutorId (tutor收到), chatType == 'tutor', read == false
+    // 这确保只统计 student 发送给 tutor 的消息
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', tutorId), // tutor 是接收者
+      where('read', '==', false),
+      where('chatType', '==', 'tutor')
+    )
+    
+    const snapshot = await getDocs(q)
+    
+    // 额外验证：确保 senderId 对应的用户是 student（不是 tutor）
+    let validCount = 0
+    const verifyPromises = snapshot.docs.map(async (docSnapshot) => {
+      const messageData = docSnapshot.data()
+      try {
+        const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
+        if (senderDoc.exists()) {
+          const senderData = senderDoc.data()
+          // 确保发送者是 student（不是 tutor）
+          if (senderData.isTutor !== true) {
+            validCount++
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying sender:', error)
+      }
+    })
+    
+    await Promise.all(verifyPromises)
+    
+    return {
+      success: true,
+      count: validCount
+    }
+  } catch (error) {
+    console.error('Error getting unread student messages count:', error)
+    return {
+      success: false,
+      count: 0,
+      error: 'Failed to get unread student messages count'
+    }
+  }
+}
+
+// 实时监听来自 Students 的未读消息数量变化（用于 Tutor Dashboard）
+export const subscribeUnreadStudentMessagesCount = (tutorId, callback) => {
+  if (!tutorId) {
+    console.warn('subscribeUnreadStudentMessagesCount: tutorId is required')
+    return () => {}
+  }
+  
+  try {
+    const messagesRef = collection(db, 'messages')
+    // 查询：receiverId == tutorId (tutor收到), chatType == 'tutor', read == false
+    // 这确保只统计 student 发送给 tutor 的消息
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', tutorId), // tutor 是接收者
+      where('read', '==', false),
+      where('chatType', '==', 'tutor')
+    )
+    
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      // 验证每个消息的发送者确实是 student（不是 tutor）
+      let validCount = 0
+      const verifyPromises = snapshot.docs.map(async (docSnapshot) => {
+        const messageData = docSnapshot.data()
+        try {
+          const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
+          if (senderDoc.exists()) {
+            const senderData = senderDoc.data()
+            // 确保发送者是 student（不是 tutor）
+            if (senderData.isTutor !== true) {
+              validCount++
+            }
+          }
+        } catch (error) {
+          console.error('Error verifying sender:', error)
+        }
+      })
+      
+      await Promise.all(verifyPromises)
+      callback(validCount)
+    }, (error) => {
+      console.error('Error listening to unread student messages count:', error)
+      callback(0)
+    })
+    
+    return unsubscribe
+  } catch (error) {
+    console.error('Error setting up unread student messages count listener:', error)
+    return () => {}
+  }
+}
+
+// 获取有未读消息的 student 列表（用于 Tutor Dashboard）
+export const getUnreadStudentsList = async (tutorId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    // 查询：receiverId == tutorId (tutor收到), chatType == 'tutor', read == false
+    // 这确保只统计 student 发送给 tutor 的消息
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', tutorId), // tutor 是接收者
+      where('read', '==', false),
+      where('chatType', '==', 'tutor')
+    )
+    
+    const snapshot = await getDocs(q)
+    const studentIds = new Set()
+    
+    // 验证每个发送者确实是 student（不是 tutor）
+    const verifyPromises = snapshot.docs.map(async (docSnapshot) => {
+      const messageData = docSnapshot.data()
+      try {
+        const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
+        if (senderDoc.exists()) {
+          const senderData = senderDoc.data()
+          // 确保发送者是 student（不是 tutor）
+          if (senderData.isTutor !== true) {
+            studentIds.add(messageData.senderId)
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying sender:', error)
+      }
+    })
+    
+    await Promise.all(verifyPromises)
+    
+    return {
+      success: true,
+      studentIds: Array.from(studentIds)
+    }
+  } catch (error) {
+    console.error('Error getting unread students list:', error)
+    return {
+      success: false,
+      studentIds: [],
+      error: 'Failed to get unread students list'
+    }
+  }
+}
+
 // 获取与特定朋友的未读消息数量
 export const getUnreadMessagesFromFriend = async (userId, friendId) => {
   try {
