@@ -1,9 +1,10 @@
 import React from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useSimpleAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -16,7 +17,12 @@ const ProtectedRoute = ({ children }) => {
     )
   }
 
-  return user ? children : <Navigate to="/login" replace />
+  if (!user) {
+    // 保存原始路径，登录后可以跳转回去
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />
+  }
+
+  return children
 }
 
 export default ProtectedRoute

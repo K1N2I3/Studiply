@@ -1,4 +1,5 @@
 import React from 'react'
+import { isUserOnline } from '../services/presenceService'
 
 const Avatar = ({ 
   user, 
@@ -82,9 +83,15 @@ const Avatar = ({
       </div>
       
       {/* 在线状态指示器 */}
-      {showOnlineStatus && (
-        <div className={`absolute -bottom-1 -right-1 ${getOnlineStatusSize(size)} bg-green-500 rounded-full border-2 border-white shadow-lg`}></div>
-      )}
+      {showOnlineStatus && (() => {
+        // 优先使用计算出的在线状态（如果存在），否则实时计算
+        const online = user._computedOnline !== undefined ? user._computedOnline : isUserOnline(user)
+        return (
+          <div className={`absolute -bottom-1 -right-1 ${getOnlineStatusSize(size)} rounded-full border-2 border-white shadow-lg ${
+            online ? 'bg-green-500' : 'bg-gray-400'
+          }`}></div>
+        )
+      })()}
     </div>
   )
 }

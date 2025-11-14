@@ -75,14 +75,15 @@ function AppContent() {
         <Route path="/focus-test" element={<FocusModeTest />} />
         <Route path="/agora-test" element={<AgoraTest />} />
         <Route path="/meeting" element={<Meeting />} />
-        <Route path="/tutoring" element={<Tutoring />} />
-        <Route path="/friends" element={<Friends />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/focus-mode" element={<FocusMode />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/tutor-dashboard" element={<TutorDashboard />} />
-        <Route path="/student-dashboard" element={<StudentDashboard />} />
-        <Route path="/admin/tutor-accounts" element={<TutorAccountsAdmin />} />
+        {/* 受保护的页面，未登录时自动跳转到登录页 */}
+        <Route path="/tutoring" element={<ProtectedRoute><Tutoring /></ProtectedRoute>} />
+        <Route path="/friends" element={<ProtectedRoute><Friends /></ProtectedRoute>} />
+        <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+        <Route path="/focus-mode" element={<ProtectedRoute><FocusMode /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/tutor-dashboard" element={<ProtectedRoute><TutorDashboard /></ProtectedRoute>} />
+        <Route path="/student-dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+        <Route path="/admin/tutor-accounts" element={<ProtectedRoute><TutorAccountsAdmin /></ProtectedRoute>} />
         <Route path="/macos-login" element={<MacOSLoginHandler />} />
       </Routes>
     </div>

@@ -13,17 +13,17 @@ import { useTheme } from '../contexts/ThemeContext'
 import { 
   sendMessage, 
   listenToMessages, 
-  formatMessageTime 
+  formatMessageTime,
+  markAllMessagesAsRead
 } from '../services/chatService'
 import { getFriendById } from '../services/friendsService'
-import { getUserProfile } from '../services/userService'
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import { doc, getDoc, onSnapshot, collection, query, where, getDocs, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import Avatar from '../components/Avatar'
 import { isUserOnline } from '../services/presenceService'
 
-const Chat = ({ chatType = 'friend' }) => {
-  const { friendId, tutorId } = useParams()
+const ChatWithFriend = () => {
+  const { friendId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
   const { user } = useSimpleAuth()
@@ -33,19 +33,13 @@ const Chat = ({ chatType = 'friend' }) => {
   const [newMessage, setNewMessage] = useState('')
   const fromPage = location.state?.from
   
-  // 根据聊天类型确定聊天对象ID
-  const chatPartnerId = chatType === 'tutor' ? tutorId : friendId
-  
-  // 根据聊天类型确定返回配置
   const backConfig = {
     'tutoring': { path: '/tutoring', label: 'Back to tutoring' },
     'friends': { path: '/friends', label: 'Back to friends' },
     'student-dashboard': { path: '/student-dashboard', label: 'Back to dashboard' },
     'tutor-dashboard': { path: '/tutor-dashboard', label: 'Back to dashboard' }
   }
-  const defaultBack = chatType === 'tutor' 
-    ? { path: '/student-dashboard', label: 'Back to dashboard' }
-    : { path: '/friends', label: 'Back to friends' }
+  const defaultBack = { path: '/friends', label: 'Back to friends' }
   const backTarget = backConfig[fromPage] || defaultBack
 
   const [loading, setLoading] = useState(true)
@@ -54,23 +48,47 @@ const Chat = ({ chatType = 'friend' }) => {
   const unsubscribeRef = useRef(null)
 
   useEffect(() => {
-    if (chatPartnerId && user?.id) {
+    if (friendId && user?.id) {
       loadChatData()
+      // 标记来自这个 friend 的未读消息为已读
+      markMessagesFromFriendAsRead()
     }
     
     return () => {
-      // 清理监听器
       if (unsubscribeRef.current) {
         unsubscribeRef.current()
       }
     }
-  }, [chatPartnerId, user])
+  }, [friendId, user])
+
+  // 标记来自这个 friend 的未读消息为已读
+  const markMessagesFromFriendAsRead = async () => {
+    if (!friendId || !user?.id) return
+    try {
+      const messagesRef = collection(db, 'messages')
+      const q = query(
+        messagesRef,
+        where('receiverId', '==', user.id),
+        where('senderId', '==', friendId),
+        where('read', '==', false)
+      )
+      const snapshot = await getDocs(q)
+      const updatePromises = []
+      snapshot.forEach((docSnapshot) => {
+        const messageRef = doc(db, 'messages', docSnapshot.id)
+        updatePromises.push(updateDoc(messageRef, { read: true }))
+      })
+      await Promise.all(updatePromises)
+    } catch (error) {
+      console.error('Error marking friend messages as read:', error)
+    }
+  }
 
   // 实时监听朋友的在线状态
   useEffect(() => {
-    if (!chatPartnerId) return
+    if (!friendId) return
 
-    const friendRef = doc(db, 'users', chatPartnerId)
+    const friendRef = doc(db, 'users', friendId)
     const unsubscribe = onSnapshot(friendRef, (snapshot) => {
       if (snapshot.exists()) {
         const friendData = snapshot.data()
@@ -85,7 +103,7 @@ const Chat = ({ chatType = 'friend' }) => {
     return () => {
       unsubscribe()
     }
-  }, [chatPartnerId])
+  }, [friendId])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -99,58 +117,47 @@ const Chat = ({ chatType = 'friend' }) => {
     try {
       setLoading(true)
       
-      // 如果是 friend 类型，首先尝试从 friends 获取
-      if (chatType === 'friend') {
-        const friendResult = await getFriendById(chatPartnerId)
-        if (friendResult.success) {
-          setFriend(friendResult.friend)
-          // 设置实时消息监听
-          unsubscribeRef.current = listenToMessages(user?.id, chatPartnerId, (result) => {
-            if (result.success) {
-              setMessages(result.messages)
-            }
-          })
-          setLoading(false)
-          return
-        }
-      }
-      
-      // 如果没找到朋友信息，或者 chatType 是 tutor，从 users 集合获取
-      try {
-        const userDoc = await getDoc(doc(db, 'users', chatPartnerId))
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
+      // 首先尝试从 friends 获取
+      const friendResult = await getFriendById(friendId)
+      if (friendResult.success) {
+        setFriend(friendResult.friend)
+      } else {
+        // 如果没找到朋友信息，从 users 集合获取
+        try {
+          const userDoc = await getDoc(doc(db, 'users', friendId))
+          if (userDoc.exists()) {
+            const userData = userDoc.data()
+            setFriend({
+              id: friendId,
+              name: userData.name || 'User',
+              email: userData.email || '',
+              avatar: userData.avatar || null,
+              lastSeen: userData.lastSeen || null,
+              isOnline: userData.isOnline || false
+            })
+          } else {
+            setFriend({
+              id: friendId,
+              name: 'Unknown User',
+              email: 'unknown@example.com'
+            })
+          }
+        } catch (error) {
+          console.error('Error getting user from users collection:', error)
           setFriend({
-            id: chatPartnerId,
-            name: userData.name || 'User',
-            email: userData.email || '',
-            avatar: userData.avatar || null,
-            lastSeen: userData.lastSeen || null,
-            isOnline: userData.isOnline || false
-          })
-        } else {
-          // 如果都没找到，使用基本信息
-          setFriend({
-            id: chatPartnerId,
+            id: friendId,
             name: 'Unknown User',
             email: 'unknown@example.com'
           })
         }
-      } catch (error) {
-        console.error('Error getting user from users collection:', error)
-        setFriend({
-          id: chatPartnerId,
-          name: 'Unknown User',
-          email: 'unknown@example.com'
-        })
       }
       
-      // 设置实时消息监听
-      unsubscribeRef.current = listenToMessages(user?.id, chatPartnerId, (result) => {
+      // 设置实时消息监听（只监听 friend chat 类型的消息）
+      unsubscribeRef.current = listenToMessages(user?.id, friendId, (result) => {
         if (result.success) {
           setMessages(result.messages)
         }
-      })
+      }, 'friend')
       
     } catch (error) {
       console.error('Error loading chat data:', error)
@@ -164,7 +171,7 @@ const Chat = ({ chatType = 'friend' }) => {
     
     try {
       setSending(true)
-      const result = await sendMessage(user?.id, chatPartnerId, newMessage.trim())
+      const result = await sendMessage(user?.id, friendId, newMessage.trim(), 'friend')
       
       if (result.success) {
         setNewMessage('')
@@ -259,9 +266,18 @@ const Chat = ({ chatType = 'friend' }) => {
                   <Avatar user={friend} size="lg" showOnlineStatus className="shadow-lg ring-2 ring-purple-400/40" />
                 </div>
                 <div>
-                  <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {friend?.name || 'Friend'}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className={`text-xl font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      {friend?.name || 'Friend'}
+                    </h2>
+                    <span className={`px-2 py-0.5 rounded-lg text-xs font-semibold ${
+                      isDark 
+                        ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' 
+                        : 'bg-blue-100 text-blue-700 border border-blue-200'
+                    }`}>
+                      Friend Chat
+                    </span>
+                  </div>
                   <p className={`text-sm font-medium ${
                     isUserOnline(friend) 
                       ? (isDark ? 'text-green-300' : 'text-green-600')
@@ -330,10 +346,10 @@ const Chat = ({ chatType = 'friend' }) => {
                           <div
                             className={`rounded-2xl px-5 py-3 text-sm leading-relaxed ${
                               isCurrentUser
-                                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
+                                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30'
                                 : isDark
-                                  ? 'bg-white/10 text-white'
-                                  : 'bg-slate-100 text-slate-800'
+                                  ? 'bg-blue-500/20 text-white border border-blue-500/30'
+                                  : 'bg-blue-50 text-slate-800 border border-blue-200'
                             } ${isCurrentUser ? 'rounded-br-md' : 'rounded-bl-md'}`}
                           >
                             {message.message}
@@ -385,7 +401,7 @@ const Chat = ({ chatType = 'friend' }) => {
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={handleMessageKeyDown}
                   placeholder={`Message ${friend?.name || 'your friend'}...`}
-                  className={`w-full resize-none rounded-2xl border px-5 py-4 text-sm transition focus:ring-2 focus:ring-purple-500 focus:outline-none hide-scrollbar ${
+                  className={`w-full resize-none rounded-2xl border px-5 py-4 text-sm transition focus:ring-2 focus:ring-blue-500 focus:outline-none hide-scrollbar ${
                     isDark
                       ? 'border-white/15 bg-white/5 text-white placeholder-white/40'
                       : 'border-slate-200 bg-white text-slate-900 placeholder-slate-400'
@@ -403,4 +419,5 @@ const Chat = ({ chatType = 'friend' }) => {
   )
 }
 
-export default Chat
+export default ChatWithFriend
+

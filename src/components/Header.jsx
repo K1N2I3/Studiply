@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { subscribeUnreadCount, markAllNotificationsRead } from '../services/notificationService'
+import { subscribeUnreadFriendMessagesCount, subscribeUnreadTutorMessagesCount } from '../services/chatService'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Link, useLocation, Routes, Route, useNavigate } from 'react-router-dom'
@@ -35,7 +36,8 @@ import { useTheme } from '../contexts/ThemeContext'
 import Homepage from '../pages/Homepage'
 import Tutoring from '../pages/Tutoring'
 import Friends from '../pages/Friends'
-import Chat from '../pages/Chat'
+import ChatWithFriend from '../pages/ChatWithFriend'
+import ChatWithTutor from '../pages/ChatWithTutor'
 import FocusMode from '../pages/FocusMode'
 import Rewards from '../pages/Rewards'
 import Profile from '../pages/Profile'
@@ -49,6 +51,7 @@ import QuestExecution from '../pages/QuestExecution'
 import QuestList from '../pages/QuestList'
 import CreateQuest from '../pages/CreateQuest'
 import SettingsPage from '../pages/Settings'
+import VerifyEmailChange from '../pages/VerifyEmailChange'
 import CalendarPage from '../pages/Calendar'
 import FocusTestModal from './FocusTestModal'
 import useFocusTest from '../hooks/useFocusTest'
@@ -60,6 +63,8 @@ const Header = () => {
   const navigate = useNavigate()
   const { toggleTheme } = useTheme()
   const [unread, setUnread] = useState(0)
+  const [unreadFriendMessagesCount, setUnreadFriendMessagesCount] = useState(0)
+  const [unreadTutorMessagesCount, setUnreadTutorMessagesCount] = useState(0)
   const [openNotif, setOpenNotif] = useState(false)
   const hoverCloseTimerRef = React.useRef(null)
   const [showProfileDeletedNotification, setShowProfileDeletedNotification] = useState(false)
@@ -106,6 +111,56 @@ const Header = () => {
     }
     
     unsub = subscribeUnreadCount(user?.id, (count) => setUnread(count))
+    return cleanup
+  }, [user?.id])
+
+  // 订阅来自 Friends 的未读消息数量变化
+  useEffect(() => {
+    let unsub = null
+    
+    const cleanup = () => {
+      if (unsub && typeof unsub === 'function') {
+        try {
+          unsub()
+        } catch (error) {
+          console.error('Error cleaning up unread friend messages count listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id) {
+      return cleanup
+    }
+    
+    unsub = subscribeUnreadFriendMessagesCount(user.id, (count) => {
+      setUnreadFriendMessagesCount(count)
+    })
+    
+    return cleanup
+  }, [user?.id])
+
+  // 订阅来自 Tutors 的未读消息数量变化
+  useEffect(() => {
+    let unsub = null
+    
+    const cleanup = () => {
+      if (unsub && typeof unsub === 'function') {
+        try {
+          unsub()
+        } catch (error) {
+          console.error('Error cleaning up unread tutor messages count listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id) {
+      return cleanup
+    }
+    
+    unsub = subscribeUnreadTutorMessagesCount(user.id, (count) => {
+      setUnreadTutorMessagesCount(count)
+    })
+    
     return cleanup
   }, [user?.id])
 
@@ -244,17 +299,32 @@ const Header = () => {
       // 登录用户：显示侧边栏风格的导航
       const items = [
         { name: 'Tutoring', href: '/tutoring', icon: BookOpen },
-        { name: 'Student Dashboard', href: '/student-dashboard', icon: BarChart3 },
+        { 
+          name: 'Student Dashboard', 
+          href: '/student-dashboard', 
+          icon: BarChart3, 
+          unreadCount: unreadTutorMessagesCount > 0 ? unreadTutorMessagesCount : undefined 
+        },
         { name: 'Calendar', href: '/calendar', icon: Calendar },
         { name: 'Quest Academy', href: '/quest-academy', icon: Sword },
-        { name: 'Friends', href: '/friends', icon: Users },
+        { 
+          name: 'Friends', 
+          href: '/friends', 
+          icon: Users, 
+          unreadCount: unreadFriendMessagesCount > 0 ? unreadFriendMessagesCount : undefined 
+        },
         { name: 'Focus Mode', href: '/focus-mode', icon: Target },
         { name: 'Rewards', href: '/rewards', icon: Gift },
       ]
       
       // 只有成为导师的用户才显示Tutor Dashboard
       if (userIsTutor) {
-        items.push({ name: 'Tutor Dashboard', href: '/tutor-dashboard', icon: Settings })
+        items.push({ 
+          name: 'Tutor Dashboard', 
+          href: '/tutor-dashboard', 
+          icon: Settings, 
+          unreadCount: unreadFriendMessagesCount > 0 ? unreadFriendMessagesCount : undefined 
+        })
       }
       
       // 只有管理员才显示Admin Panel
@@ -266,7 +336,7 @@ const Header = () => {
     } else {
       // 未登录用户：显示传统顶部导航
       return [
-        { name: 'Home', href: '/', icon: null },
+        { name: 'Home', href: '/', icon: null, unreadCount: 0 },
       ]
     }
   }
@@ -405,18 +475,26 @@ const Header = () => {
             <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Start to Study</h2>
             {navigation.map((item) => {
               const Icon = item.icon
+              const showBadge = item.unreadCount && item.unreadCount > 0
               return (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors duration-200 ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg transition-colors duration-200 ${
                     isActive(item.href)
                       ? 'bg-blue-600 text-white'
                       : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
-                  {Icon && <Icon className="w-5 h-5" />}
-                  <span className="font-medium">{item.name}</span>
+                  <div className="flex items-center space-x-3">
+                    {Icon && <Icon className="w-5 h-5" />}
+                    <span className="font-medium">{item.name}</span>
+                  </div>
+                  {showBadge && (
+                    <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold">
+                      {item.unreadCount > 99 ? '99+' : item.unreadCount}
+                    </span>
+                  )}
                 </Link>
               )
             })}
@@ -600,10 +678,18 @@ const Header = () => {
               }
             />
             <Route 
-              path="/chat/:friendId" 
+              path="/chat-tutor/:tutorId" 
               element={
                 <ProtectedRoute>
-                  <Chat />
+                  <ChatWithTutor />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/chat-friend/:friendId" 
+              element={
+                <ProtectedRoute>
+                  <ChatWithFriend />
                 </ProtectedRoute>
               } 
             />
@@ -670,6 +756,10 @@ const Header = () => {
                   <SettingsPage />
                 </ProtectedRoute>
               }
+            />
+            <Route
+              path="/verify-email-change"
+              element={<VerifyEmailChange />}
             />
             <Route 
               path="/extension-download" 

@@ -285,7 +285,9 @@ export const getFriendsList = async (userId) => {
           grade: friendData.grade,
           bio: friendData.bio,
           subjects: friendData.subjects || [],
-          avatar: friendData.avatar || null
+          avatar: friendData.avatar || null,
+          lastSeen: friendData.lastSeen || null,
+          isOnline: friendData.isOnline || false
         })
       }
     }
@@ -327,7 +329,9 @@ export const getFriendById = async (friendId) => {
         grade: friendData.grade,
         bio: friendData.bio,
         subjects: friendData.subjects || [],
-        avatar: friendData.avatar || null
+        avatar: friendData.avatar || null,
+        lastSeen: friendData.lastSeen || null,
+        isOnline: friendData.isOnline || false
       }
     }
   } catch (error) {

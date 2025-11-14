@@ -90,7 +90,9 @@ const Login = () => {
           console.log('Redirecting to macOS app:', callbackUrl)
           window.location.href = callbackUrl
         } else {
-          navigate('/tutoring')
+          // 如果有原始路径，跳转回去；否则跳转到默认页面
+          const from = location.state?.from || '/tutoring'
+          navigate(from, { replace: true })
         }
       } else {
         setError(result.error)

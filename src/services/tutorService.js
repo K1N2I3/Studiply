@@ -16,6 +16,11 @@ export const getAllTutors = async () => {
       // 获取导师统计信息
       const tutorStats = await getTutorStats(docSnapshot.id)
       
+      // 确保subjects有数据，如果没有则使用specialties作为fallback
+      const subjects = (userData.subjects && userData.subjects.length > 0)
+        ? userData.subjects
+        : (userData.tutorProfile?.specialties || [])
+      
       tutors.push({
         id: docSnapshot.id,
         name: userData.name,
@@ -23,12 +28,12 @@ export const getAllTutors = async () => {
         school: userData.school,
         grade: userData.grade,
         bio: userData.bio,
-        subjects: userData.subjects || [],
+        subjects: subjects,
         tutorProfile: userData.tutorProfile || {},
         stats: tutorStats,
         location: userData.location || 'Online',
         isAvailable: userData.tutorProfile?.isAvailable !== false,
-        specialties: userData.tutorProfile?.specialties || userData.subjects || [],
+        specialties: userData.tutorProfile?.specialties || subjects,
         description: userData.tutorProfile?.description || userData.bio || `${userData.name} is available to help with your studies.`,
         experience: userData.tutorProfile?.experience || 'Student',
         rating: tutorStats.averageRating || 0,
@@ -267,11 +272,24 @@ export const searchTutors = async (filters = {}) => {
     
     // 应用过滤器
     if (filters.subject && filters.subject !== 'all') {
-      tutors = tutors.filter(tutor => 
-        tutor.subjects.some(subject => 
-          subject.toLowerCase().includes(filters.subject.toLowerCase())
-        )
-      )
+      const subjectFilter = filters.subject.toLowerCase()
+      tutors = tutors.filter(tutor => {
+        if (!tutor.subjects || tutor.subjects.length === 0) return false
+        
+        // 检查subjects数组和specialties数组
+        const allSubjects = [
+          ...(tutor.subjects || []),
+          ...(tutor.specialties || [])
+        ]
+        
+        return allSubjects.some(subject => {
+          const subjectLower = subject.toLowerCase()
+          // 精确匹配或包含匹配
+          return subjectLower === subjectFilter || 
+                 subjectLower.includes(subjectFilter) ||
+                 subjectFilter.includes(subjectLower)
+        })
+      })
     }
     
     if (filters.searchQuery) {

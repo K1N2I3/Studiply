@@ -2,29 +2,27 @@ import React, { useState, useEffect } from 'react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useNotification } from '../contexts/NotificationContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { requestEmailChange } from '../services/emailChangeService'
 import { 
   Sun, 
   Moon, 
   Palette, 
   User, 
-  Bell, 
-  Shield, 
-  Globe,
   Save,
   RotateCcw,
-  Settings as SettingsIcon
+  Settings as SettingsIcon,
+  Mail,
+  X
 } from 'lucide-react'
 
 const Settings = () => {
   const { user } = useSimpleAuth()
   const { showSuccess, showError } = useNotification()
   const { theme, toggleTheme, isDark } = useTheme()
-  const [settings, setSettings] = useState({
-    notifications: true,
-    emailUpdates: true,
-    language: 'en',
-    timezone: 'UTC'
-  })
+  const [settings, setSettings] = useState({})
+  const [showChangeEmailModal, setShowChangeEmailModal] = useState(false)
+  const [newEmail, setNewEmail] = useState('')
+  const [isChangingEmail, setIsChangingEmail] = useState(false)
 
   // Load settings from localStorage on component mount
   useEffect(() => {
@@ -37,29 +35,55 @@ const Settings = () => {
     showSuccess('Theme updated successfully!', 3000, 'Theme Changed')
   }
 
-  const handleSettingChange = (key, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [key]: value
-    }))
-  }
-
   const saveSettings = () => {
     localStorage.setItem('userSettings', JSON.stringify(settings))
     showSuccess('Settings saved successfully!', 3000, 'Settings Saved')
   }
 
   const resetSettings = () => {
-    const defaultSettings = {
-      notifications: true,
-      emailUpdates: true,
-      language: 'en',
-      timezone: 'UTC'
-    }
+    const defaultSettings = {}
     setSettings(defaultSettings)
     toggleTheme('light')
     localStorage.setItem('userSettings', JSON.stringify(defaultSettings))
     showSuccess('Settings reset to default!', 3000, 'Settings Reset')
+  }
+
+  const handleChangeEmail = async () => {
+    if (!newEmail || !newEmail.trim()) {
+      showError('Please enter a new email address', 3000, 'Error')
+      return
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newEmail)) {
+      showError('Please enter a valid email address', 3000, 'Error')
+      return
+    }
+
+    // Check if new email is same as current
+    if (newEmail.toLowerCase().trim() === user?.email?.toLowerCase().trim()) {
+      showError('New email must be different from your current email', 3000, 'Error')
+      return
+    }
+
+    try {
+      setIsChangingEmail(true)
+      const result = await requestEmailChange(user.id, newEmail, user.email)
+
+      if (result.success) {
+        showSuccess('Verification email sent! Please check your new email inbox.', 5000, 'Email Sent')
+        setShowChangeEmailModal(false)
+        setNewEmail('')
+      } else {
+        showError(result.error || 'Failed to send verification email', 5000, 'Error')
+      }
+    } catch (error) {
+      console.error('Error changing email:', error)
+      showError('An unexpected error occurred. Please try again.', 5000, 'Error')
+    } finally {
+      setIsChangingEmail(false)
+    }
   }
 
   return (
@@ -181,163 +205,6 @@ const Settings = () => {
           </div>
         </section>
 
-        {/* Notification Settings */}
-        <section className={`rounded-[32px] border px-8 py-9 shadow-2xl backdrop-blur-xl ${
-          isDark ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
-        }`}>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-500 text-white shadow-lg">
-              <Bell className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className={`text-2xl font-bold ${
-                isDark ? 'text-white' : 'text-slate-900'
-              }`}>Notifications</h2>
-              <p className={`text-sm ${
-                isDark ? 'text-white/70' : 'text-slate-600'
-              }`}>Manage your notification preferences</p>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <div className={`flex items-center justify-between p-5 rounded-[20px] border transition-all ${
-              isDark ? 'border-white/10 bg-white/5 hover:bg-white/8' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-            }`}>
-              <div className="flex-1">
-                <h3 className={`text-base font-bold ${
-                  isDark ? 'text-white' : 'text-slate-900'
-                }`}>Push Notifications</h3>
-                <p className={`text-sm mt-1 ${
-                  isDark ? 'text-white/70' : 'text-slate-600'
-                }`}>Receive notifications for new messages and updates</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer ml-4">
-                <input
-                  type="checkbox"
-                  checked={settings.notifications}
-                  onChange={(e) => handleSettingChange('notifications', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className={`w-12 h-6 rounded-full transition-all duration-300 peer-focus:outline-none peer-focus:ring-4 ${
-                  settings.notifications
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 peer-focus:ring-purple-500/30'
-                    : isDark
-                      ? 'bg-white/20 peer-focus:ring-white/20'
-                      : 'bg-slate-300 peer-focus:ring-slate-300'
-                }`}>
-                  <div className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-all duration-300 shadow-lg ${
-                    settings.notifications ? 'translate-x-6' : 'translate-x-0'
-                  }`} />
-                </div>
-              </label>
-            </div>
-            
-            <div className={`flex items-center justify-between p-5 rounded-[20px] border transition-all ${
-              isDark ? 'border-white/10 bg-white/5 hover:bg-white/8' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-            }`}>
-              <div className="flex-1">
-                <h3 className={`text-base font-bold ${
-                  isDark ? 'text-white' : 'text-slate-900'
-                }`}>Email Updates</h3>
-                <p className={`text-sm mt-1 ${
-                  isDark ? 'text-white/70' : 'text-slate-600'
-                }`}>Get weekly summaries and important updates via email</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer ml-4">
-                <input
-                  type="checkbox"
-                  checked={settings.emailUpdates}
-                  onChange={(e) => handleSettingChange('emailUpdates', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className={`w-12 h-6 rounded-full transition-all duration-300 peer-focus:outline-none peer-focus:ring-4 ${
-                  settings.emailUpdates
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 peer-focus:ring-purple-500/30'
-                    : isDark
-                      ? 'bg-white/20 peer-focus:ring-white/20'
-                      : 'bg-slate-300 peer-focus:ring-slate-300'
-                }`}>
-                  <div className={`absolute top-1 left-1 h-4 w-4 rounded-full bg-white transition-all duration-300 shadow-lg ${
-                    settings.emailUpdates ? 'translate-x-6' : 'translate-x-0'
-                  }`} />
-                </div>
-              </label>
-            </div>
-          </div>
-        </section>
-
-        {/* Language & Region Settings */}
-        <section className={`rounded-[32px] border px-8 py-9 shadow-2xl backdrop-blur-xl ${
-          isDark ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
-        }`}>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 text-white shadow-lg">
-              <Globe className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className={`text-2xl font-bold ${
-                isDark ? 'text-white' : 'text-slate-900'
-              }`}>Language & Region</h2>
-              <p className={`text-sm ${
-                isDark ? 'text-white/70' : 'text-slate-600'
-              }`}>Customize your language and timezone preferences</p>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className={`block text-sm font-semibold mb-2 ${
-                isDark ? 'text-white/90' : 'text-slate-700'
-              }`}>
-                Language
-              </label>
-              <select
-                value={settings.language}
-                onChange={(e) => handleSettingChange('language', e.target.value)}
-                className={`w-full p-3 rounded-xl border transition-all ${
-                  isDark
-                    ? 'border-white/10 bg-white/5 text-white focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                    : 'border-slate-200 bg-white text-slate-900 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
-                }`}
-              >
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-                <option value="de">German</option>
-                <option value="it">Italian</option>
-                <option value="zh">Mandarin</option>
-              </select>
-            </div>
-            
-            <div>
-              <label className={`block text-sm font-semibold mb-2 ${
-                isDark ? 'text-white/90' : 'text-slate-700'
-              }`}>
-                Timezone
-              </label>
-              <select
-                value={settings.timezone}
-                onChange={(e) => handleSettingChange('timezone', e.target.value)}
-                className={`w-full p-3 rounded-xl border transition-all ${
-                  isDark
-                    ? 'border-white/10 bg-white/5 text-white focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
-                    : 'border-slate-200 bg-white text-slate-900 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
-                }`}
-              >
-                <option value="UTC">UTC (Coordinated Universal Time)</option>
-                <option value="America/New_York">Eastern Time (ET)</option>
-                <option value="America/Chicago">Central Time (CT)</option>
-                <option value="America/Denver">Mountain Time (MT)</option>
-                <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                <option value="Europe/London">London (GMT)</option>
-                <option value="Europe/Paris">Paris (CET)</option>
-                <option value="Asia/Tokyo">Tokyo (JST)</option>
-                <option value="Asia/Shanghai">Shanghai (CST)</option>
-              </select>
-            </div>
-          </div>
-        </section>
-
         {/* Account Settings */}
         <section className={`rounded-[32px] border px-8 py-9 shadow-2xl backdrop-blur-xl ${
           isDark ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
@@ -359,7 +226,7 @@ const Settings = () => {
           <div className={`p-5 rounded-[20px] border ${
             isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'
           }`}>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <p className={`text-sm font-semibold ${
                   isDark ? 'text-white/90' : 'text-slate-700'
@@ -373,6 +240,17 @@ const Settings = () => {
                 </p>
               </div>
             </div>
+            <button
+              onClick={() => setShowChangeEmailModal(true)}
+              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition hover:-translate-y-0.5 hover:shadow-lg ${
+                isDark
+                  ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15 hover:border-white/30'
+                  : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+              }`}
+            >
+              <Mail className="h-4 w-4" />
+              Change Email
+            </button>
           </div>
         </section>
 
@@ -403,6 +281,130 @@ const Settings = () => {
           </button>
         </div>
       </div>
+
+      {/* Change Email Modal */}
+      {showChangeEmailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className={`relative rounded-[32px] border shadow-2xl backdrop-blur-xl w-full max-w-md ${
+            isDark ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
+          }`}>
+            <button
+              onClick={() => {
+                setShowChangeEmailModal(false)
+                setNewEmail('')
+              }}
+              className={`absolute top-4 right-4 p-2 rounded-full transition ${
+                isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'
+              }`}
+            >
+              <X className={`h-5 w-5 ${isDark ? 'text-white' : 'text-slate-600'}`} />
+            </button>
+
+            <div className="p-8">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 via-purple-500 to-blue-600 text-white shadow-lg">
+                  <Mail className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className={`text-xl font-bold ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}>Change Email Address</h3>
+                  <p className={`text-sm ${
+                    isDark ? 'text-white/70' : 'text-slate-600'
+                  }`}>Enter your new email address</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className={`block text-sm font-semibold mb-2 ${
+                    isDark ? 'text-white/90' : 'text-slate-700'
+                  }`}>
+                    Current Email
+                  </label>
+                  <div className={`rounded-xl px-4 py-3 border ${
+                    isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'
+                  }`}>
+                    <span className={`text-sm ${
+                      isDark ? 'text-white/70' : 'text-slate-600'
+                    }`}>{user?.email || 'N/A'}</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-semibold mb-2 ${
+                    isDark ? 'text-white/90' : 'text-slate-700'
+                  }`}>
+                    New Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="Enter new email address"
+                    className={`w-full rounded-xl px-4 py-3 transition-all ${
+                      isDark
+                        ? 'bg-white/10 border-2 border-white/20 text-white placeholder-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
+                        : 'bg-white border-2 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                    }`}
+                    disabled={isChangingEmail}
+                  />
+                </div>
+
+                <div className={`rounded-xl p-4 border ${
+                  isDark ? 'border-blue-400/30 bg-blue-500/20' : 'border-blue-200 bg-blue-50'
+                }`}>
+                  <p className={`text-sm ${
+                    isDark ? 'text-blue-300' : 'text-blue-800'
+                  }`}>
+                    <strong>Note:</strong> We'll send a verification email to your new address. Click the link in that email to confirm the change.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleChangeEmail}
+                  disabled={isChangingEmail || !newEmail.trim()}
+                  className={`flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDark
+                      ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 text-white hover:from-purple-600 hover:via-pink-600 hover:to-blue-600'
+                      : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600'
+                  }`}
+                >
+                  {isChangingEmail ? (
+                    <>
+                      <div className={`w-4 h-4 border-2 rounded-full animate-spin ${
+                        isDark ? 'border-white border-t-transparent' : 'border-white border-t-transparent'
+                      }`} />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-4 w-4" />
+                      Send Verification Email
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowChangeEmailModal(false)
+                    setNewEmail('')
+                  }}
+                  disabled={isChangingEmail}
+                  className={`inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    isDark
+                      ? 'bg-white/10 text-white border border-white/20 hover:bg-white/15 hover:border-white/30'
+                      : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                  }`}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

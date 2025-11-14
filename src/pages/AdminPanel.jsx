@@ -40,6 +40,7 @@ import {
   approveQuestRequest, 
   rejectQuestRequest 
 } from '../services/questRequestService'
+import { deleteAllMessages } from '../services/chatService'
 import Avatar from '../components/Avatar'
 import TutorReviews from '../components/TutorReviews'
 import TutorReviewsModal from '../components/TutorReviewsModal'
@@ -194,7 +195,7 @@ const AdminPanel = () => {
     for (const docSnapshot of querySnapshot.docs) {
       const userData = docSnapshot.data()
       
-      usersList.push({
+      const userObj = {
         id: docSnapshot.id,
         name: userData.name || 'Unknown',
         email: userData.email || 'No email',
@@ -202,13 +203,23 @@ const AdminPanel = () => {
         grade: userData.grade || 'Not specified',
         isTutor: userData.isTutor || false,
         avatar: userData.avatar || null,
+        banned: userData.banned === true, // 明确检查是否为 true
+        banMessage: userData.banMessage || null,
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
         lastLogin: userData.lastLogin
-      })
+      }
+      
+      // 调试日志：检查封禁状态
+      if (userObj.banned) {
+        console.log(`🚫 Found banned user: ${userObj.name} (${userObj.email})`)
+      }
+      
+      usersList.push(userObj)
     }
     
-    console.log(`✅ Loaded ${usersList.length} users`)
+    const bannedCount = usersList.filter(u => u.banned).length
+    console.log(`✅ Loaded ${usersList.length} users (${bannedCount} banned)`)
     setAllUsers(usersList)
   }
 
@@ -257,13 +268,22 @@ const AdminPanel = () => {
     console.log('✅ Delete modal should be opening for tutor:', tutor.name)
   }
 
-  // 删除整个账号
-  const handleDeleteAccount = (user) => {
-    console.log('🗑️ Delete account button clicked for:', user.name)
+  // 封禁账号
+  const handleBanAccount = (user) => {
+    console.log('🚫 Ban account button clicked for:', user.name)
     setDeleteItem(user)
     setDeleteType('account')
     setShowDeleteModal(true)
-    console.log('✅ Delete modal should be opening for account:', user.name)
+    console.log('✅ Ban modal should be opening for account:', user.name)
+  }
+
+  // 解封账号
+  const handleUnbanAccount = (user) => {
+    console.log('✅ Unban account button clicked for:', user.name)
+    setDeleteItem(user)
+    setDeleteType('unban')
+    setShowDeleteModal(true)
+    console.log('✅ Unban modal should be opening for account:', user.name)
   }
 
   // 确认删除tutor
@@ -382,101 +402,22 @@ const AdminPanel = () => {
     setRejectionReason('')
   }
 
-  // 确认删除账号
-  const confirmDeleteAccount = async () => {
+  // 确认封禁账号
+  const confirmBanAccount = async (banMessage = '') => {
     try {
       setDeleteLoading(true)
-      console.log('🗑️ Deleting entire account:', deleteItem.id)
+      console.log('🚫 Banning account:', deleteItem.id)
+      console.log('📝 Ban message:', banMessage)
       
-      // 1. 删除用户文档
+      // 标记用户为封禁状态
       const userRef = doc(db, 'users', deleteItem.id)
-      await deleteDoc(userRef)
-      console.log('✅ User document deleted')
-      
-      // 2. 删除相关的会话数据 (作为学生)
-      const sessionsRef = collection(db, 'sessions')
-      const sessionsQuery = query(sessionsRef, where('studentId', '==', deleteItem.id))
-      const sessionsSnapshot = await getDocs(sessionsQuery)
-      
-      for (const sessionDoc of sessionsSnapshot.docs) {
-        await deleteDoc(sessionDoc.ref)
-      }
-      console.log(`✅ Deleted ${sessionsSnapshot.docs.length} sessions as student`)
-      
-      // 3. 删除tutor相关的会话 (作为导师)
-      const tutorSessionsQuery = query(sessionsRef, where('tutorId', '==', deleteItem.id))
-      const tutorSessionsSnapshot = await getDocs(tutorSessionsQuery)
-      
-      for (const sessionDoc of tutorSessionsSnapshot.docs) {
-        await deleteDoc(sessionDoc.ref)
-      }
-      console.log(`✅ Deleted ${tutorSessionsSnapshot.docs.length} sessions as tutor`)
-      
-      // 4. 删除评分数据 (作为学生给出的评分)
-      const ratingsRef = collection(db, 'ratings')
-      const studentRatingsQuery = query(ratingsRef, where('studentId', '==', deleteItem.id))
-      const studentRatingsSnapshot = await getDocs(studentRatingsQuery)
-      
-      for (const ratingDoc of studentRatingsSnapshot.docs) {
-        await deleteDoc(ratingDoc.ref)
-      }
-      console.log(`✅ Deleted ${studentRatingsSnapshot.docs.length} ratings given by student`)
-      
-      // 5. 删除评分数据 (作为导师收到的评分)
-      const tutorRatingsQuery = query(ratingsRef, where('tutorId', '==', deleteItem.id))
-      const tutorRatingsSnapshot = await getDocs(tutorRatingsQuery)
-      
-      for (const ratingDoc of tutorRatingsSnapshot.docs) {
-        await deleteDoc(ratingDoc.ref)
-      }
-      console.log(`✅ Deleted ${tutorRatingsSnapshot.docs.length} ratings received by tutor`)
-      
-      // 6. 删除导师统计数据
-      const tutorStatsRef = doc(db, 'tutorStats', deleteItem.id)
-      try {
-        await deleteDoc(tutorStatsRef)
-        console.log('✅ Tutor stats deleted')
-      } catch (error) {
-        console.log('ℹ️ No tutor stats to delete (not a tutor or stats not found)')
-      }
-      
-      // 7. 删除技能树进度数据
-      const skillProgressRef = doc(db, 'skillProgress', deleteItem.id)
-      try {
-        await deleteDoc(skillProgressRef)
-        console.log('✅ Skill progress deleted')
-      } catch (error) {
-        console.log('ℹ️ No skill progress to delete')
-      }
-      
-      // 8. 删除任务进度数据
-      const questProgressRef = doc(db, 'questProgress', deleteItem.id)
-      try {
-        await deleteDoc(questProgressRef)
-        console.log('✅ Quest progress deleted')
-      } catch (error) {
-        console.log('ℹ️ No quest progress to delete')
-      }
-      
-      // 9. 删除朋友关系数据
-      const friendsRef = collection(db, 'friends')
-      const friendsQuery = query(friendsRef, where('userId', '==', deleteItem.id))
-      const friendsSnapshot = await getDocs(friendsQuery)
-      
-      for (const friendDoc of friendsSnapshot.docs) {
-        await deleteDoc(friendDoc.ref)
-      }
-      console.log(`✅ Deleted ${friendsSnapshot.docs.length} friend relationships`)
-      
-      // 10. 删除聊天消息数据
-      const messagesRef = collection(db, 'messages')
-      const messagesQuery = query(messagesRef, where('senderId', '==', deleteItem.id))
-      const messagesSnapshot = await getDocs(messagesQuery)
-      
-      for (const messageDoc of messagesSnapshot.docs) {
-        await deleteDoc(messageDoc.ref)
-      }
-      console.log(`✅ Deleted ${messagesSnapshot.docs.length} messages sent`)
+      await updateDoc(userRef, {
+        banned: true,
+        banMessage: banMessage.trim() || 'Your account has been banned by the administrator.',
+        bannedAt: serverTimestamp(),
+        bannedBy: user.email
+      })
+      console.log('✅ User account banned')
       
       // 重新加载数据
       await loadData()
@@ -486,20 +427,54 @@ const AdminPanel = () => {
       setDeleteItem(null)
       setDeleteType('')
       
-      console.log('✅ Account and all related data deleted successfully')
-      showSuccess('Account and all related data deleted successfully', 'Success')
+      console.log('✅ Account banned successfully')
+      showSuccess('Account banned successfully', 'Success')
       
-      // 如果删除的是当前登录用户的账户，则登出并重定向到登录页
+      // 如果封禁的是当前登录用户的账户，则登出并重定向到登录页
       if (deleteItem.id === user.id) {
-        console.log('🚪 Deleting current user account, logging out...')
+        console.log('🚪 Banning current user account, logging out...')
         await logout()
         toggleTheme('light')
         navigate('/', { replace: true })
-        showSuccess('Your account has been deleted. You have been logged out.', 'Account Deleted')
+        showSuccess('Your account has been banned. You have been logged out.', 'Account Banned')
       }
     } catch (error) {
-      console.error('❌ Error deleting account:', error)
-      showError(`Failed to delete account: ${error.message}`, 'Delete Failed')
+      console.error('❌ Error banning account:', error)
+      showError(`Failed to ban account: ${error.message}`, 'Ban Failed')
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
+
+  // 确认解封账号
+  const confirmUnbanAccount = async () => {
+    try {
+      setDeleteLoading(true)
+      console.log('✅ Unbanning account:', deleteItem.id)
+      
+      // 移除封禁状态
+      const userRef = doc(db, 'users', deleteItem.id)
+      await updateDoc(userRef, {
+        banned: false,
+        banMessage: null,
+        unbannedAt: serverTimestamp(),
+        unbannedBy: user.email
+      })
+      console.log('✅ User account unbanned')
+      
+      // 重新加载数据
+      await loadData()
+      
+      // 关闭模态框
+      setShowDeleteModal(false)
+      setDeleteItem(null)
+      setDeleteType('')
+      
+      console.log('✅ Account unbanned successfully')
+      showSuccess('Account unbanned successfully', 'Success')
+    } catch (error) {
+      console.error('❌ Error unbanning account:', error)
+      showError(`Failed to unban account: ${error.message}`, 'Unban Failed')
     } finally {
       setDeleteLoading(false)
     }
@@ -881,9 +856,31 @@ const AdminPanel = () => {
 
             {activeTab === 'user-accounts' && (
               <>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  User Accounts ({sortedUsers.length})
-                </h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                    User Accounts ({sortedUsers.length})
+                  </h2>
+                  <button
+                    onClick={async () => {
+                      if (window.confirm('Are you sure you want to delete ALL chat messages? This action cannot be undone.')) {
+                        try {
+                          const result = await deleteAllMessages()
+                          if (result.success) {
+                            showSuccess(`Successfully deleted ${result.count} messages`)
+                          } else {
+                            showError(result.error || 'Failed to delete messages')
+                          }
+                        } catch (error) {
+                          showError('Error deleting messages: ' + error.message)
+                        }
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl font-medium transition-all shadow-lg hover:shadow-xl"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Delete All Messages
+                  </button>
+                </div>
                 
                 {sortedUsers.length > 0 ? (
                   <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -938,13 +935,29 @@ const AdminPanel = () => {
 
                           {/* Actions */}
                           <div className="space-y-2">
-                            <button
-                              onClick={() => handleDeleteAccount(user)}
-                              className="w-full py-2 px-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center space-x-2 font-medium"
-                            >
-                              <UserX className="w-4 h-4" />
-                              <span>Delete Account</span>
-                            </button>
+                            {user.banned ? (
+                              <>
+                                <div className="w-full py-2 px-4 bg-red-100 border-2 border-red-300 rounded-xl flex items-center justify-center space-x-2 font-medium">
+                                  <AlertTriangle className="w-4 h-4 text-red-600" />
+                                  <span className="text-red-700">Banned</span>
+                                </div>
+                                <button
+                                  onClick={() => handleUnbanAccount(user)}
+                                  className="w-full py-2 px-4 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-200 flex items-center justify-center space-x-2 font-medium"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span>Unban Account</span>
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleBanAccount(user)}
+                                className="w-full py-2 px-4 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center justify-center space-x-2 font-medium"
+                              >
+                                <UserX className="w-4 h-4" />
+                                <span>Ban Account</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1093,7 +1106,13 @@ const AdminPanel = () => {
             isOpen={showDeleteModal}
             item={deleteItem}
             type={deleteType}
-            onConfirm={deleteType === 'tutor' ? confirmDeleteTutor : confirmDeleteAccount}
+            onConfirm={
+              deleteType === 'tutor' 
+                ? confirmDeleteTutor 
+                : deleteType === 'unban'
+                ? confirmUnbanAccount
+                : confirmBanAccount
+            }
             onClose={() => {
               setShowDeleteModal(false)
               setDeleteItem(null)

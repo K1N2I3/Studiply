@@ -23,6 +23,10 @@ import {
   getFriendsList,
   removeFriend 
 } from '../services/friendsService'
+import { doc, onSnapshot, collection, query, where, getDocs, updateDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
+import { isUserOnline } from '../services/presenceService'
+import { getUnreadFriendMessagesCount, getUnreadMessagesFromFriend } from '../services/chatService'
 
 const Friends = () => {
   const { user } = useSimpleAuth()
@@ -39,6 +43,8 @@ const Friends = () => {
   const [showRemoveModal, setShowRemoveModal] = useState(false)
   const [friendToRemove, setFriendToRemove] = useState(null)
   const [isClosing, setIsClosing] = useState(false)
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0)
+  const [friendsWithUnread, setFriendsWithUnread] = useState({}) // { friendId: count }
 
   const tabs = [
     { id: 'friends', label: 'Friends', count: friends.length },
@@ -51,6 +57,101 @@ const Friends = () => {
       loadData()
     }
   }, [user?.id])
+
+  // 检查未读消息数量
+  useEffect(() => {
+    const checkUnreadMessages = async () => {
+      if (!user?.id) return
+      try {
+        const result = await getUnreadFriendMessagesCount(user.id)
+        if (result.success) {
+          setUnreadMessageCount(result.count)
+          
+          // 如果有未读消息，获取每个朋友的未读消息数量
+          if (result.count > 0 && friends.length > 0) {
+            const unreadMap = {}
+            for (const friend of friends) {
+              const friendResult = await getUnreadMessagesFromFriend(user.id, friend.id)
+              if (friendResult.success && friendResult.count > 0) {
+                unreadMap[friend.id] = friendResult.count
+              }
+            }
+            setFriendsWithUnread(unreadMap)
+          }
+        }
+      } catch (error) {
+        console.error('Error checking unread messages:', error)
+      }
+    }
+    
+    checkUnreadMessages()
+  }, [user?.id, friends.length])
+
+  // 页面加载时标记来自 Friends 的未读消息为已读（但保留计数用于显示）
+  useEffect(() => {
+    // 不自动标记为已读，让用户看到未读消息提示
+    // 只有当用户点击进入聊天时才标记为已读
+  }, [user?.id])
+
+  // 实时监听朋友的在线状态变化
+  useEffect(() => {
+    if (!friends.length) return
+
+    console.log('🔄 Setting up presence listeners for friends:', friends.length)
+    const unsubscribes = []
+
+    friends.forEach((friend) => {
+      const friendRef = doc(db, 'users', friend.id)
+      const unsubscribe = onSnapshot(friendRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const friendData = snapshot.data()
+          // 使用isUserOnline函数实时计算在线状态（更准确）
+          const online = isUserOnline(friendData)
+          setFriends((prevFriends) =>
+            prevFriends.map((f) =>
+              f.id === friend.id
+                ? {
+                    ...f,
+                    lastSeen: friendData.lastSeen || null,
+                    isOnline: friendData.isOnline || false,
+                    // 添加计算出的在线状态
+                    _computedOnline: online
+                  }
+                : f
+            )
+          )
+        }
+      })
+      unsubscribes.push(unsubscribe)
+    })
+
+    return () => {
+      console.log('🔄 Cleaning up presence listeners')
+      unsubscribes.forEach((unsub) => unsub())
+    }
+  }, [friends.length])
+
+  // 定期重新计算所有朋友的在线状态（每3秒检查一次，确保及时更新）
+  useEffect(() => {
+    if (!friends.length) return
+
+    const interval = setInterval(() => {
+      setFriends((prevFriends) =>
+        prevFriends.map((friend) => {
+          // 重新计算在线状态
+          const online = isUserOnline(friend)
+          return {
+            ...friend,
+            _computedOnline: online
+          }
+        })
+      )
+    }, 3000) // 每3秒检查一次（更频繁）
+
+    return () => {
+      clearInterval(interval)
+    }
+  }, [friends.length])
 
   const loadData = async () => {
     if (!user?.id) {
@@ -351,6 +452,34 @@ const Friends = () => {
                 isDark ? 'border-white/12 bg-white/6' : 'border-white/70 bg-white'
               }`}
             >
+              {/* Unread Messages Notification */}
+              {unreadMessageCount > 0 && (
+                <div className={`mb-6 rounded-2xl border px-6 py-4 shadow-lg backdrop-blur-xl ${
+                  isDark 
+                    ? 'border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20' 
+                    : 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <MessageCircle className={`h-5 w-5 ${
+                        isDark ? 'text-purple-300' : 'text-purple-600'
+                      }`} />
+                      <div>
+                        <p className={`font-semibold ${
+                          isDark ? 'text-white' : 'text-slate-900'
+                        }`}>
+                          You have {unreadMessageCount} unread message{unreadMessageCount > 1 ? 's' : ''} from your friends
+                        </p>
+                        <p className={`text-sm mt-0.5 ${
+                          isDark ? 'text-white/70' : 'text-slate-600'
+                        }`}>
+                          Click on a friend's "Chat" button below to view messages
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {friends.length > 0 ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                   {friends.map((friend) => (
@@ -435,12 +564,17 @@ const Friends = () => {
 
                         <div className="flex gap-3">
                           <button
-                              onClick={() => navigate(`/chat/${friend.id}`, { state: { from: 'friends' } })}
-                            className="flex-1 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition hover:-translate-y-0.5 hover:shadow-xl"
+                              onClick={() => navigate(`/chat-friend/${friend.id}`, { state: { from: 'friends' } })}
+                            className="flex-1 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition hover:-translate-y-0.5 hover:shadow-xl relative"
                           >
                             <div className="flex items-center justify-center gap-2">
                               <MessageCircle className="h-4 w-4" />
                               Chat
+                              {friendsWithUnread[friend.id] > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-lg">
+                                  {friendsWithUnread[friend.id] > 99 ? '99+' : friendsWithUnread[friend.id]}
+                                </span>
+                              )}
                             </div>
                           </button>
                           <button

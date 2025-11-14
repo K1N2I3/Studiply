@@ -81,6 +81,15 @@ export const simpleLogin = async (email, password) => {
     const userDoc = querySnapshot.docs[0]
     const userData = userDoc.data()
     
+    // 检查是否被封禁
+    if (userData.banned === true) {
+      const banMessage = userData.banMessage || 'Your account has been banned by the administrator.'
+      return {
+        success: false,
+        error: banMessage
+      }
+    }
+    
     // 检查密码
     if (userData.password !== password.trim()) {
       return {

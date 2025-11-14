@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { User, Mail, Lock, Check, BookOpen, Phone, MapPin, Edit3, Search, Sparkles, ArrowRight } from 'lucide-react'
+import { User, Mail, Lock, Check, BookOpen, Phone, MapPin, Edit3, Search, Sparkles, ArrowRight, Loader2, XCircle, CheckCircle2 } from 'lucide-react'
 import emailjs from '@emailjs/browser'
 import { emailjsConfig } from '../config/emailjs'
 import PhoneVerificationModal from '../components/PhoneVerificationModal'
+import { collection, query, where, getDocs } from 'firebase/firestore'
+import { db } from '../firebase/config'
 
 const Register = () => {
   const [currentStep, setCurrentStep] = useState(1)
@@ -24,6 +26,8 @@ const Register = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [emailExists, setEmailExists] = useState(false)
+  const [checkingEmail, setCheckingEmail] = useState(false)
+  const [emailChecked, setEmailChecked] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [dropdownOpen, setDropdownOpen] = useState(false) // For grade dropdown
   const [schoolDropdownOpen, setSchoolDropdownOpen] = useState(false) // For school dropdown
@@ -148,6 +152,7 @@ const Register = () => {
     // Reset email exists status when email changes
     if (e.target.name === 'email') {
       setEmailExists(false)
+      setEmailChecked(false)
     }
     if (error) setError('')
   }
@@ -164,39 +169,35 @@ const Register = () => {
       // Check email format first
       if (!isValidEmail(email)) {
         setError('Please enter a valid email address (e.g., user@example.com)')
+        setEmailExists(false)
         return
       }
 
-      // Check if email already exists
+      // Check if email already exists in Firebase
+      setCheckingEmail(true)
+      setError('')
       try {
-        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003/api'
-        const response = await fetch(`${API_BASE_URL}/check-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ email: email.toLowerCase() })
-        })
-
-        const result = await response.json()
+        const usersRef = collection(db, 'users')
+        const q = query(usersRef, where('email', '==', email.toLowerCase().trim()))
+        const querySnapshot = await getDocs(q)
         
-        if (result.success) {
-          if (result.exists) {
-            setEmailExists(true)
-            setError('This email is already registered. Please use a different email or sign in.')
-            return
-          } else {
-            // Email is available
-            setEmailExists(false)
-            setError('')
-          }
+        setEmailChecked(true)
+        if (!querySnapshot.empty) {
+          // Email already exists
+          setEmailExists(true)
+          setError('This email is already registered. Please use a different email or sign in.')
         } else {
-          setError(result.error || 'Failed to check email availability')
+          // Email is available
+          setEmailExists(false)
+          setError('')
         }
       } catch (error) {
         console.error('Error checking email:', error)
-        // Don't show error if API fails, let backend handle it during registration
-        setError('')
+        setEmailChecked(true)
+        setEmailExists(false)
+        setError('Unable to check email availability. Please try again or continue with registration.')
+      } finally {
+        setCheckingEmail(false)
       }
     }
   }
@@ -535,21 +536,45 @@ const Register = () => {
                 <input
                   name="email"
                   type="email"
-                  className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
-                    isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
-                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
+                  className={`w-full px-4 py-2.5 pl-11 pr-11 rounded-xl border transition-all input-focus-effect text-sm ${
+                    emailExists
+                      ? isDark
+                        ? 'bg-white/5 border-red-400/60 text-white placeholder:text-white/40 focus:border-red-400/60 focus:ring-4 focus:ring-red-500/20'
+                        : 'bg-white/90 border-red-300 text-slate-900 placeholder:text-slate-400 focus:border-red-400 focus:ring-4 focus:ring-red-500/20'
+                      : checkingEmail
+                        ? isDark
+                          ? 'bg-white/5 border-purple-400/60 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                          : 'bg-white/90 border-purple-300 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
+                        : isDark
+                          ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                          : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Enter your email address"
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={handleEmailBlur}
-                  disabled={loading}
+                  disabled={loading || checkingEmail}
                   required
                 />
                 <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
+                {checkingEmail && (
+                  <Loader2 className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin ${
+                    isDark ? 'text-purple-400' : 'text-purple-600'
+                  }`} />
+                )}
+                {!checkingEmail && emailChecked && formData.email && isValidEmail(formData.email) && (
+                  emailExists ? (
+                    <XCircle className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
+                      isDark ? 'text-red-400' : 'text-red-500'
+                    }`} />
+                  ) : (
+                    <CheckCircle2 className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
+                      isDark ? 'text-emerald-400' : 'text-emerald-500'
+                    }`} />
+                  )
+                )}
               </div>
             </div>
 

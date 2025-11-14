@@ -22,7 +22,7 @@ import { safeToDate, safeToMillis } from '../utils/timestampUtils'
 // Switch to unified sessions service
 import { getTutorSessions, acceptSessionRequest, rejectSessionRequest, startSession } from '../services/sessionService'
 import { db } from '../firebase/config'
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore'
 import { useNotification } from '../contexts/NotificationContext'
 import { createMeeting } from '../services/meetingService'
 import RealVideoCall from '../components/RealVideoCall'
@@ -108,6 +108,47 @@ const TutorDashboard = () => {
     
     return cleanup
   }, [user?.id, user?.isTutor])
+
+  // 页面加载时标记来自 Friends（学生）的未读消息为已读
+  useEffect(() => {
+    const markFriendMessagesAsRead = async () => {
+      if (!user?.id) return
+      try {
+        // 获取所有未读消息
+        const messagesRef = collection(db, 'messages')
+        const q = query(
+          messagesRef,
+          where('receiverId', '==', user.id),
+          where('read', '==', false)
+        )
+        const snapshot = await getDocs(q)
+        
+        // 只标记来自 Friends（非 tutor）的消息为已读
+        const updatePromises = []
+        for (const docSnapshot of snapshot.docs) {
+          const messageData = docSnapshot.data()
+          try {
+            const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
+            if (senderDoc.exists()) {
+              const senderData = senderDoc.data()
+              // 如果发送者不是 tutor，则标记为已读
+              if (!senderData.isTutor) {
+                const messageRef = doc(db, 'messages', docSnapshot.id)
+                updatePromises.push(updateDoc(messageRef, { read: true }))
+              }
+            }
+          } catch (error) {
+            console.error('Error checking sender:', error)
+          }
+        }
+        await Promise.all(updatePromises)
+      } catch (error) {
+        console.error('Error marking friend messages as read:', error)
+      }
+    }
+    
+    markFriendMessagesAsRead()
+  }, [user?.id])
 
   const loadSessions = async () => {
     try {
@@ -396,7 +437,7 @@ const TutorDashboard = () => {
         setChatList(chatListWithUsers)
       }
       setChatListLoading(false)
-    })
+    }, 'tutor') // 传递 chatType: 'tutor'
     
     return cleanup
   }, [user?.id, selectedTab])
@@ -910,7 +951,7 @@ const TutorDashboard = () => {
                   {chatList.map((chat) => (
                     <div
                       key={chat.userId}
-                      onClick={() => navigate(`/chat/${chat.userId}`, { state: { from: 'tutor-dashboard' } })}
+                      onClick={() => navigate(`/chat-tutor/${chat.userId}`, { state: { from: 'tutor-dashboard' } })}
                       className={`group rounded-2xl border p-6 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] ${
                         isDark 
                           ? 'bg-white/10 border-white/20 hover:bg-white/15' 

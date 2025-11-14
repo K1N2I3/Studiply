@@ -34,6 +34,7 @@ import RealVideoCall from '../components/RealVideoCall'
 import { useNotification } from '../contexts/NotificationContext'
 import Avatar from '../components/Avatar'
 import { useNavigate } from 'react-router-dom'
+import { isUserOnline } from '../services/presenceService'
 // removed debug: testFirebaseConnection
 
 const Tutoring = () => {
@@ -43,7 +44,8 @@ const Tutoring = () => {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('all')
-  const [tutors, setTutors] = useState([])
+  const [allTutors, setAllTutors] = useState([]) // 存储所有tutors（实时监听）
+  const [tutors, setTutors] = useState([]) // 显示筛选后的tutors
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
@@ -95,6 +97,12 @@ const Tutoring = () => {
         try {
           const userData = doc.data()
           if (userData && userData.isTutor && userData.tutorProfile && doc.id !== user?.id) {
+            const online = isUserOnline(userData)
+            // 确保subjects有数据，如果没有则使用specialties作为fallback
+            const subjects = userData.subjects && userData.subjects.length > 0 
+              ? userData.subjects 
+              : (userData.tutorProfile?.specialties || [])
+            
             tutorsList.push({
               id: doc.id,
               name: userData.name || 'Unknown',
@@ -104,10 +112,11 @@ const Tutoring = () => {
               bio: userData.bio || '',
               avatar: userData.avatar || '',
               tutorProfile: userData.tutorProfile || {},
-              subjects: userData.subjects || [],
+              subjects: subjects,
               specialties: userData.tutorProfile?.specialties || [],
               description: userData.tutorProfile?.description || '',
               isAvailable: userData.tutorProfile?.isAvailable || false,
+              isOnline: online,
               stats: {
                 totalSessions: 0,
                 completedSessions: 0,
@@ -121,7 +130,7 @@ const Tutoring = () => {
         }
       })
       
-      setTutors(tutorsList)
+      setAllTutors(tutorsList)
       setLoading(false)
     }, (error) => {
       console.error('❌ Error listening to tutors:', error)
@@ -152,7 +161,7 @@ const Tutoring = () => {
     }, 300) // 防抖
 
     return () => clearTimeout(timeoutId)
-  }, [searchQuery, selectedSubject, filters])
+  }, [searchQuery, selectedSubject, filters, allTutors, user?.id])
 
   const loadTutors = async () => {
     try {
@@ -189,14 +198,14 @@ const Tutoring = () => {
           filteredTutors = result.tutors.filter(tutor => tutor.id !== user?.id)
           console.log(`Filtered out self: ${beforeCount} -> ${filteredTutors.length} tutors`)
         }
-        setTutors(filteredTutors)
+        setAllTutors(filteredTutors)
       } else {
         console.error('Failed to load tutors:', result.error)
-        setTutors([])
+        setAllTutors([])
       }
     } catch (error) {
       console.error('Error loading tutors:', error)
-      setTutors([])
+      setAllTutors([])
     } finally {
       setLoading(false)
     }
@@ -236,23 +245,57 @@ const Tutoring = () => {
 
   const performSearch = async () => {
     try {
-      const searchFilters = {
-        searchQuery: searchQuery,
-        subject: selectedSubject,
-        ...filters
+      // 从allTutors中筛选，而不是调用API
+      let filteredTutors = [...allTutors]
+      
+      // 如果当前用户是导师，过滤掉自己
+      if (user?.isTutor) {
+        filteredTutors = filteredTutors.filter(tutor => tutor.id !== user?.id)
       }
       
-      const result = await searchTutors(searchFilters)
-      if (result.success) {
-        // 如果当前用户是导师，过滤掉自己
-        let filteredTutors = result.tutors
-        if (user?.isTutor) {
-          const beforeCount = filteredTutors.length
-          filteredTutors = result.tutors.filter(tutor => tutor.id !== user?.id)
-          console.log(`Search filtered out self: ${beforeCount} -> ${filteredTutors.length} tutors`)
-        }
-        setTutors(filteredTutors)
+      // 应用科目筛选
+      if (selectedSubject && selectedSubject !== 'all') {
+        const subjectFilter = selectedSubject.toLowerCase()
+        filteredTutors = filteredTutors.filter(tutor => {
+          if (!tutor.subjects || tutor.subjects.length === 0) return false
+          
+          // 检查subjects数组和specialties数组
+          const allSubjects = [
+            ...(tutor.subjects || []),
+            ...(tutor.specialties || [])
+          ]
+          
+          return allSubjects.some(subject => {
+            const subjectLower = subject.toLowerCase()
+            // 精确匹配或包含匹配
+            return subjectLower === subjectFilter || 
+                   subjectLower.includes(subjectFilter) ||
+                   subjectFilter.includes(subjectLower)
+          })
+        })
       }
+      
+      // 应用搜索查询
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        filteredTutors = filteredTutors.filter(tutor => 
+          tutor.name.toLowerCase().includes(query) ||
+          (tutor.specialties || []).some(specialty => specialty.toLowerCase().includes(query)) ||
+          (tutor.description || '').toLowerCase().includes(query)
+        )
+      }
+      
+      // 应用评分筛选
+      if (filters.minRating) {
+        filteredTutors = filteredTutors.filter(tutor => (tutor.rating || 0) >= filters.minRating)
+      }
+      
+      // 应用可用性筛选
+      if (filters.availableOnly) {
+        filteredTutors = filteredTutors.filter(tutor => tutor.isAvailable)
+      }
+      
+      setTutors(filteredTutors)
     } catch (error) {
       console.error('Error searching tutors:', error)
     }
@@ -328,6 +371,9 @@ const Tutoring = () => {
     { id: 'all', name: 'All Subjects', icon: BookOpen },
     { id: 'math', name: 'Mathematics', icon: Calculator },
     { id: 'science', name: 'Science', icon: Atom },
+    { id: 'physics', name: 'Physics', icon: Atom },
+    { id: 'chemistry', name: 'Chemistry', icon: Atom },
+    { id: 'biology', name: 'Biology', icon: Atom },
     { id: 'english', name: 'English', icon: Globe },
     { id: 'history', name: 'History', icon: BookOpen },
     { id: 'art', name: 'Art', icon: Paintbrush },
@@ -629,11 +675,13 @@ const Tutoring = () => {
                       <div>
                         <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{tutor.name}</h3>
                         <div className={`mt-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                          tutor.isAvailable
+                          !tutor.isOnline
+                            ? 'bg-gray-500/10 text-gray-500'
+                            : tutor.isAvailable
                             ? 'bg-green-500/10 text-green-500'
                             : 'bg-slate-500/10 text-slate-400'
                         }`}>
-                          {tutor.isAvailable ? 'Available' : 'Busy'}
+                          {!tutor.isOnline ? 'Offline' : tutor.isAvailable ? 'Available' : 'Busy'}
                         </div>
                       </div>
                     </div>
@@ -649,13 +697,20 @@ const Tutoring = () => {
                   }`}>{tutor.description}</p>
 
                   <div className="mt-5 flex flex-wrap gap-2">
-                    {(tutor.specialties || []).slice(0, 3).map((specialty, index) => (
-                      <span key={index} className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        isDark ? 'bg-white/10 text-white/70' : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {specialty}
-                      </span>
-                    ))}
+                    {(() => {
+                      // 优先显示subjects，如果没有则显示specialties
+                      const displaySubjects = (tutor.subjects && tutor.subjects.length > 0) 
+                        ? tutor.subjects 
+                        : (tutor.specialties || [])
+                      
+                      return displaySubjects.slice(0, 3).map((subject, index) => (
+                        <span key={index} className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          isDark ? 'bg-white/10 text-white/70' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {subject}
+                        </span>
+                      ))
+                    })()}
                   </div>
 
                   <div className="mt-5 flex items-center justify-between text-sm">
@@ -671,7 +726,7 @@ const Tutoring = () => {
 
                   <div className="mt-6 flex items-center gap-3">
                     <button
-                      onClick={() => navigate(`/chat/${tutor.id}`, { state: { from: 'tutoring' } })}
+                      onClick={() => navigate(`/chat-tutor/${tutor.id}`, { state: { from: 'tutoring' } })}
                       className={`rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
                         isDark 
                           ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30 hover:-translate-y-0.5' 

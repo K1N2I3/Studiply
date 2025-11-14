@@ -8,13 +8,16 @@ import {
   orderBy, 
   limit,
   serverTimestamp,
-  onSnapshot
+  onSnapshot,
+  updateDoc,
+  writeBatch,
+  deleteDoc
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { safeToDate } from '../utils/timestampUtils'
 
 // 发送消息
-export const sendMessage = async (senderId, receiverId, messageText) => {
+export const sendMessage = async (senderId, receiverId, messageText, chatType = 'friend') => {
   try {
     const messagesRef = collection(db, 'messages')
     const messageData = {
@@ -22,7 +25,8 @@ export const sendMessage = async (senderId, receiverId, messageText) => {
       receiverId,
       message: messageText.trim(),
       timestamp: serverTimestamp(),
-      read: false
+      read: false,
+      chatType: chatType // 'friend' 或 'tutor'
     }
     
     const docRef = await addDoc(messagesRef, messageData)
@@ -42,21 +46,23 @@ export const sendMessage = async (senderId, receiverId, messageText) => {
 }
 
 // 获取聊天历史
-export const getChatHistory = async (userId1, userId2, limitCount = 50) => {
+export const getChatHistory = async (userId1, userId2, limitCount = 50, chatType = 'friend') => {
   try {
     const messagesRef = collection(db, 'messages')
     
-    // 简化查询，分别获取两个方向的消息
+    // 简化查询，分别获取两个方向的消息，并过滤 chatType
     const q1 = query(
       messagesRef,
       where('senderId', '==', userId1),
-      where('receiverId', '==', userId2)
+      where('receiverId', '==', userId2),
+      where('chatType', '==', chatType)
     )
     
     const q2 = query(
       messagesRef,
       where('senderId', '==', userId2),
-      where('receiverId', '==', userId1)
+      where('receiverId', '==', userId1),
+      where('chatType', '==', chatType)
     )
     
     const [snapshot1, snapshot2] = await Promise.all([
@@ -117,20 +123,22 @@ export const getChatHistory = async (userId1, userId2, limitCount = 50) => {
 }
 
 // 实时监听聊天消息
-export const listenToMessages = (userId1, userId2, callback) => {
+export const listenToMessages = (userId1, userId2, callback, chatType = 'friend') => {
   const messagesRef = collection(db, 'messages')
   
-  // 监听两个方向的消息
+  // 监听两个方向的消息，并过滤 chatType
   const q1 = query(
     messagesRef,
     where('senderId', '==', userId1),
-    where('receiverId', '==', userId2)
+    where('receiverId', '==', userId2),
+    where('chatType', '==', chatType)
   )
   
   const q2 = query(
     messagesRef,
     where('senderId', '==', userId2),
-    where('receiverId', '==', userId1)
+    where('receiverId', '==', userId1),
+    where('chatType', '==', chatType)
   )
   
   let allMessages = []
@@ -232,20 +240,22 @@ export const createChatId = (userId1, userId2) => {
 }
 
 // 获取所有与特定用户聊天的用户列表（用于显示聊天列表）
-export const getChatList = async (userId) => {
+export const getChatList = async (userId, chatType = 'friend') => {
   try {
     const messagesRef = collection(db, 'messages')
     
-    // 获取所有发送给该用户的消息
+    // 获取所有发送给该用户的消息（过滤 chatType）
     const q1 = query(
       messagesRef,
-      where('receiverId', '==', userId)
+      where('receiverId', '==', userId),
+      where('chatType', '==', chatType)
     )
     
-    // 获取所有该用户发送的消息
+    // 获取所有该用户发送的消息（过滤 chatType）
     const q2 = query(
       messagesRef,
-      where('senderId', '==', userId)
+      where('senderId', '==', userId),
+      where('chatType', '==', chatType)
     )
     
     const [snapshot1, snapshot2] = await Promise.all([
@@ -337,24 +347,26 @@ export const getChatList = async (userId) => {
 }
 
 // 实时监听聊天列表（当有新消息时更新）
-export const listenToChatList = (userId, callback) => {
+export const listenToChatList = (userId, callback, chatType = 'friend') => {
   const messagesRef = collection(db, 'messages')
   
-  // 监听所有相关消息
+  // 监听所有相关消息（过滤 chatType）
   const q1 = query(
     messagesRef,
-    where('receiverId', '==', userId)
+    where('receiverId', '==', userId),
+    where('chatType', '==', chatType)
   )
   
   const q2 = query(
     messagesRef,
-    where('senderId', '==', userId)
+    where('senderId', '==', userId),
+    where('chatType', '==', chatType)
   )
   
   let unsubscribe1, unsubscribe2
   
   const processChatList = async () => {
-    const result = await getChatList(userId)
+    const result = await getChatList(userId, chatType)
     if (result.success) {
       callback(result)
     }
@@ -379,5 +391,292 @@ export const listenToChatList = (userId, callback) => {
   return () => {
     if (unsubscribe1) unsubscribe1()
     if (unsubscribe2) unsubscribe2()
+  }
+}
+
+// 获取未读消息数量
+export const getUnreadMessageCount = async (userId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false)
+    )
+    
+    const snapshot = await getDocs(q)
+    return {
+      success: true,
+      count: snapshot.size
+    }
+  } catch (error) {
+    console.error('Error getting unread message count:', error)
+    return {
+      success: false,
+      count: 0,
+      error: 'Failed to get unread message count'
+    }
+  }
+}
+
+// 实时监听未读消息数量变化
+export const subscribeUnreadMessageCount = (userId, callback) => {
+  if (!userId) {
+    console.warn('subscribeUnreadMessageCount: userId is required')
+    return () => {}
+  }
+  
+  try {
+    const messagesRef = collection(db, 'messages')
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false)
+    )
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const count = snapshot.size
+      callback(count)
+    }, (error) => {
+      console.error('Error listening to unread message count:', error)
+      callback(0)
+    })
+    
+    return unsubscribe
+  } catch (error) {
+    console.error('Error setting up unread message count listener:', error)
+    return () => {}
+  }
+}
+
+// 标记所有未读消息为已读
+export const markAllMessagesAsRead = async (userId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false)
+    )
+    
+    const snapshot = await getDocs(q)
+    const updatePromises = []
+    
+    snapshot.forEach((docSnapshot) => {
+      const messageRef = doc(db, 'messages', docSnapshot.id)
+      updatePromises.push(updateDoc(messageRef, { read: true }))
+    })
+    
+    await Promise.all(updatePromises)
+    
+    return {
+      success: true,
+      count: snapshot.size
+    }
+  } catch (error) {
+    console.error('Error marking messages as read:', error)
+    return {
+      success: false,
+      error: 'Failed to mark messages as read'
+    }
+  }
+}
+
+// 获取来自 Friends 的未读消息数量
+export const getUnreadFriendMessagesCount = async (userId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    // 直接使用 chatType 字段过滤
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false),
+      where('chatType', '==', 'friend')
+    )
+    
+    const snapshot = await getDocs(q)
+    
+    return {
+      success: true,
+      count: snapshot.size
+    }
+  } catch (error) {
+    console.error('Error getting unread friend messages count:', error)
+    return {
+      success: false,
+      count: 0,
+      error: 'Failed to get unread friend messages count'
+    }
+  }
+}
+
+// 获取来自 Tutors 的未读消息数量
+export const getUnreadTutorMessagesCount = async (userId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    // 直接使用 chatType 字段过滤
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false),
+      where('chatType', '==', 'tutor')
+    )
+    
+    const snapshot = await getDocs(q)
+    
+    return {
+      success: true,
+      count: snapshot.size
+    }
+  } catch (error) {
+    console.error('Error getting unread tutor messages count:', error)
+    return {
+      success: false,
+      count: 0,
+      error: 'Failed to get unread tutor messages count'
+    }
+  }
+}
+
+// 实时监听来自 Friends 的未读消息数量变化
+export const subscribeUnreadFriendMessagesCount = (userId, callback) => {
+  if (!userId) {
+    console.warn('subscribeUnreadFriendMessagesCount: userId is required')
+    return () => {}
+  }
+  
+  try {
+    const messagesRef = collection(db, 'messages')
+    // 直接使用 chatType 字段过滤
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false),
+      where('chatType', '==', 'friend')
+    )
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const count = snapshot.size
+      callback(count)
+    }, (error) => {
+      console.error('Error listening to unread friend messages count:', error)
+      callback(0)
+    })
+    
+    return unsubscribe
+  } catch (error) {
+    console.error('Error setting up unread friend messages count listener:', error)
+    return () => {}
+  }
+}
+
+// 实时监听来自 Tutors 的未读消息数量变化
+export const subscribeUnreadTutorMessagesCount = (userId, callback) => {
+  if (!userId) {
+    console.warn('subscribeUnreadTutorMessagesCount: userId is required')
+    return () => {}
+  }
+  
+  try {
+    const messagesRef = collection(db, 'messages')
+    // 直接使用 chatType 字段过滤
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('read', '==', false),
+      where('chatType', '==', 'tutor')
+    )
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const count = snapshot.size
+      callback(count)
+    }, (error) => {
+      console.error('Error listening to unread tutor messages count:', error)
+      callback(0)
+    })
+    
+    return unsubscribe
+  } catch (error) {
+    console.error('Error setting up unread tutor messages count listener:', error)
+    return () => {}
+  }
+}
+
+// 获取与特定朋友的未读消息数量
+export const getUnreadMessagesFromFriend = async (userId, friendId) => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    const q = query(
+      messagesRef,
+      where('receiverId', '==', userId),
+      where('senderId', '==', friendId),
+      where('read', '==', false),
+      where('chatType', '==', 'friend')
+    )
+    
+    const snapshot = await getDocs(q)
+    
+    return {
+      success: true,
+      count: snapshot.size
+    }
+  } catch (error) {
+    console.error('Error getting unread messages from friend:', error)
+    return {
+      success: false,
+      count: 0,
+      error: 'Failed to get unread messages from friend'
+    }
+  }
+}
+
+// 删除所有聊天记录（仅管理员使用）
+export const deleteAllMessages = async () => {
+  try {
+    const messagesRef = collection(db, 'messages')
+    const snapshot = await getDocs(messagesRef)
+    
+    if (snapshot.empty) {
+      return {
+        success: true,
+        count: 0,
+        message: 'No messages to delete'
+      }
+    }
+    
+    // 使用 batch 删除，每次最多 500 个
+    const batches = []
+    let batch = writeBatch(db)
+    let count = 0
+    
+    snapshot.docs.forEach((docSnapshot, index) => {
+      batch.delete(docSnapshot.ref)
+      count++
+      
+      // Firestore batch 限制是 500 个操作
+      if (count % 500 === 0) {
+        batches.push(batch.commit())
+        batch = writeBatch(db)
+      }
+    })
+    
+    // 提交最后一个 batch
+    if (count % 500 !== 0) {
+      batches.push(batch.commit())
+    }
+    
+    await Promise.all(batches)
+    
+    return {
+      success: true,
+      count: count,
+      message: `Successfully deleted ${count} messages`
+    }
+  } catch (error) {
+    console.error('Error deleting all messages:', error)
+    return {
+      success: false,
+      error: 'Failed to delete all messages'
+    }
   }
 }

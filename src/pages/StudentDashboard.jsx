@@ -34,7 +34,7 @@ import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/fire
 import { joinMeeting } from '../services/meetingService'
 import { useNotification } from '../contexts/NotificationContext'
 import { getUserQuestProgress, updateQuestProgress } from '../services/cloudQuestService'
-import { listenToChatList, formatMessageTime } from '../services/chatService'
+import { listenToChatList, formatMessageTime, getUnreadTutorMessagesCount } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
 
 const StudentDashboard = () => {
@@ -48,7 +48,7 @@ const StudentDashboard = () => {
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [showVideoCall, setShowVideoCall] = useState(false)
   const [videoCallSession, setVideoCallSession] = useState(null)
-  const [filterStatus, setFilterStatus] = useState('all') // 'all', 'completed', 'pending'
+  const [filterStatus, setFilterStatus] = useState('pending') // 'completed', 'pending'
   const [showRatings, setShowRatings] = useState(false) // Show all given ratings
   const [showMissionModal, setShowMissionModal] = useState(false)
   const [missionsLoading, setMissionsLoading] = useState(false)
@@ -56,6 +56,7 @@ const StudentDashboard = () => {
   const [userProgress, setUserProgress] = useState(null)
   const [chatList, setChatList] = useState([])
   const [showChatList, setShowChatList] = useState(false)
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0)
 
   const reloadUserProgress = useCallback(async () => {
     if (!user?.id) return
@@ -70,7 +71,7 @@ const StudentDashboard = () => {
     }
   }, [user?.id])
 
-  // 加载聊天列表
+  // 加载聊天列表（只显示 tutor chat 类型的消息）
   useEffect(() => {
     let unsubscribe = null
     
@@ -121,7 +122,7 @@ const StudentDashboard = () => {
         // 过滤掉 null 值
         setChatList(chatListWithUsers.filter(chat => chat !== null))
       }
-    })
+    }, 'tutor') // 传递 chatType: 'tutor'
     
     return cleanup
   }, [user?.id, showChatList])
@@ -129,6 +130,29 @@ const StudentDashboard = () => {
   useEffect(() => {
     reloadUserProgress()
   }, [reloadUserProgress])
+
+  // 页面加载时检查来自 Tutors 的未读消息
+  useEffect(() => {
+    const checkUnreadTutorMessages = async () => {
+      if (!user?.id) return
+      
+      try {
+        // 获取来自 Tutors 的未读消息数量
+        const result = await getUnreadTutorMessagesCount(user.id)
+        if (result.success && result.count > 0) {
+          // 保存未读消息数量用于显示提示
+          setUnreadMessageCount(result.count)
+        } else {
+          setUnreadMessageCount(0)
+        }
+      } catch (error) {
+        console.error('Error checking unread tutor messages:', error)
+        setUnreadMessageCount(0)
+      }
+    }
+    
+    checkUnreadTutorMessages()
+  }, [user?.id])
 
   useEffect(() => {
     let unsub = null
@@ -608,6 +632,48 @@ const StudentDashboard = () => {
       </div>
 
       <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col gap-10 px-6 py-14 hide-scrollbar">
+        {/* Unread messages notification */}
+        {unreadMessageCount > 0 && (
+          <div className={`rounded-2xl border px-6 py-4 shadow-lg backdrop-blur-xl ${
+            isDark 
+              ? 'border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20' 
+              : 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <MessageCircle className={`h-5 w-5 ${
+                  isDark ? 'text-purple-300' : 'text-purple-600'
+                }`} />
+                <div>
+                  <p className={`font-semibold ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    You have {unreadMessageCount} unread message{unreadMessageCount > 1 ? 's' : ''}
+                  </p>
+                  <p className={`text-sm mt-0.5 ${
+                    isDark ? 'text-white/70' : 'text-slate-600'
+                  }`}>
+                    Click on "Chat with Tutors" or "Friends" to view your messages
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowChatList(true)
+                  setUnreadMessageCount(0)
+                }}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+                  isDark
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                    : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                }`}
+              >
+                View Messages
+              </button>
+            </div>
+          </div>
+        )}
+        
         {/* Hero + filters */}
         <section className="grid gap-8 lg:grid-cols-[minmax(0,60%)_minmax(0,40%)]">
           <div className={`rounded-[32px] border px-8 py-9 shadow-2xl backdrop-blur-xl ${
@@ -625,56 +691,79 @@ const StudentDashboard = () => {
               View upcoming sessions, join active meetings, and revisit completed lessons. Filter by status, rate tutors, and monitor your progress—all from one place.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              {['all', 'pending', 'completed'].map((status) => (
+            <div className="mt-6 space-y-4">
+              {/* Status Filter Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-xs font-semibold uppercase tracking-wide mr-2 ${
+                  isDark ? 'text-white/60' : 'text-slate-500'
+                }`}>
+                  Filter:
+                </span>
+                {['pending', 'completed'].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatClick(status)}
+                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 ${
+                      filterStatus === status
+                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md shadow-purple-500/30'
+                        : isDark
+                          ? 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
+                          : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+                    }`}
+                  >
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`text-xs font-semibold uppercase tracking-wide mr-2 ${
+                  isDark ? 'text-white/60' : 'text-slate-500'
+                }`}>
+                  Actions:
+                </span>
                 <button
-                  key={status}
-                  onClick={() => handleStatClick(status === 'all' ? 'all' : status)}
-                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-all ${
-                    filterStatus === status
-                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
+                  onClick={() => {
+                    setShowRatings(!showRatings)
+                    setFilterStatus('ratings')
+                  }}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+                    showRatings
+                      ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md shadow-blue-500/30'
                       : isDark
-                        ? 'bg-white/10 text-white/70 hover:bg-white/15'
-                        : 'bg-white/80 text-slate-700 hover:bg-white'
+                        ? 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
+                        : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
                   }`}
                 >
-                  {status === 'all' ? 'View All' : status.charAt(0).toUpperCase() + status.slice(1)}
+                  <Star className="h-4 w-4" />
+                  {showRatings ? 'Hide Ratings' : 'View Ratings'}
                 </button>
-              ))}
-              <button
-                onClick={() => {
-                  setShowRatings(!showRatings)
-                  setFilterStatus('ratings')
-                }}
-                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-all ${
-                  showRatings
-                    ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/30'
-                    : isDark
-                      ? 'bg-white/10 text-white/70 hover:bg-white/15'
-                      : 'bg-white/80 text-slate-700 hover:bg-white'
-                }`}
-              >
-                {showRatings ? 'Hide Ratings' : 'View Ratings'}
-              </button>
-              <button
-                onClick={() => setShowMissionModal(true)}
-                className="rounded-2xl px-4 py-2 text-sm font-semibold transition-all bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/30 hover:from-purple-600 hover:to-indigo-600"
-              >
-                View Missions
-              </button>
-              <button
-                onClick={() => setShowChatList(!showChatList)}
-                className={`rounded-2xl px-4 py-2 text-sm font-semibold transition-all ${
-                  showChatList
-                    ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30'
-                    : isDark
-                      ? 'bg-white/10 text-white/70 hover:bg-white/15'
-                      : 'bg-white/80 text-slate-700 hover:bg-white'
-                }`}
-              >
-                <MessageCircle className="h-4 w-4 inline-block mr-2" />
-                {showChatList ? 'Hide Chat' : 'Chat with Tutors'}
-              </button>
+                <button
+                  onClick={() => setShowMissionModal(true)}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+                    isDark
+                      ? 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
+                      : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+                  }`}
+                >
+                  <Target className="h-4 w-4" />
+                  View Missions
+                </button>
+                <button
+                  onClick={() => setShowChatList(!showChatList)}
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+                    showChatList
+                      ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md shadow-indigo-500/30'
+                      : isDark
+                        ? 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
+                        : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+                  }`}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {showChatList ? 'Hide Chat' : 'Chat with Tutors'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -740,7 +829,7 @@ const StudentDashboard = () => {
                 {chatList.map((chat) => (
                   <div
                     key={chat.userId}
-                    onClick={() => navigate(`/chat/${chat.userId}`, { state: { from: 'student-dashboard' } })}
+                    onClick={() => navigate(`/chat-tutor/${chat.userId}`, { state: { from: 'student-dashboard' } })}
                     className={`group rounded-2xl border p-4 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02] ${
                       isDark 
                         ? 'bg-white/10 border-white/20 hover:bg-white/15' 
@@ -849,7 +938,7 @@ const StudentDashboard = () => {
           isDark ? 'border-white/12 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
         } hide-scrollbar`}>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Your Tutoring Sessions</h3>
+            <h3 className="text-lg font-semibold">My Sessions</h3>
             {getFilteredSessions().length === 0 && (
               <span className={`text-xs ${isDark ? 'text-white/60' : 'text-slate-500'}`}>No sessions yet — start your learning journey!</span>
             )}
