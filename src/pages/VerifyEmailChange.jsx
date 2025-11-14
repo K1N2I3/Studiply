@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -14,17 +14,27 @@ const VerifyEmailChange = () => {
   const { showSuccess, showError } = useNotification()
   const [status, setStatus] = useState('verifying') // 'verifying', 'success', 'error'
   const [message, setMessage] = useState('')
+  const hasVerifiedRef = useRef(false) // Track if verification has been attempted
 
   useEffect(() => {
+    // Prevent multiple verifications
+    if (hasVerifiedRef.current) {
+      return
+    }
+
     const token = searchParams.get('token')
     
     if (!token) {
       setStatus('error')
       setMessage('Invalid verification link. No token provided.')
+      hasVerifiedRef.current = true
       return
     }
 
     const verifyEmail = async () => {
+      // Mark as verified to prevent duplicate calls
+      hasVerifiedRef.current = true
+
       try {
         setStatus('verifying')
         const result = await verifyEmailChange(token)
@@ -54,18 +64,21 @@ const VerifyEmailChange = () => {
         } else {
           setStatus('error')
           setMessage(result.error || 'Failed to verify email change')
+          // Only show error notification once
           showError(result.error || 'Failed to verify email change', 5000, 'Error')
         }
       } catch (error) {
         console.error('Error verifying email change:', error)
         setStatus('error')
         setMessage('An unexpected error occurred. Please try again.')
+        // Only show error notification once
         showError('An unexpected error occurred. Please try again.', 5000, 'Error')
       }
     }
 
     verifyEmail()
-  }, [searchParams, user, updateUser, reloadUser, navigate, showSuccess, showError])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]) // Only depend on searchParams, run once per token change
 
   return (
     <div className={`min-h-screen relative overflow-hidden flex items-center justify-center ${
