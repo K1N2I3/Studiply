@@ -48,14 +48,8 @@ const ChatWithTutor = () => {
   useEffect(() => {
     if (tutorId && user?.id) {
       loadChatData()
-      // 延迟标记消息为已读，给用户时间查看消息
-      const markReadTimeout = setTimeout(() => {
-        markMessagesFromTutorAsRead()
-      }, 3000) // 3秒后标记为已读
-      
-      return () => {
-        clearTimeout(markReadTimeout)
-      }
+      // 不自动标记为已读，让用户自己查看消息
+      // 只有当用户滚动到底部查看消息时才标记为已读
     }
     
     return () => {
@@ -64,6 +58,49 @@ const ChatWithTutor = () => {
       }
     }
   }, [tutorId, user])
+
+  // 当用户看到消息底部时，标记消息为已读
+  useEffect(() => {
+    if (!messagesEndRef.current || !tutorId || !user?.id) return
+
+    // 使用 Intersection Observer 检测用户是否看到消息底部
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // 如果消息底部在视口中可见，标记为已读
+          if (entry.isIntersecting) {
+            markMessagesFromTutorAsRead()
+          }
+        })
+      },
+      {
+        root: messagesEndRef.current.closest('.overflow-y-auto') || null,
+        rootMargin: '0px',
+        threshold: 0.1 // 当 10% 可见时触发
+      }
+    )
+
+    observer.observe(messagesEndRef.current)
+
+    // 初始检查：如果已经在底部，立即标记为已读
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        const rect = messagesEndRef.current.getBoundingClientRect()
+        const container = messagesEndRef.current.closest('.overflow-y-auto')
+        if (container) {
+          const containerRect = container.getBoundingClientRect()
+          // 如果消息底部在容器底部 200px 以内，认为已查看
+          if (rect.bottom <= containerRect.bottom + 200) {
+            markMessagesFromTutorAsRead()
+          }
+        }
+      }
+    }, 1000)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [messages, tutorId, user])
 
   // 标记来自这个 tutor 的未读消息为已读（延迟执行）
   const markMessagesFromTutorAsRead = async () => {

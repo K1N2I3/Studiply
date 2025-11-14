@@ -677,9 +677,17 @@ const StudentDashboard = () => {
                   <p className={`text-sm mt-0.5 ${
                     isDark ? 'text-white/70' : 'text-slate-600'
                   }`}>
-                    {unreadTutors.length > 0 
-                      ? `Click "View Messages" to chat with ${unreadTutors.length === 1 ? unreadTutors[0].name : 'your tutors'}`
-                      : 'Click "View Messages" to view your messages'}
+                    {unreadTutors.length > 0 ? (
+                      <>
+                        <span className="font-medium">From Tutor Chat:</span> {unreadTutors.length === 1 
+                          ? `Message from ${unreadTutors[0].name}`
+                          : `Messages from ${unreadTutors.map(t => t.name).join(', ')}`}
+                        <br />
+                        <span className="text-xs opacity-75">Click "View Messages" to open Tutor Chat and view your messages</span>
+                      </>
+                    ) : (
+                      'Click "View Messages" to view your messages from tutors'
+                    )}
                   </p>
                 </div>
               </div>
