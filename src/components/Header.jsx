@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { subscribeUnreadCount, markAllNotificationsRead } from '../services/notificationService'
-import { subscribeUnreadFriendMessagesCount, subscribeUnreadTutorMessagesCount } from '../services/chatService'
+import { subscribeUnreadFriendMessagesCount, subscribeUnreadTutorMessagesCount, subscribeUnreadStudentMessagesCount } from '../services/chatService'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Link, useLocation, Routes, Route, useNavigate } from 'react-router-dom'
@@ -65,6 +65,7 @@ const Header = () => {
   const [unread, setUnread] = useState(0)
   const [unreadFriendMessagesCount, setUnreadFriendMessagesCount] = useState(0)
   const [unreadTutorMessagesCount, setUnreadTutorMessagesCount] = useState(0)
+  const [unreadStudentMessagesCount, setUnreadStudentMessagesCount] = useState(0)
   const [openNotif, setOpenNotif] = useState(false)
   const hoverCloseTimerRef = React.useRef(null)
   const [showProfileDeletedNotification, setShowProfileDeletedNotification] = useState(false)
@@ -139,7 +140,7 @@ const Header = () => {
     return cleanup
   }, [user?.id])
 
-  // 订阅来自 Tutors 的未读消息数量变化
+  // 订阅来自 Tutors 的未读消息数量变化（用于 Student Dashboard）
   useEffect(() => {
     let unsub = null
     
@@ -163,6 +164,31 @@ const Header = () => {
     
     return cleanup
   }, [user?.id])
+
+  // 订阅来自 Students 的未读消息数量变化（用于 Tutor Dashboard）
+  useEffect(() => {
+    let unsub = null
+    
+    const cleanup = () => {
+      if (unsub && typeof unsub === 'function') {
+        try {
+          unsub()
+        } catch (error) {
+          console.error('Error cleaning up unread student messages count listener:', error)
+        }
+      }
+    }
+    
+    if (!user?.id || !user?.isTutor) {
+      return cleanup
+    }
+    
+    unsub = subscribeUnreadStudentMessagesCount(user.id, (count) => {
+      setUnreadStudentMessagesCount(count)
+    })
+    
+    return cleanup
+  }, [user?.id, user?.isTutor])
 
   // 处理macOS应用回调
   useEffect(() => {
@@ -323,7 +349,7 @@ const Header = () => {
           name: 'Tutor Dashboard', 
           href: '/tutor-dashboard', 
           icon: Settings, 
-          unreadCount: unreadFriendMessagesCount > 0 ? unreadFriendMessagesCount : undefined 
+          unreadCount: unreadStudentMessagesCount > 0 ? unreadStudentMessagesCount : undefined 
         })
       }
       
