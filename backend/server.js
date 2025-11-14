@@ -58,7 +58,7 @@ const User = mongoose.model('User', userSchema)
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
 
-// Email configuration - Neo Email SMTP
+// Email configuration - Neo Email SMTP (Optimized for speed)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp0001.neo.space',
   port: parseInt(process.env.SMTP_PORT || '465'),
@@ -68,8 +68,23 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASSWORD
   },
   tls: {
-    rejectUnauthorized: false // 如果需要
-  }
+    rejectUnauthorized: false, // 如果需要
+    minVersion: 'TLSv1.2' // 使用更快的 TLS 版本
+  },
+  // 连接池配置 - 复用连接以提高速度
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100,
+  // 超时设置 - 减少等待时间
+  connectionTimeout: 10000, // 10秒连接超时
+  greetingTimeout: 10000, // 10秒问候超时
+  socketTimeout: 10000, // 10秒socket超时
+  // 快速失败设置
+  rateDelta: 1000,
+  rateLimit: 5,
+  // 禁用不必要的功能以提高速度
+  disableFileAccess: true,
+  disableUrlAccess: true
 })
 
 // Generate verification code
@@ -80,11 +95,19 @@ const generateVerificationCode = () => {
 // Send verification email
 const sendVerificationEmail = async (email, code) => {
   const logoUrl = 'https://www.studiply.it/studiply-logo.png'
+  const startTime = Date.now()
   
   const mailOptions = {
     from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
     to: email,
     subject: 'Studiply - Email Verification',
+    priority: 'high', // 高优先级
+    headers: {
+      'X-Priority': '1', // 高优先级
+      'X-MSMail-Priority': 'High',
+      'Importance': 'high',
+      'Date': new Date().toUTCString() // 确保日期正确
+    },
     html: `
       <!DOCTYPE html>
       <html>
@@ -613,11 +636,19 @@ app.post('/api/send-verification-email', async (req, res) => {
 const sendEmailChangeVerification = async (email, token, oldEmail) => {
   const logoUrl = 'https://www.studiply.it/studiply-logo.png'
   const verificationLink = `https://www.studiply.it/verify-email-change?token=${token}`
+  const startTime = Date.now()
   
   const mailOptions = {
     from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
     to: email,
     subject: 'Studiply - Verify Your New Email Address',
+    priority: 'high', // 高优先级
+    headers: {
+      'X-Priority': '1', // 高优先级
+      'X-MSMail-Priority': 'High',
+      'Importance': 'high',
+      'Date': new Date().toUTCString() // 确保日期正确
+    },
     html: `
       <!DOCTYPE html>
       <html>
@@ -691,7 +722,16 @@ const sendEmailChangeVerification = async (email, token, oldEmail) => {
     `
   }
 
-  await transporter.sendMail(mailOptions)
+  try {
+    const info = await transporter.sendMail(mailOptions)
+    const duration = Date.now() - startTime
+    console.log(`✅ Email change verification sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
+    return info
+  } catch (error) {
+    const duration = Date.now() - startTime
+    console.error(`❌ Failed to send email change verification to ${email} after ${duration}ms:`, error)
+    throw error
+  }
 }
 
 // API endpoint to send email change verification
