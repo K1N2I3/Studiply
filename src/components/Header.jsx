@@ -43,6 +43,7 @@ import ChatWithFriend from '../pages/ChatWithFriend'
 import ChatWithTutor from '../pages/ChatWithTutor'
 import FocusMode from '../pages/FocusMode'
 import Rewards from '../pages/Rewards'
+import Purchase from '../pages/Purchase'
 import Profile from '../pages/Profile'
 import TutorDashboard from '../pages/TutorDashboard'
 import StudentDashboard from '../pages/StudentDashboard'
@@ -574,7 +575,7 @@ const Header = () => {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-white mb-1">You are using a free account</p>
                   <Link
-                    to="/rewards"
+                    to="/purchase"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-xl"
                     onClick={() => setShowUpgradePrompt(false)}
                   >
@@ -781,6 +782,14 @@ const Header = () => {
               element={
                 <ProtectedRoute>
                   <Rewards />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/purchase" 
+              element={
+                <ProtectedRoute>
+                  <Purchase />
                 </ProtectedRoute>
               } 
             />
