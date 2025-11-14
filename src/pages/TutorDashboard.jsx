@@ -798,6 +798,58 @@ const TutorDashboard = () => {
           </div>
         </section>
 
+        {/* Unread messages notification */}
+        {unreadMessageCount > 0 && (
+          <div className={`mb-8 rounded-2xl border px-6 py-4 shadow-lg backdrop-blur-xl ${
+            isDark 
+              ? 'border-purple-500/30 bg-gradient-to-r from-purple-500/20 to-pink-500/20' 
+              : 'border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <MessageCircle className={`h-5 w-5 ${
+                  isDark ? 'text-purple-300' : 'text-purple-600'
+                }`} />
+                <div>
+                  <p className={`font-semibold ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    You have {unreadMessageCount} unread message{unreadMessageCount > 1 ? 's' : ''} from {unreadStudents.length > 0 ? unreadStudents.map(s => s.name).join(', ') : 'students'}
+                  </p>
+                  <p className={`text-sm mt-0.5 ${
+                    isDark ? 'text-white/70' : 'text-slate-600'
+                  }`}>
+                    {unreadStudents.length > 0 ? (
+                      <>
+                        <span className="font-medium">From Student Chat:</span> {unreadStudents.length === 1 
+                          ? `Message from ${unreadStudents[0].name}`
+                          : `Messages from ${unreadStudents.map(s => s.name).join(', ')}`}
+                        <br />
+                        <span className="text-xs opacity-75">Click "Chat" tab or "View Messages" to open Tutor Chat and view your messages</span>
+                      </>
+                    ) : (
+                      'Click "Chat" tab to view your messages from students'
+                    )}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedTab('chat')
+                  setShowChatList(true)
+                }}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+                  isDark
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                    : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                }`}
+              >
+                View Messages
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Summary cards */}
         <div className="mb-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {summaryCards.map((card) => {
