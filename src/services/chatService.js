@@ -514,19 +514,40 @@ export const getUnreadFriendMessagesCount = async (userId) => {
 export const getUnreadTutorMessagesCount = async (userId) => {
   try {
     const messagesRef = collection(db, 'messages')
-    // 直接使用 chatType 字段过滤
+    // 查询：receiverId == userId (student收到), chatType == 'tutor', read == false
+    // 这确保只统计 tutor 发送给 student 的消息，而不是 student 发送给 tutor 的消息
     const q = query(
       messagesRef,
-      where('receiverId', '==', userId),
+      where('receiverId', '==', userId), // student 是接收者
       where('read', '==', false),
       where('chatType', '==', 'tutor')
     )
     
     const snapshot = await getDocs(q)
     
+    // 额外验证：确保 senderId 对应的用户确实是 tutor
+    let validCount = 0
+    const verifyPromises = snapshot.docs.map(async (docSnapshot) => {
+      const messageData = docSnapshot.data()
+      try {
+        const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
+        if (senderDoc.exists()) {
+          const senderData = senderDoc.data()
+          // 确保发送者是 tutor
+          if (senderData.isTutor === true) {
+            validCount++
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying sender:', error)
+      }
+    })
+    
+    await Promise.all(verifyPromises)
+    
     return {
       success: true,
-      count: snapshot.size
+      count: validCount
     }
   } catch (error) {
     console.error('Error getting unread tutor messages count:', error)
@@ -579,17 +600,36 @@ export const subscribeUnreadTutorMessagesCount = (userId, callback) => {
   
   try {
     const messagesRef = collection(db, 'messages')
-    // 直接使用 chatType 字段过滤
+    // 查询：receiverId == userId (student收到), chatType == 'tutor', read == false
+    // 这确保只统计 tutor 发送给 student 的消息
     const q = query(
       messagesRef,
-      where('receiverId', '==', userId),
+      where('receiverId', '==', userId), // student 是接收者
       where('read', '==', false),
       where('chatType', '==', 'tutor')
     )
     
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const count = snapshot.size
-      callback(count)
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      // 验证每个消息的发送者确实是 tutor
+      let validCount = 0
+      const verifyPromises = snapshot.docs.map(async (docSnapshot) => {
+        const messageData = docSnapshot.data()
+        try {
+          const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
+          if (senderDoc.exists()) {
+            const senderData = senderDoc.data()
+            // 确保发送者是 tutor
+            if (senderData.isTutor === true) {
+              validCount++
+            }
+          }
+        } catch (error) {
+          console.error('Error verifying sender:', error)
+        }
+      })
+      
+      await Promise.all(verifyPromises)
+      callback(validCount)
     }, (error) => {
       console.error('Error listening to unread tutor messages count:', error)
       callback(0)
@@ -606,9 +646,11 @@ export const subscribeUnreadTutorMessagesCount = (userId, callback) => {
 export const getUnreadTutorsList = async (userId) => {
   try {
     const messagesRef = collection(db, 'messages')
+    // 查询：receiverId == userId (student收到), chatType == 'tutor', read == false
+    // 这确保只统计 tutor 发送给 student 的消息
     const q = query(
       messagesRef,
-      where('receiverId', '==', userId),
+      where('receiverId', '==', userId), // student 是接收者
       where('read', '==', false),
       where('chatType', '==', 'tutor')
     )
@@ -616,10 +658,24 @@ export const getUnreadTutorsList = async (userId) => {
     const snapshot = await getDocs(q)
     const tutorIds = new Set()
     
-    snapshot.forEach((doc) => {
-      const data = doc.data()
-      tutorIds.add(data.senderId)
+    // 验证每个发送者确实是 tutor
+    const verifyPromises = snapshot.docs.map(async (docSnapshot) => {
+      const messageData = docSnapshot.data()
+      try {
+        const senderDoc = await getDoc(doc(db, 'users', messageData.senderId))
+        if (senderDoc.exists()) {
+          const senderData = senderDoc.data()
+          // 确保发送者是 tutor
+          if (senderData.isTutor === true) {
+            tutorIds.add(messageData.senderId)
+          }
+        }
+      } catch (error) {
+        console.error('Error verifying sender:', error)
+      }
     })
+    
+    await Promise.all(verifyPromises)
     
     return {
       success: true,
