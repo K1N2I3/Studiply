@@ -181,7 +181,16 @@ const sendVerificationEmail = async (email, code) => {
     `
   }
 
-  await transporter.sendMail(mailOptions)
+  try {
+    const info = await transporter.sendMail(mailOptions)
+    const duration = Date.now() - startTime
+    console.log(`✅ Verification email sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
+    return info
+  } catch (error) {
+    const duration = Date.now() - startTime
+    console.error(`❌ Failed to send verification email to ${email} after ${duration}ms:`, error)
+    throw error
+  }
 }
 
 // API Routes
