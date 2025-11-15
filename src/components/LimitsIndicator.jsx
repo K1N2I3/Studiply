@@ -54,7 +54,7 @@ const LimitsIndicator = () => {
   // Get battery icon based on remaining limits
   const getBatteryIcon = () => {
     if (hasStudiplyPass && remaining.sessionRequests === Infinity) {
-      return <Infinity className="w-5 h-5 text-green-500" />
+      return <Infinity className="w-7 h-7 text-green-500" />
     }
     
     const sessionPercent = hasStudiplyPass 
@@ -66,30 +66,30 @@ const LimitsIndicator = () => {
     const overallPercent = Math.min(sessionPercent, videoPercent)
     
     if (overallPercent === 0) {
-      return <Battery className="w-5 h-5 text-red-500" />
+      return <Battery className="w-7 h-7 text-red-500" />
     } else if (overallPercent <= 33) {
-      return <BatteryLow className="w-5 h-5 text-yellow-500" />
+      return <BatteryLow className="w-7 h-7 text-yellow-500" />
     } else if (overallPercent <= 66) {
-      return <BatteryMedium className="w-5 h-5 text-yellow-400" />
+      return <BatteryMedium className="w-7 h-7 text-yellow-400" />
     } else {
-      return <BatteryFull className="w-5 h-5 text-green-500" />
+      return <BatteryFull className="w-7 h-7 text-green-500" />
     }
   }
 
   const getColorClass = () => {
     if (hasStudiplyPass && remaining.sessionRequests === Infinity) {
-      return 'text-green-500'
+      return 'text-green-600'
     }
     
     const sessionRemaining = hasStudiplyPass ? Infinity : remaining.sessionRequests
     const videoRemaining = remaining.videoCalls
     
     if (sessionRemaining === 0 || videoRemaining === 0) {
-      return 'text-red-500'
+      return 'text-red-600'
     } else if (sessionRemaining === 1 || videoRemaining === 1) {
-      return 'text-yellow-500'
+      return 'text-yellow-600'
     } else {
-      return 'text-green-500'
+      return 'text-green-600'
     }
   }
 
@@ -102,34 +102,42 @@ const LimitsIndicator = () => {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {/* Main indicator button */}
-        <div className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 backdrop-blur-xl shadow-xl ${
+        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border-2 backdrop-blur-xl shadow-2xl ${
           isDark
-            ? 'bg-white/15 border-white/30 hover:bg-white/20'
-            : 'bg-white border-slate-300 hover:bg-slate-50'
+            ? 'bg-slate-800/95 border-slate-600 hover:bg-slate-700/95'
+            : 'bg-white border-slate-400 hover:bg-slate-50'
         }`}>
-          {getBatteryIcon()}
-          <div className="flex flex-col items-start min-w-[60px]">
-            <div className="flex items-center gap-1">
-              <span className={`text-sm font-bold ${getColorClass()}`}>
+          <div className="flex-shrink-0">
+            {getBatteryIcon()}
+          </div>
+          <div className="flex flex-col items-start min-w-[80px] gap-1">
+            <div className="flex items-baseline gap-1.5">
+              <span className={`text-lg font-black ${getColorClass()}`}>
                 {hasStudiplyPass && remaining.sessionRequests === Infinity 
                   ? '∞' 
                   : remaining.sessionRequests}
               </span>
-              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-slate-400'}`}>
+              <span className={`text-sm font-medium ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
                 /{hasStudiplyPass ? '∞' : '3'}
               </span>
+              <span className={`text-xs font-medium ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
+                Session
+              </span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className={`text-sm font-bold ${getColorClass()}`}>
+            <div className="flex items-baseline gap-1.5">
+              <span className={`text-lg font-black ${getColorClass()}`}>
                 {remaining.videoCalls}
               </span>
-              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-slate-400'}`}>
+              <span className={`text-sm font-medium ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
                 /{hasStudiplyPass ? '3' : '1'}
+              </span>
+              <span className={`text-xs font-medium ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
+                Video
               </span>
             </div>
           </div>
           {showWarning && (
-            <AlertCircle className="w-5 h-5 text-yellow-500 animate-pulse flex-shrink-0" />
+            <AlertCircle className="w-6 h-6 text-yellow-500 animate-pulse flex-shrink-0" />
           )}
         </div>
 
