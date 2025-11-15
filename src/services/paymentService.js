@@ -3,6 +3,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003
 // Create Stripe checkout session
 export const createStripeCheckout = async (planId, price, userId, userEmail) => {
   try {
+    console.log('Creating Stripe checkout session...', { planId, price, userId, userEmail, API_BASE_URL })
+    
     const response = await fetch(`${API_BASE_URL}/payment/stripe/create-checkout-session`, {
       method: 'POST',
       headers: {
@@ -16,15 +18,19 @@ export const createStripeCheckout = async (planId, price, userId, userEmail) => 
       })
     })
 
+    console.log('Response status:', response.status)
     const result = await response.json()
+    console.log('Response result:', result)
 
     if (result.success) {
+      console.log('Checkout session created successfully, redirecting to:', result.url)
       return {
         success: true,
         sessionId: result.sessionId,
         url: result.url
       }
     } else {
+      console.error('Failed to create checkout session:', result.error)
       return {
         success: false,
         error: result.error || 'Failed to create checkout session'

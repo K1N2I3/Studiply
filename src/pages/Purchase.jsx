@@ -120,6 +120,7 @@ const Purchase = () => {
       return
     }
 
+    console.log('handlePayment called for plan:', plan)
     setIsProcessing(true)
 
     try {
@@ -130,10 +131,14 @@ const Purchase = () => {
         user.email
       )
 
+      console.log('createStripeCheckout result:', result)
+
       if (result.success && result.url) {
+        console.log('Redirecting to Stripe checkout:', result.url)
         // Redirect to Stripe checkout
         window.location.href = result.url
       } else {
+        console.error('Failed to create checkout session:', result.error)
         showError(result.error || 'Failed to create checkout session', 5000, 'Payment Error')
         setIsProcessing(false)
       }
