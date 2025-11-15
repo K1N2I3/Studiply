@@ -70,54 +70,87 @@ const LimitsIndicator = () => {
   const handleMouseDown = (e) => {
     if (!indicatorRef.current || !containerRef.current) return
     
+    e.preventDefault()
+    e.stopPropagation()
+    
     const rect = indicatorRef.current.getBoundingClientRect()
     const containerRect = containerRef.current.getBoundingClientRect()
     
-    setDragOffset({
-      x: e.clientX - rect.left - position.x,
-      y: e.clientY - rect.top - position.y
-    })
+    // Calculate offset from mouse position to element position
+    const offsetX = e.clientX - containerRect.left - position.x
+    const offsetY = e.clientY - containerRect.top - position.y
+    
+    setDragOffset({ x: offsetX, y: offsetY })
     setIsDragging(true)
+    setIsExpanded(false) // Close expanded view when dragging starts
   }
 
   // Handle drag
   useEffect(() => {
     if (!isDragging) return
 
+    let rafId = null
+    let lastSaveTime = 0
+
     const handleMouseMove = (e) => {
       if (!containerRef.current || !indicatorRef.current) return
 
-      const containerRect = containerRef.current.getBoundingClientRect()
-      const indicatorRect = indicatorRef.current.getBoundingClientRect()
-      
-      let newX = e.clientX - containerRect.left - dragOffset.x
-      let newY = e.clientY - containerRect.top - dragOffset.y
+      // Use requestAnimationFrame for smooth dragging
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
 
-      // Constrain to container bounds
-      const maxX = containerRect.width - indicatorRect.width
-      const maxY = containerRect.height - indicatorRect.height
+      rafId = requestAnimationFrame(() => {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        const indicatorRect = indicatorRef.current.getBoundingClientRect()
+        
+        let newX = e.clientX - containerRect.left - dragOffset.x
+        let newY = e.clientY - containerRect.top - dragOffset.y
 
-      newX = Math.max(0, Math.min(newX, maxX))
-      newY = Math.max(0, Math.min(newY, maxY))
+        // Constrain to container bounds
+        const maxX = containerRect.width - indicatorRect.width
+        const maxY = containerRect.height - indicatorRect.height
 
-      const newPosition = { x: newX, y: newY }
-      setPosition(newPosition)
-      // Save position to localStorage
-      localStorage.setItem('limits-indicator-position', JSON.stringify(newPosition))
+        newX = Math.max(0, Math.min(newX, maxX))
+        newY = Math.max(0, Math.min(newY, maxY))
+
+        setPosition({ x: newX, y: newY })
+        
+        // Throttle localStorage saves (only save every 200ms)
+        const now = Date.now()
+        if (now - lastSaveTime > 200) {
+          localStorage.setItem('limits-indicator-position', JSON.stringify({ x: newX, y: newY }))
+          lastSaveTime = now
+        }
+      })
     }
 
     const handleMouseUp = () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
       setIsDragging(false)
+      // Final save on mouse up
+      if (containerRef.current && indicatorRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        const indicatorRect = indicatorRef.current.getBoundingClientRect()
+        const finalX = Math.max(0, Math.min(position.x, containerRect.width - indicatorRect.width))
+        const finalY = Math.max(0, Math.min(position.y, containerRect.height - indicatorRect.height))
+        localStorage.setItem('limits-indicator-position', JSON.stringify({ x: finalX, y: finalY }))
+      }
     }
 
-    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mousemove', handleMouseMove, { passive: true })
     document.addEventListener('mouseup', handleMouseUp)
 
     return () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId)
+      }
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, dragOffset, position])
+  }, [isDragging, dragOffset])
 
   const checkWarning = (limitsData) => {
     const { remaining, hasStudiplyPass } = limitsData
@@ -184,18 +217,20 @@ const LimitsIndicator = () => {
     >
       <div
         ref={indicatorRef}
-        className={`absolute cursor-move transition-all duration-200 ${
+        className={`absolute transition-none ${
           showWarning && !isDragging ? 'animate-pulse' : ''
         } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
-          pointerEvents: 'auto'
+          pointerEvents: 'auto',
+          willChange: isDragging ? 'transform' : 'auto'
         }}
         onMouseDown={handleMouseDown}
         onClick={(e) => {
-          // Only toggle expand if not dragging
+          // Only toggle expand if not dragging and not just finished dragging
           if (!isDragging) {
+            e.stopPropagation()
             setIsExpanded(!isExpanded)
           }
         }}
@@ -205,14 +240,15 @@ const LimitsIndicator = () => {
           isDark
             ? 'bg-slate-800 border-slate-600 hover:bg-slate-700'
             : 'bg-white border-slate-400 hover:bg-slate-50'
-        }`}>
+        } ${isDragging ? 'opacity-100' : 'opacity-100'}`}>
           {/* Drag handle */}
           <div 
-            className="flex-shrink-0 cursor-grab active:cursor-grabbing"
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing select-none"
             onMouseDown={(e) => {
               e.stopPropagation()
               handleMouseDown(e)
             }}
+            style={{ userSelect: 'none' }}
           >
             <GripVertical className={`w-5 h-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
           </div>
@@ -251,7 +287,7 @@ const LimitsIndicator = () => {
         </div>
 
         {/* Expanded details */}
-        {isExpanded && (
+        {isExpanded && !isDragging && (
           <div className={`absolute top-full left-0 mt-3 w-80 rounded-2xl border-2 shadow-2xl p-6 ${
             isDark
               ? 'bg-slate-800 border-slate-600'
