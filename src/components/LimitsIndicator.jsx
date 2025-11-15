@@ -102,60 +102,70 @@ const LimitsIndicator = () => {
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {/* Main indicator button */}
-        <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border backdrop-blur-xl shadow-lg ${
+        <div className={`flex items-center gap-3 px-5 py-3 rounded-xl border-2 backdrop-blur-xl shadow-xl ${
           isDark
-            ? 'bg-white/10 border-white/20 hover:bg-white/15'
-            : 'bg-white/90 border-slate-200 hover:bg-white'
+            ? 'bg-white/15 border-white/30 hover:bg-white/20'
+            : 'bg-white border-slate-300 hover:bg-slate-50'
         }`}>
           {getBatteryIcon()}
-          <div className="flex flex-col items-start">
-            <span className={`text-xs font-semibold ${getColorClass()}`}>
-              {hasStudiplyPass && remaining.sessionRequests === Infinity 
-                ? '∞' 
-                : remaining.sessionRequests}
-            </span>
-            <span className={`text-xs ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
-              {remaining.videoCalls}
-            </span>
+          <div className="flex flex-col items-start min-w-[60px]">
+            <div className="flex items-center gap-1">
+              <span className={`text-sm font-bold ${getColorClass()}`}>
+                {hasStudiplyPass && remaining.sessionRequests === Infinity 
+                  ? '∞' 
+                  : remaining.sessionRequests}
+              </span>
+              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-slate-400'}`}>
+                /{hasStudiplyPass ? '∞' : '3'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className={`text-sm font-bold ${getColorClass()}`}>
+                {remaining.videoCalls}
+              </span>
+              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-slate-400'}`}>
+                /{hasStudiplyPass ? '3' : '1'}
+              </span>
+            </div>
           </div>
           {showWarning && (
-            <AlertCircle className="w-4 h-4 text-yellow-500 animate-pulse" />
+            <AlertCircle className="w-5 h-5 text-yellow-500 animate-pulse flex-shrink-0" />
           )}
         </div>
 
         {/* Expanded details */}
         {isExpanded && (
-          <div className={`absolute top-full right-0 mt-2 w-64 rounded-xl border backdrop-blur-xl shadow-2xl p-4 ${
+          <div className={`absolute top-full right-0 mt-3 w-80 rounded-2xl border-2 backdrop-blur-xl shadow-2xl p-6 ${
             isDark
-              ? 'bg-white/15 border-white/20'
-              : 'bg-white border-slate-200'
+              ? 'bg-white/20 border-white/30'
+              : 'bg-white border-slate-300 shadow-2xl'
           }`}>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                   Daily Limits
                 </span>
                 {hasStudiplyPass && (
-                  <span className="text-xs px-2 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                  <span className="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold">
                     Pro
                   </span>
                 )}
               </div>
               
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-xs ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-700'}`}>
                       Session Requests
                     </span>
-                    <span className={`text-xs font-semibold ${getColorClass()}`}>
+                    <span className={`text-sm font-bold ${getColorClass()}`}>
                       {hasStudiplyPass && remaining.sessionRequests === Infinity
                         ? '∞ / ∞'
                         : `${remaining.sessionRequests} / ${hasStudiplyPass ? '∞' : '3'}`}
                     </span>
                   </div>
                   {!hasStudiplyPass && (
-                    <div className={`h-2 rounded-full overflow-hidden ${
+                    <div className={`h-3 rounded-full overflow-hidden ${
                       isDark ? 'bg-white/10' : 'bg-slate-200'
                     }`}>
                       <div
@@ -173,15 +183,15 @@ const LimitsIndicator = () => {
                 </div>
                 
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-xs ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-slate-700'}`}>
                       Video Calls
                     </span>
-                    <span className={`text-xs font-semibold ${getColorClass()}`}>
+                    <span className={`text-sm font-bold ${getColorClass()}`}>
                       {remaining.videoCalls} / {hasStudiplyPass ? '3' : '1'}
                     </span>
                   </div>
-                  <div className={`h-2 rounded-full overflow-hidden ${
+                  <div className={`h-3 rounded-full overflow-hidden ${
                     isDark ? 'bg-white/10' : 'bg-slate-200'
                   }`}>
                     <div
@@ -199,18 +209,27 @@ const LimitsIndicator = () => {
               </div>
 
               {showWarning && (
-                <div className={`mt-2 p-2 rounded-lg ${
-                  isDark ? 'bg-yellow-500/20 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'
+                <div className={`mt-4 p-3 rounded-xl border-2 ${
+                  isDark ? 'bg-yellow-500/20 border-yellow-500/40' : 'bg-yellow-50 border-yellow-300'
                 }`}>
-                  <p className={`text-xs ${isDark ? 'text-yellow-300' : 'text-yellow-800'}`}>
-                    ⚠️ Last attempt remaining!
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className={`w-5 h-5 flex-shrink-0 ${
+                      isDark ? 'text-yellow-400' : 'text-yellow-600'
+                    }`} />
+                    <p className={`text-sm font-semibold ${
+                      isDark ? 'text-yellow-300' : 'text-yellow-800'
+                    }`}>
+                      Last attempt remaining!
+                    </p>
+                  </div>
                 </div>
               )}
 
               {!hasStudiplyPass && (
-                <div className="mt-2 pt-2 border-t border-white/10">
-                  <p className={`text-xs text-center ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
+                <div className="mt-4 pt-4 border-t-2 border-white/10">
+                  <p className={`text-sm text-center font-medium ${
+                    isDark ? 'text-white/70' : 'text-slate-600'
+                  }`}>
                     Upgrade to Pro for unlimited requests
                   </p>
                 </div>
