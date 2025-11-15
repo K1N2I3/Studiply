@@ -49,10 +49,20 @@ const LimitsIndicator = () => {
         setPosition(pos)
       } catch (e) {
         console.error('Error parsing saved position:', e)
+        // Default position: top-right (will be calculated on first render)
+        setPosition({ x: 0, y: 0 })
       }
     } else {
-      // Default position: top-right
-      setPosition({ x: 0, y: 0 })
+      // Default position: calculate top-right position on first render
+      setTimeout(() => {
+        if (containerRef.current && indicatorRef.current) {
+          const containerRect = containerRef.current.getBoundingClientRect()
+          const indicatorRect = indicatorRef.current.getBoundingClientRect()
+          const defaultX = containerRect.width - indicatorRect.width - 16
+          const defaultY = 16
+          setPosition({ x: defaultX, y: defaultY })
+        }
+      }, 100)
     }
   }, [])
 
@@ -90,13 +100,14 @@ const LimitsIndicator = () => {
       newX = Math.max(0, Math.min(newX, maxX))
       newY = Math.max(0, Math.min(newY, maxY))
 
-      setPosition({ x: newX, y: newY })
+      const newPosition = { x: newX, y: newY }
+      setPosition(newPosition)
+      // Save position to localStorage
+      localStorage.setItem('limits-indicator-position', JSON.stringify(newPosition))
     }
 
     const handleMouseUp = () => {
       setIsDragging(false)
-      // Save position to localStorage
-      localStorage.setItem('limits-indicator-position', JSON.stringify(position))
     }
 
     document.addEventListener('mousemove', handleMouseMove)
@@ -169,8 +180,7 @@ const LimitsIndicator = () => {
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 pointer-events-none z-50"
-      style={{ position: 'absolute' }}
+      className="absolute inset-0 pointer-events-none z-50"
     >
       <div
         ref={indicatorRef}
