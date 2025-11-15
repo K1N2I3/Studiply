@@ -97,22 +97,44 @@ const Purchase = () => {
     const success = searchParams.get('success')
     const canceled = searchParams.get('canceled')
     const sessionId = searchParams.get('session_id')
+    const hasProcessed = sessionStorage.getItem('payment-processed')
+
+    // Prevent duplicate processing
+    if (hasProcessed) {
+      return
+    }
 
     if (success && sessionId) {
+      // Mark as processed
+      sessionStorage.setItem('payment-processed', 'true')
+      
       // Verify payment
       verifyPaymentStatus(sessionId).then(result => {
         if (result.success) {
           showSuccess('Payment successful! Your Studiply Pass has been activated.', 5000, 'Payment Success')
           // Reload user data to reflect subscription change
-          window.location.reload()
+          setTimeout(() => {
+            window.location.reload()
+          }, 2000)
         } else {
           showError('Payment verification failed. Please contact support.', 5000, 'Payment Error')
+          sessionStorage.removeItem('payment-processed')
         }
+      }).catch(error => {
+        console.error('Payment verification error:', error)
+        sessionStorage.removeItem('payment-processed')
       })
     } else if (canceled) {
+      // Mark as processed
+      sessionStorage.setItem('payment-processed', 'true')
       showError('Payment was canceled.', 3000, 'Payment Canceled')
+      
+      // Clear after showing notification
+      setTimeout(() => {
+        sessionStorage.removeItem('payment-processed')
+      }, 3000)
     }
-  }, [searchParams, showSuccess, showError])
+  }, [searchParams]) // Remove showSuccess and showError from dependencies
 
   const handlePayment = async (plan) => {
     if (!user) {
