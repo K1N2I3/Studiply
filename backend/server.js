@@ -6,6 +6,8 @@ import jwt from 'jsonwebtoken'
 import nodemailer from 'nodemailer'
 import dotenv from 'dotenv'
 import { sendVerificationCode, verifyCode } from './services/twilioService.js'
+import paymentRoutes from './routes/payment.js'
+import limitsRoutes from './routes/limits.js'
 
 dotenv.config()
 
@@ -912,6 +914,10 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
     })
   }
 })
+
+// Use routes
+app.use('/api/payment', paymentRoutes)
+app.use('/api/limits', limitsRoutes)
 
 // Start server
 app.listen(PORT, () => {

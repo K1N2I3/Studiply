@@ -35,6 +35,8 @@ import { useNotification } from '../contexts/NotificationContext'
 import Avatar from '../components/Avatar'
 import { useNavigate } from 'react-router-dom'
 import { isUserOnline } from '../services/presenceService'
+import LimitsIndicator from '../components/LimitsIndicator'
+import { checkLimit, incrementUsage } from '../services/limitsService'
 // removed debug: testFirebaseConnection
 
 const Tutoring = () => {
@@ -332,6 +334,18 @@ const Tutoring = () => {
 
   const handleSubmitSessionRequest = async (formData) => {
     try {
+      // Check limits before submitting
+      const limitCheck = await checkLimit(user?.id, 'sessionRequest')
+      
+      if (!limitCheck.success || !limitCheck.canPerform) {
+        showError(
+          limitCheck.error || 'Daily session request limit reached. Please upgrade to Pro for unlimited requests.',
+          5000,
+          'Limit Reached'
+        )
+        return
+      }
+
       console.log('Submitting session request with data:', {
         studentId: user?.id,
         tutorId: selectedTutor.id,
@@ -352,6 +366,9 @@ const Tutoring = () => {
       console.log('Session request result:', result)
 
       if (result.success) {
+        // Increment usage after successful request
+        await incrementUsage(user?.id, 'sessionRequest')
+        
         showSuccess('Tutoring session request sent successfully! Check your Student Dashboard to track the status.', 5000, 'Request Sent')
         // 更新请求状态
         setTutorRequestStatus(prev => ({
@@ -394,7 +411,31 @@ const Tutoring = () => {
     return isAvailable ? 'Available' : 'Busy'
   }
 
-  const startVideoCall = (tutor) => {
+  const startVideoCall = async (tutor) => {
+    // Check video call limits before starting
+    const limitCheck = await checkLimit(user?.id, 'videoCall')
+    
+    if (!limitCheck.success || !limitCheck.canPerform) {
+      showError(
+        limitCheck.error || 'Daily video call limit reached. Please upgrade to Pro for more calls.',
+        5000,
+        'Limit Reached'
+      )
+      return
+    }
+
+    // Increment usage before starting call
+    const incrementResult = await incrementUsage(user?.id, 'videoCall')
+    
+    if (!incrementResult.success) {
+      showError(
+        incrementResult.error || 'Failed to start video call. Limit may have been reached.',
+        5000,
+        'Error'
+      )
+      return
+    }
+
     const sessionData = {
       subject: 'Tutoring Session',
       tutor: tutor,
@@ -466,6 +507,7 @@ const Tutoring = () => {
         ? 'bg-gradient-to-br from-[#12092b] via-[#180d3d] to-[#090617] text-white' 
         : 'bg-gradient-to-br from-indigo-100 via-purple-100 to-rose-100 text-slate-900'
     }`}>
+      <LimitsIndicator />
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 left-1/2 w-80 h-80 -translate-x-1/2 rounded-full bg-purple-500/30 blur-3xl"></div>

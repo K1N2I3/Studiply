@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { 
   Crown, 
   Star, 
@@ -19,15 +19,20 @@ import {
   Infinity,
   BookOpen,
   Target,
-  TrendingUp
+  TrendingUp,
+  Loader
 } from 'lucide-react'
+import { createStripeCheckout, verifyPaymentStatus } from '../services/paymentService'
+import { useNotification } from '../contexts/NotificationContext'
 
 const Purchase = () => {
   const { user } = useSimpleAuth()
   const { isDark } = useTheme()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const { showSuccess, showError } = useNotification()
   const [selectedPlan, setSelectedPlan] = useState('pro')
-  const [paymentMethod, setPaymentMethod] = useState('paypal')
+  const [isProcessing, setIsProcessing] = useState(false)
 
   const plans = [
     {
@@ -87,14 +92,55 @@ const Purchase = () => {
     { icon: Trophy, title: 'Exclusive Content', description: 'Access member-only courses and materials' }
   ]
 
+  // Check for payment success/cancel in URL
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const canceled = searchParams.get('canceled')
+    const sessionId = searchParams.get('session_id')
+
+    if (success && sessionId) {
+      // Verify payment
+      verifyPaymentStatus(sessionId).then(result => {
+        if (result.success) {
+          showSuccess('Payment successful! Your Studiply Pass has been activated.', 5000, 'Payment Success')
+          // Reload user data to reflect subscription change
+          window.location.reload()
+        } else {
+          showError('Payment verification failed. Please contact support.', 5000, 'Payment Error')
+        }
+      })
+    } else if (canceled) {
+      showError('Payment was canceled.', 3000, 'Payment Canceled')
+    }
+  }, [searchParams, showSuccess, showError])
+
   const handlePayment = async (plan) => {
+    if (!user) {
+      showError('Please log in to purchase a plan', 3000, 'Login Required')
+      return
+    }
+
+    setIsProcessing(true)
+
     try {
-      console.log('Processing payment for:', plan.name, '€' + plan.price)
-      alert(`Payment successful!\n\nPlan: ${plan.name}\nPrice: €${plan.price}\n\nThank you for your purchase!`)
-      navigate('/')
+      const result = await createStripeCheckout(
+        plan.id,
+        plan.price,
+        user.id,
+        user.email
+      )
+
+      if (result.success && result.url) {
+        // Redirect to Stripe checkout
+        window.location.href = result.url
+      } else {
+        showError(result.error || 'Failed to create checkout session', 5000, 'Payment Error')
+        setIsProcessing(false)
+      }
     } catch (error) {
       console.error('Payment error:', error)
-      alert('Payment failed, please try again.')
+      showError('An error occurred. Please try again.', 5000, 'Payment Error')
+      setIsProcessing(false)
     }
   }
 
@@ -279,12 +325,24 @@ const Purchase = () => {
                       }`}
                       onClick={(e) => {
                         e.stopPropagation()
-                        handlePayment(plan)
+                        if (isSelected && !isProcessing) {
+                          handlePayment(plan)
+                        }
                       }}
+                      disabled={!isSelected || isProcessing}
                     >
                       <div className="flex items-center justify-center gap-2">
-                        <span>Get Started</span>
-                        <ArrowRight className="w-5 h-5" />
+                        {isProcessing ? (
+                          <>
+                            <Loader className="w-5 h-5 animate-spin" />
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>Get Started</span>
+                            <ArrowRight className="w-5 h-5" />
+                          </>
+                        )}
                       </div>
                     </button>
                   </div>
@@ -339,32 +397,17 @@ const Purchase = () => {
           </div>
         </div>
 
-        {/* Payment Method */}
+        {/* Payment Method Info */}
         <div className="flex justify-center mb-8">
-          <div className={`inline-flex items-center gap-4 px-6 py-3 rounded-xl border ${
+          <div className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl border ${
             isDark 
               ? 'bg-slate-800/50 border-slate-700/50' 
               : 'bg-white border-slate-200 shadow-sm'
           }`}>
+            <Shield className={`w-5 h-5 ${isDark ? 'text-green-400' : 'text-green-600'}`} />
             <span className={`font-medium text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
-              Payment Method:
+              Secure payment powered by Stripe
             </span>
-            <div className="flex items-center gap-2">
-              <input
-                type="radio"
-                id="paypal"
-                name="payment"
-                value="paypal"
-                checked={paymentMethod === 'paypal'}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-4 h-4 text-purple-600 focus:ring-purple-500"
-              />
-              <label htmlFor="paypal" className={`text-sm font-semibold cursor-pointer ${
-                isDark ? 'text-white' : 'text-slate-900'
-              }`}>
-                PayPal
-              </label>
-            </div>
           </div>
         </div>
 
