@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Battery, BatteryLow, BatteryMedium, BatteryFull, AlertCircle, Infinity } from 'lucide-react'
+import { Battery, BatteryLow, BatteryMedium, BatteryFull, AlertCircle, Infinity, GripVertical } from 'lucide-react'
 import { getUserLimits, subscribeToLimits } from '../services/limitsService'
 
 const LimitsIndicator = () => {
@@ -10,6 +10,11 @@ const LimitsIndicator = () => {
   const [limits, setLimits] = useState(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [showWarning, setShowWarning] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const indicatorRef = useRef(null)
+  const containerRef = useRef(null)
 
   useEffect(() => {
     if (!user?.id) return
@@ -34,6 +39,74 @@ const LimitsIndicator = () => {
       if (unsubscribe) unsubscribe()
     }
   }, [user?.id])
+
+  // Initialize position from localStorage or default
+  useEffect(() => {
+    const savedPosition = localStorage.getItem('limits-indicator-position')
+    if (savedPosition) {
+      try {
+        const pos = JSON.parse(savedPosition)
+        setPosition(pos)
+      } catch (e) {
+        console.error('Error parsing saved position:', e)
+      }
+    } else {
+      // Default position: top-right
+      setPosition({ x: 0, y: 0 })
+    }
+  }, [])
+
+  // Handle drag start
+  const handleMouseDown = (e) => {
+    if (!indicatorRef.current || !containerRef.current) return
+    
+    const rect = indicatorRef.current.getBoundingClientRect()
+    const containerRect = containerRef.current.getBoundingClientRect()
+    
+    setDragOffset({
+      x: e.clientX - rect.left - position.x,
+      y: e.clientY - rect.top - position.y
+    })
+    setIsDragging(true)
+  }
+
+  // Handle drag
+  useEffect(() => {
+    if (!isDragging) return
+
+    const handleMouseMove = (e) => {
+      if (!containerRef.current || !indicatorRef.current) return
+
+      const containerRect = containerRef.current.getBoundingClientRect()
+      const indicatorRect = indicatorRef.current.getBoundingClientRect()
+      
+      let newX = e.clientX - containerRect.left - dragOffset.x
+      let newY = e.clientY - containerRect.top - dragOffset.y
+
+      // Constrain to container bounds
+      const maxX = containerRect.width - indicatorRect.width
+      const maxY = containerRect.height - indicatorRect.height
+
+      newX = Math.max(0, Math.min(newX, maxX))
+      newY = Math.max(0, Math.min(newY, maxY))
+
+      setPosition({ x: newX, y: newY })
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      // Save position to localStorage
+      localStorage.setItem('limits-indicator-position', JSON.stringify(position))
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, dragOffset, position])
 
   const checkWarning = (limitsData) => {
     const { remaining, hasStudiplyPass } = limitsData
@@ -94,19 +167,45 @@ const LimitsIndicator = () => {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div 
+      ref={containerRef}
+      className="fixed inset-0 pointer-events-none z-50"
+      style={{ position: 'absolute' }}
+    >
       <div
-        className={`relative cursor-pointer transition-all duration-300 ${
-          showWarning ? 'animate-pulse' : ''
-        }`}
-        onClick={() => setIsExpanded(!isExpanded)}
+        ref={indicatorRef}
+        className={`absolute cursor-move transition-all duration-200 ${
+          showWarning && !isDragging ? 'animate-pulse' : ''
+        } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        style={{
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          pointerEvents: 'auto'
+        }}
+        onMouseDown={handleMouseDown}
+        onClick={(e) => {
+          // Only toggle expand if not dragging
+          if (!isDragging) {
+            setIsExpanded(!isExpanded)
+          }
+        }}
       >
         {/* Main indicator button */}
-        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border-2 backdrop-blur-xl shadow-2xl ${
+        <div className={`flex items-center gap-4 px-6 py-4 rounded-2xl border-2 shadow-2xl ${
           isDark
-            ? 'bg-slate-800/95 border-slate-600 hover:bg-slate-700/95'
+            ? 'bg-slate-800 border-slate-600 hover:bg-slate-700'
             : 'bg-white border-slate-400 hover:bg-slate-50'
         }`}>
+          {/* Drag handle */}
+          <div 
+            className="flex-shrink-0 cursor-grab active:cursor-grabbing"
+            onMouseDown={(e) => {
+              e.stopPropagation()
+              handleMouseDown(e)
+            }}
+          >
+            <GripVertical className={`w-5 h-5 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+          </div>
           <div className="flex-shrink-0">
             {getBatteryIcon()}
           </div>
@@ -143,10 +242,10 @@ const LimitsIndicator = () => {
 
         {/* Expanded details */}
         {isExpanded && (
-          <div className={`absolute top-full right-0 mt-3 w-80 rounded-2xl border-2 backdrop-blur-xl shadow-2xl p-6 ${
+          <div className={`absolute top-full left-0 mt-3 w-80 rounded-2xl border-2 shadow-2xl p-6 ${
             isDark
-              ? 'bg-white/20 border-white/30'
-              : 'bg-white border-slate-300 shadow-2xl'
+              ? 'bg-slate-800 border-slate-600'
+              : 'bg-white border-slate-300'
           }`}>
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-2">

@@ -507,7 +507,8 @@ const Tutoring = () => {
         ? 'bg-gradient-to-br from-[#12092b] via-[#180d3d] to-[#090617] text-white' 
         : 'bg-gradient-to-br from-indigo-100 via-purple-100 to-rose-100 text-slate-900'
     }`}>
-      <LimitsIndicator />
+      <div className="relative w-full h-full">
+        <LimitsIndicator />
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 left-1/2 w-80 h-80 -translate-x-1/2 rounded-full bg-purple-500/30 blur-3xl"></div>
@@ -891,6 +892,7 @@ const Tutoring = () => {
           user={user}
         />
       )}
+      </div>
     </div>
   )
 }
