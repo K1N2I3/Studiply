@@ -430,6 +430,9 @@ const Tutoring = () => {
     // Increment usage before starting call
     const incrementResult = await incrementUsage(user?.id, 'videoCall')
     
+    // Trigger immediate UI refresh
+    window.dispatchEvent(new Event('limits-refresh'))
+    
     if (!incrementResult.success) {
       showError(
         incrementResult.error || 'Failed to start video call. Limit may have been reached.',
