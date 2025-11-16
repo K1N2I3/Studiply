@@ -236,8 +236,6 @@ const LimitsIndicator = () => {
               ? 'opacity-100'
               : 'opacity-40 hover:opacity-100'
           }`}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
         >
           {/* Drag Handle */}
           <div 
@@ -305,8 +303,13 @@ const LimitsIndicator = () => {
                 ? 'bg-slate-800 border-slate-600'
                 : 'bg-white border-slate-300'
             } opacity-100`}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onMouseEnter={() => {
+              setIsHovered(true)
+            }}
+            onMouseLeave={() => {
+              setIsHovered(false)
+              setIsExpanded(false)
+            }}
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
