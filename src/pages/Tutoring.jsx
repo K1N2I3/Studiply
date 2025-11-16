@@ -367,7 +367,10 @@ const Tutoring = () => {
 
       if (result.success) {
         // Increment usage after successful request
-        await incrementUsage(user?.id, 'sessionRequest')
+        const incrementResult = await incrementUsage(user?.id, 'sessionRequest')
+        
+        // Trigger immediate UI refresh
+        window.dispatchEvent(new Event('limits-refresh'))
         
         showSuccess('Tutoring session request sent successfully! Check your Student Dashboard to track the status.', 5000, 'Request Sent')
         // 更新请求状态

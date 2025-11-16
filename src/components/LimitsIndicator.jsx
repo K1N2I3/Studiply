@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { Battery, BatteryLow, BatteryMedium, BatteryFull, AlertCircle, Infinity, GripVertical, X, Zap, Video, MessageSquare } from 'lucide-react'
-import { getUserLimits, subscribeToLimits } from '../services/limitsService'
+import { getUserLimits, subscribeToLimits, refreshLimits } from '../services/limitsService'
 
 const LimitsIndicator = () => {
   const { user } = useSimpleAuth()
@@ -28,7 +28,7 @@ const LimitsIndicator = () => {
       }
     })
 
-    // Subscribe to updates
+    // Subscribe to updates (now polls every 5 seconds instead of 60)
     const unsubscribe = subscribeToLimits(user.id, (result) => {
       if (result.success) {
         setLimits(result)
@@ -36,8 +36,32 @@ const LimitsIndicator = () => {
       }
     })
 
+    // Listen for custom refresh events (triggered after incrementUsage)
+    const handleRefresh = async () => {
+      const result = await refreshLimits(user.id)
+      if (result.success) {
+        setLimits(result)
+        checkWarning(result)
+      }
+    }
+
+    // Listen for storage events (cross-tab communication)
+    const handleStorageChange = (e) => {
+      if (e.key === 'limits-refresh' && e.newValue) {
+        handleRefresh()
+        localStorage.removeItem('limits-refresh')
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also listen for custom events (same-tab communication)
+    window.addEventListener('limits-refresh', handleRefresh)
+
     return () => {
       if (unsubscribe) unsubscribe()
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('limits-refresh', handleRefresh)
     }
   }, [user?.id])
 

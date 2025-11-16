@@ -107,6 +107,11 @@ export const incrementUsage = async (userId, type) => {
     const result = await response.json()
 
     if (result.success) {
+      // Trigger immediate refresh via custom event
+      // This ensures UI updates instantly across all tabs
+      window.dispatchEvent(new Event('limits-refresh'))
+      localStorage.setItem('limits-refresh', Date.now().toString())
+      
       return {
         success: true,
         usage: result.usage,
@@ -129,7 +134,7 @@ export const incrementUsage = async (userId, type) => {
   }
 }
 
-// Subscribe to limits changes (polling every minute)
+// Subscribe to limits changes (polling every 5 seconds for faster updates)
 export const subscribeToLimits = (userId, callback) => {
   let intervalId = null
   let lastData = null
@@ -149,8 +154,8 @@ export const subscribeToLimits = (userId, callback) => {
   // Fetch immediately
   fetchLimits()
 
-  // Then fetch every minute
-  intervalId = setInterval(fetchLimits, 60000)
+  // Then fetch every 5 seconds for faster updates (was 60 seconds)
+  intervalId = setInterval(fetchLimits, 5000)
 
   // Return unsubscribe function
   return () => {
@@ -159,5 +164,10 @@ export const subscribeToLimits = (userId, callback) => {
       intervalId = null
     }
   }
+}
+
+// Manual refresh function for immediate updates
+export const refreshLimits = async (userId) => {
+  return await getUserLimits(userId)
 }
 
