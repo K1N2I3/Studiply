@@ -13,6 +13,7 @@ const LimitsIndicator = () => {
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [isHovered, setIsHovered] = useState(false)
   const indicatorRef = useRef(null)
   const containerRef = useRef(null)
 
@@ -225,11 +226,19 @@ const LimitsIndicator = () => {
         }}
       >
         {/* Compact View */}
-        <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 shadow-xl ${
-          isDark
-            ? `${statusInfo.bgColor} ${statusInfo.borderColor}`
-            : `${statusInfo.bgColor} ${statusInfo.borderColor}`
-        }`}>
+        <div 
+          className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 shadow-xl transition-all duration-300 ${
+            isDark
+              ? `${statusInfo.bgColor} ${statusInfo.borderColor}`
+              : `${statusInfo.bgColor} ${statusInfo.borderColor}`
+          } ${
+            isHovered || isExpanded || isDragging
+              ? 'opacity-100'
+              : 'opacity-40 hover:opacity-100'
+          }`}
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           {/* Drag Handle */}
           <div 
             className="flex-shrink-0 cursor-grab active:cursor-grabbing select-none"
@@ -290,11 +299,15 @@ const LimitsIndicator = () => {
 
         {/* Expanded Details */}
         {isExpanded && !isDragging && (
-          <div className={`absolute top-full left-0 mt-3 w-96 rounded-2xl border-2 shadow-2xl p-6 ${
-            isDark
-              ? 'bg-slate-800 border-slate-600'
-              : 'bg-white border-slate-300'
-          }`}>
+          <div 
+            className={`absolute top-full left-0 mt-3 w-96 rounded-2xl border-2 shadow-2xl p-6 transition-opacity duration-300 ${
+              isDark
+                ? 'bg-slate-800 border-slate-600'
+                : 'bg-white border-slate-300'
+            } opacity-100`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
