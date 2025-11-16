@@ -267,17 +267,63 @@ const Purchase = () => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="text-center mb-16">
-          <button
-            onClick={() => navigate(-1)}
-            className={`inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-xl font-medium transition-all ${
-              isDark
-                ? 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/10'
-                : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm'
-            }`}
-          >
-            <X className="w-4 h-4" />
-            Back
-          </button>
+          <div className="flex items-center justify-between mb-8">
+            <button
+              onClick={() => navigate(-1)}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all ${
+                isDark
+                  ? 'bg-white/5 text-white/70 hover:bg-white/10 hover:text-white border border-white/10'
+                  : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 shadow-sm'
+              }`}
+            >
+              <X className="w-4 h-4" />
+              Back
+            </button>
+            
+            {/* Test Mode Toggle (Admin Only) */}
+            {isAdmin && (
+              <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all ${
+                isDark
+                  ? isTestMode
+                    ? 'bg-yellow-500/20 border-yellow-500/50'
+                    : 'bg-white/5 border-white/10'
+                  : isTestMode
+                    ? 'bg-yellow-50 border-yellow-300'
+                    : 'bg-white border-slate-200'
+              }`}>
+                <span className={`text-sm font-medium ${
+                  isDark ? 'text-white/70' : 'text-slate-600'
+                }`}>
+                  {isTestMode ? '🧪 Test Mode' : '💳 Live Mode'}
+                </span>
+                <button
+                  onClick={() => setIsTestMode(!isTestMode)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isTestMode
+                      ? 'bg-yellow-500'
+                      : isDark
+                        ? 'bg-slate-600'
+                        : 'bg-slate-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isTestMode ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                {isTestMode && (
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    isDark
+                      ? 'bg-yellow-500/30 text-yellow-300'
+                      : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    No Payment
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
           
           <div className="mb-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 mb-6">
@@ -445,26 +491,6 @@ const Purchase = () => {
                           )}
                         </div>
                       </button>
-                      
-                      {/* Test Mode Button (Admin Only) */}
-                      {isAdmin && isSelected && (
-                        <button
-                          className={`w-full py-2 rounded-lg text-sm font-semibold transition-all ${
-                            isDark
-                              ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 hover:bg-yellow-500/30'
-                              : 'bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100'
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            if (confirm('🧪 Test Mode: This will activate the subscription without payment. Continue?')) {
-                              handleTestActivation(plan)
-                            }
-                          }}
-                          disabled={isProcessing}
-                        >
-                          🧪 Test Mode (Admin Only)
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
