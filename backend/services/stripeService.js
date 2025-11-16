@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 })
 
 // Create a checkout session for Stripe payment
-export const createCheckoutSession = async (planId, price, userId, userEmail) => {
+export const createCheckoutSession = async (planId, price, userId, userEmail, locale = 'en') => {
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -28,6 +28,7 @@ export const createCheckoutSession = async (planId, price, userId, userEmail) =>
       success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/purchase?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/purchase?canceled=true`,
       customer_email: userEmail,
+      locale: locale, // Set language: 'en', 'zh', 'es', 'fr', 'de', etc.
       metadata: {
         userId,
         planId

@@ -24,7 +24,7 @@ const router = express.Router()
 // Create Stripe checkout session
 router.post('/stripe/create-checkout-session', async (req, res) => {
   try {
-    const { planId, price, userId, userEmail } = req.body
+    const { planId, price, userId, userEmail, locale } = req.body
 
     if (!planId || !price || !userId || !userEmail) {
       return res.status(400).json({
@@ -33,7 +33,9 @@ router.post('/stripe/create-checkout-session', async (req, res) => {
       })
     }
 
-    const result = await createCheckoutSession(planId, price, userId, userEmail)
+    // Default to English if locale not provided
+    const sessionLocale = locale || 'en'
+    const result = await createCheckoutSession(planId, price, userId, userEmail, sessionLocale)
 
     if (result.success) {
       res.json(result)

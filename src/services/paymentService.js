@@ -3,7 +3,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003
 // Create Stripe checkout session
 export const createStripeCheckout = async (planId, price, userId, userEmail) => {
   try {
-    console.log('Creating Stripe checkout session...', { planId, price, userId, userEmail, API_BASE_URL })
+    // Get user's browser language
+    const browserLang = navigator.language || navigator.userLanguage || 'en'
+    // Convert to Stripe locale format (e.g., 'zh-CN' -> 'zh', 'en-US' -> 'en')
+    const locale = browserLang.split('-')[0]
+    
+    console.log('Creating Stripe checkout session...', { planId, price, userId, userEmail, locale, API_BASE_URL })
     
     const response = await fetch(`${API_BASE_URL}/payment/stripe/create-checkout-session`, {
       method: 'POST',
@@ -14,7 +19,8 @@ export const createStripeCheckout = async (planId, price, userId, userEmail) => 
         planId,
         price,
         userId,
-        userEmail
+        userEmail,
+        locale: locale // Send browser language to backend
       })
     })
 
