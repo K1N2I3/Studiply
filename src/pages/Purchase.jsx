@@ -24,15 +24,36 @@ import {
 } from 'lucide-react'
 import { createStripeCheckout, verifyPaymentStatus } from '../services/paymentService'
 import { useNotification } from '../contexts/NotificationContext'
+import { db } from '../firebase/config'
+import { doc, updateDoc } from 'firebase/firestore'
 
 const Purchase = () => {
-  const { user } = useSimpleAuth()
+  const { user, updateUser } = useSimpleAuth()
   const { isDark } = useTheme()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { showSuccess, showError } = useNotification()
   const [selectedPlan, setSelectedPlan] = useState('pro')
   const [isProcessing, setIsProcessing] = useState(false)
+  
+  // Check if user is admin (for test mode)
+  const isAdmin = user?.email === 'studiply.email@gmail.com'
+  
+  // Test mode toggle (admin only, persisted in localStorage)
+  const [isTestMode, setIsTestMode] = useState(() => {
+    if (isAdmin) {
+      const saved = localStorage.getItem('studiply-test-mode')
+      return saved === 'true'
+    }
+    return false
+  })
+  
+  // Update localStorage when test mode changes
+  useEffect(() => {
+    if (isAdmin) {
+      localStorage.setItem('studiply-test-mode', isTestMode.toString())
+    }
+  }, [isTestMode, isAdmin])
 
   const plans = [
     {
@@ -136,9 +157,56 @@ const Purchase = () => {
     }
   }, [searchParams]) // Remove showSuccess and showError from dependencies
 
+  // Test mode: Directly activate subscription without Stripe (admin only)
+  const handleTestActivation = async (plan) => {
+    if (!user || !isAdmin) {
+      showError('Test mode is only available for administrators', 3000, 'Access Denied')
+      return
+    }
+
+    setIsProcessing(true)
+
+    try {
+      // Directly update user subscription in Firestore
+      const userRef = doc(db, 'users', user.id)
+      await updateDoc(userRef, {
+        hasStudiplyPass: true,
+        subscription: plan.id === 'basic' ? 'basic' : 'pro',
+        subscriptionStartDate: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      })
+
+      // Update user context
+      if (updateUser) {
+        updateUser({
+          ...user,
+          hasStudiplyPass: true,
+          subscription: plan.id === 'basic' ? 'basic' : 'pro'
+        })
+      }
+
+      showSuccess(`Test mode: ${plan.name} activated successfully!`, 5000, 'Test Activation')
+      
+      // Reload after 2 seconds
+      setTimeout(() => {
+        window.location.reload()
+      }, 2000)
+    } catch (error) {
+      console.error('Test activation error:', error)
+      showError('Failed to activate subscription in test mode', 5000, 'Test Error')
+      setIsProcessing(false)
+    }
+  }
+
   const handlePayment = async (plan) => {
     if (!user) {
       showError('Please log in to purchase a plan', 3000, 'Login Required')
+      return
+    }
+
+    // If test mode is enabled and user is admin, use test activation
+    if (isTestMode && isAdmin) {
+      handleTestActivation(plan)
       return
     }
 
@@ -342,36 +410,58 @@ const Purchase = () => {
                     </div>
 
                     {/* CTA Button */}
-                    <button
-                      className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 ${
-                        isSelected
-                          ? `bg-gradient-to-r ${plan.gradient} shadow-xl hover:shadow-2xl transform hover:-translate-y-1`
-                          : isDark
-                            ? 'bg-slate-700 hover:bg-slate-600'
-                            : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (isSelected && !isProcessing) {
-                          handlePayment(plan)
-                        }
-                      }}
-                      disabled={!isSelected || isProcessing}
-                    >
-                      <div className="flex items-center justify-center gap-2">
-                        {isProcessing ? (
-                          <>
-                            <Loader className="w-5 h-5 animate-spin" />
-                            <span>Processing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Get Started</span>
-                            <ArrowRight className="w-5 h-5" />
-                          </>
-                        )}
-                      </div>
-                    </button>
+                    <div className="space-y-2">
+                      <button
+                        className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 ${
+                          isSelected
+                            ? `bg-gradient-to-r ${plan.gradient} shadow-xl hover:shadow-2xl transform hover:-translate-y-1`
+                            : isDark
+                              ? 'bg-slate-700 hover:bg-slate-600'
+                              : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (isSelected && !isProcessing) {
+                            handlePayment(plan)
+                          }
+                        }}
+                        disabled={!isSelected || isProcessing}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          {isProcessing ? (
+                            <>
+                              <Loader className="w-5 h-5 animate-spin" />
+                              <span>Processing...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Get Started</span>
+                              <ArrowRight className="w-5 h-5" />
+                            </>
+                          )}
+                        </div>
+                      </button>
+                      
+                      {/* Test Mode Button (Admin Only) */}
+                      {isAdmin && isSelected && (
+                        <button
+                          className={`w-full py-2 rounded-lg text-sm font-semibold transition-all ${
+                            isDark
+                              ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 hover:bg-yellow-500/30'
+                              : 'bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100'
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (confirm('🧪 Test Mode: This will activate the subscription without payment. Continue?')) {
+                              handleTestActivation(plan)
+                            }
+                          }}
+                          disabled={isProcessing}
+                        >
+                          🧪 Test Mode (Admin Only)
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
