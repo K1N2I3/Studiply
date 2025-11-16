@@ -36,6 +36,7 @@ import { useNotification } from '../contexts/NotificationContext'
 import { getUserQuestProgress, updateQuestProgress } from '../services/cloudQuestService'
 import { listenToChatList, formatMessageTime, getUnreadTutorMessagesCount, subscribeUnreadTutorMessagesCount } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
+import { checkLimit, incrementUsage } from '../services/limitsService'
 
 const StudentDashboard = () => {
   const { user } = useSimpleAuth()
