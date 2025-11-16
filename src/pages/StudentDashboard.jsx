@@ -353,6 +353,33 @@ const StudentDashboard = () => {
         return
       }
 
+      // Check and increment video call limits before joining
+      const limitCheck = await checkLimit(user?.id, 'videoCall')
+      
+      if (!limitCheck.success || !limitCheck.canPerform) {
+        showError(
+          limitCheck.error || 'Daily video call limit reached. Please upgrade to Pro for more calls.',
+          5000,
+          'Limit Reached'
+        )
+        return
+      }
+
+      // Increment usage before joining call
+      const incrementResult = await incrementUsage(user?.id, 'videoCall')
+      
+      // Trigger immediate UI refresh
+      window.dispatchEvent(new Event('limits-refresh'))
+      
+      if (!incrementResult.success) {
+        showError(
+          incrementResult.error || 'Failed to join video call. Limit may have been reached.',
+          5000,
+          'Error'
+        )
+        return
+      }
+
       // 加入会议
       console.log('🚀 准备加入会议:', {
         meetingCode: meetingCode,
