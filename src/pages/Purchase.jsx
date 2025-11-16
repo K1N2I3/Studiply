@@ -414,7 +414,9 @@ const Purchase = () => {
                       <button
                         className={`w-full py-4 rounded-xl font-bold text-white transition-all duration-300 ${
                           isSelected
-                            ? `bg-gradient-to-r ${plan.gradient} shadow-xl hover:shadow-2xl transform hover:-translate-y-1`
+                            ? isTestMode && isAdmin
+                              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 shadow-xl hover:shadow-2xl transform hover:-translate-y-1'
+                              : `bg-gradient-to-r ${plan.gradient} shadow-xl hover:shadow-2xl transform hover:-translate-y-1`
                             : isDark
                               ? 'bg-slate-700 hover:bg-slate-600'
                               : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
@@ -435,7 +437,9 @@ const Purchase = () => {
                             </>
                           ) : (
                             <>
-                              <span>Get Started</span>
+                              <span>
+                                {isTestMode && isAdmin ? '🧪 Activate (Test)' : 'Get Started'}
+                              </span>
                               <ArrowRight className="w-5 h-5" />
                             </>
                           )}
