@@ -209,8 +209,8 @@ const LimitsIndicator = () => {
       <div
         ref={indicatorRef}
         className={`absolute transition-none ${
-          showWarning && !isDragging ? 'animate-pulse' : ''
-        } ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          isDragging ? 'cursor-grabbing' : 'cursor-grab'
+        }`}
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -280,7 +280,7 @@ const LimitsIndicator = () => {
 
           {/* Warning Icon */}
           {showWarning && (
-            <AlertCircle className={`w-5 h-5 ${statusInfo.textColor} animate-pulse flex-shrink-0`} />
+            <AlertCircle className={`w-5 h-5 ${statusInfo.textColor} flex-shrink-0`} />
           )}
 
           {/* Close button when expanded */}
