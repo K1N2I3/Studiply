@@ -48,7 +48,7 @@ const StudentDashboard = () => {
   const [showRatingModal, setShowRatingModal] = useState(false)
   const [showVideoCall, setShowVideoCall] = useState(false)
   const [videoCallSession, setVideoCallSession] = useState(null)
-  const [filterStatus, setFilterStatus] = useState('pending') // 'completed', 'pending'
+  const [filterStatus, setFilterStatus] = useState('all') // 'all', 'pending', 'accepted', 'active', 'completed'
   const [showRatings, setShowRatings] = useState(false) // Show all given ratings
   const [showMissionModal, setShowMissionModal] = useState(false)
   const [missionsLoading, setMissionsLoading] = useState(false)
@@ -412,7 +412,14 @@ const StudentDashboard = () => {
       case 'completed':
         return sessions.filter(s => s.status === 'completed')
       case 'pending':
-        return sessions.filter(s => s.status === 'pending')
+        // Include pending, accepted, and active sessions (all non-completed)
+        return sessions.filter(s => ['pending', 'accepted', 'active'].includes(s.status))
+      case 'accepted':
+        return sessions.filter(s => s.status === 'accepted')
+      case 'active':
+        return sessions.filter(s => s.status === 'active')
+      case 'all':
+        return sessions
       default:
         return sessions
     }
@@ -733,7 +740,7 @@ const StudentDashboard = () => {
                 }`}>
                   Filter:
                 </span>
-                {['pending', 'completed'].map((status) => (
+                {['all', 'pending', 'accepted', 'active', 'completed'].map((status) => (
                   <button
                     key={status}
                     onClick={() => handleStatClick(status)}
@@ -745,7 +752,7 @@ const StudentDashboard = () => {
                           : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
                     }`}
                   >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                    {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
                   </button>
                 ))}
               </div>
