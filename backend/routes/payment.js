@@ -33,9 +33,8 @@ router.post('/stripe/create-checkout-session', async (req, res) => {
       })
     }
 
-    // Default to English if locale not provided
-    const sessionLocale = locale || 'en'
-    const result = await createCheckoutSession(planId, price, userId, userEmail, sessionLocale)
+    // Always use English locale
+    const result = await createCheckoutSession(planId, price, userId, userEmail)
 
     if (result.success) {
       res.json(result)

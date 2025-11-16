@@ -17,8 +17,7 @@ export const createStripeCheckout = async (planId, price, userId, userEmail) => 
         planId,
         price,
         userId,
-        userEmail,
-        locale: locale // Send browser language to backend
+        userEmail
       })
     })
 

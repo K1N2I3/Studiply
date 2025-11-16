@@ -5,7 +5,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 })
 
 // Create a checkout session for Stripe payment
-export const createCheckoutSession = async (planId, price, userId, userEmail, locale = 'en') => {
+export const createCheckoutSession = async (planId, price, userId, userEmail) => {
   try {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -28,10 +28,16 @@ export const createCheckoutSession = async (planId, price, userId, userEmail, lo
       success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/purchase?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/purchase?canceled=true`,
       customer_email: userEmail,
-      locale: locale, // Set language: 'en', 'zh', 'es', 'fr', 'de', etc.
+      locale: 'en', // Force English - Stripe may override based on IP, but this should help
+      payment_method_options: {
+        card: {
+          request_three_d_secure: 'automatic'
+        }
+      },
       metadata: {
         userId,
-        planId
+        planId,
+        locale: 'en' // Also store in metadata
       }
     })
 
