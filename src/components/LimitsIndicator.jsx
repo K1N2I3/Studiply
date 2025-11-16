@@ -218,10 +218,22 @@ const LimitsIndicator = () => {
           willChange: isDragging ? 'transform' : 'auto'
         }}
         onMouseDown={handleMouseDown}
+        onMouseEnter={() => {
+          setIsHovered(true)
+        }}
+        onMouseLeave={() => {
+          setIsHovered(false)
+          if (isExpanded) {
+            setIsExpanded(false)
+          }
+        }}
         onClick={(e) => {
           if (!isDragging) {
             e.stopPropagation()
             setIsExpanded(!isExpanded)
+            if (!isExpanded) {
+              setIsHovered(true)
+            }
           }
         }}
       >
