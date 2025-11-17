@@ -8,6 +8,7 @@ import dotenv from 'dotenv'
 import { sendVerificationCode, verifyCode } from './services/twilioService.js'
 import paymentRoutes from './routes/payment.js'
 import limitsRoutes from './routes/limits.js'
+import questsRoutes from './routes/quests.js'
 
 dotenv.config()
 
@@ -918,6 +919,7 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
 // Use routes
 app.use('/api/payment', paymentRoutes)
 app.use('/api/limits', limitsRoutes)
+app.use('/api/quests', questsRoutes)
 
 // Start server
 app.listen(PORT, () => {

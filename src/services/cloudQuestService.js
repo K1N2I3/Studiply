@@ -1,110 +1,94 @@
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy,
-  serverTimestamp 
-} from 'firebase/firestore';
-import { db } from '../firebase/config';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003/api'
+const QUESTS_API_URL = `${API_BASE_URL}/quests`
 
-// 云端存储的quest数据结构
-const CLOUD_QUEST_COLLECTION = 'quests';
+const fetchFromApi = async (endpoint, options = {}) => {
+  const response = await fetch(endpoint, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    },
+    ...options
+  })
+
+  const data = await response.json().catch(() => ({}))
+
+  if (!response.ok || data.success === false) {
+    const errorMessage = data.error || 'Quest API request failed'
+    throw new Error(errorMessage)
+  }
+
+  return data
+}
 
 // 从云端获取所有quest数据
 export const getCloudQuestData = async () => {
   try {
-    const questsRef = collection(db, CLOUD_QUEST_COLLECTION);
-    const snapshot = await getDocs(questsRef);
-    
-    const questData = {};
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      const { subject, category, questId } = data;
-      
-      if (!questData[subject]) {
-        questData[subject] = {};
-      }
-      if (!questData[subject][category]) {
-        questData[subject][category] = {};
-      }
-      
-      questData[subject][category][questId] = data;
-    });
-    
-    return questData;
+    const result = await fetchFromApi(`${QUESTS_API_URL}/all`)
+    if (result.quests) {
+      return result.quests
+    }
   } catch (error) {
-    console.error('Error fetching cloud quest data:', error);
-    return {};
+    console.error('Error fetching cloud quest data:', error)
   }
-};
+  
+  // 如果 API 不可用，使用本地备用任务数据
+  return JSON.parse(JSON.stringify(FALLBACK_QUESTS))
+}
 
 // 获取特定quest
 export const getCloudQuest = async (subject, category, questId) => {
-  try {
-    const questRef = doc(db, CLOUD_QUEST_COLLECTION, `${subject}_${category}_${questId}`);
-    const questSnap = await getDoc(questRef);
-    
-    if (questSnap.exists()) {
-      return questSnap.data();
-    } else {
-      console.log('No such quest document!');
-      return null;
-    }
-  } catch (error) {
-    console.error('Error fetching quest:', error);
-    return null;
+  if (!subject || !category || !questId) {
+    return null
   }
-};
+
+  try {
+    const result = await fetchFromApi(`${QUESTS_API_URL}/${subject}/${category}/${questId}`)
+    return result.quest || null
+  } catch (error) {
+    console.error('Error fetching quest:', error)
+    return null
+  }
+}
 
 // 保存quest到云端
 export const saveCloudQuest = async (subject, category, questId, questData) => {
-  try {
-    const questRef = doc(db, CLOUD_QUEST_COLLECTION, `${subject}_${category}_${questId}`);
-    await setDoc(questRef, {
-      ...questData,
-      subject,
-      category,
-      questId,
-      updatedAt: serverTimestamp()
-    });
-    console.log('Quest saved to cloud successfully');
-  } catch (error) {
-    console.error('Error saving quest to cloud:', error);
+  if (!subject || !category || !questId) {
+    throw new Error('Subject, category, and questId are required')
   }
-};
+
+  try {
+    await fetchFromApi(`${QUESTS_API_URL}/${subject}/${category}/${questId}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...questData,
+        subject,
+        category,
+        questId,
+        updatedAt: new Date().toISOString()
+      })
+    })
+    console.log('Quest saved to cloud successfully')
+  } catch (error) {
+    console.error('Error saving quest to cloud:', error)
+    throw error
+  }
+}
 
 // 批量保存quests
 export const saveCloudQuests = async (questsData) => {
   try {
-    const promises = [];
-    
-    for (const [subject, categories] of Object.entries(questsData)) {
-      for (const [category, quests] of Object.entries(categories)) {
-        for (const [questId, questData] of Object.entries(quests)) {
-          const questRef = doc(db, CLOUD_QUEST_COLLECTION, `${subject}_${category}_${questId}`);
-          promises.push(setDoc(questRef, {
-            ...questData,
-            subject,
-            category,
-            questId,
-            updatedAt: serverTimestamp()
-          }));
-        }
-      }
-    }
-    
-    await Promise.all(promises);
-    console.log('All quests saved to cloud successfully');
+    await fetchFromApi(`${QUESTS_API_URL}/bulk-sync`, {
+      method: 'POST',
+      body: JSON.stringify({
+        quests: questsData
+      })
+    })
+    console.log('All quests saved to cloud successfully')
   } catch (error) {
-    console.error('Error saving quests to cloud:', error);
+    console.error('Error saving quests to cloud:', error)
+    throw error
   }
-};
+}
 
 // 扩展的本地fallback数据 - 从入门到精通的学习路径
 const FALLBACK_QUESTS = {
