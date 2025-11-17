@@ -9,6 +9,7 @@ import { sendVerificationCode, verifyCode } from './services/twilioService.js'
 import paymentRoutes from './routes/payment.js'
 import limitsRoutes from './routes/limits.js'
 import questsRoutes from './routes/quests.js'
+import questRequestRoutes from './routes/questRequests.js'
 
 dotenv.config()
 
@@ -917,13 +918,62 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
 })
 
 // Use routes
-app.use('/api/payment', paymentRoutes)
-app.use('/api/limits', limitsRoutes)
-app.use('/api/quests', questsRoutes)
+try {
+  console.log('🔁 Registering payment routes...')
+  app.use('/api/payment', paymentRoutes)
+  console.log('✅ /api/payment ready')
+} catch (error) {
+  console.error('❌ Failed to register payment routes:', error)
+}
+
+try {
+  console.log('🔁 Registering limits routes...')
+  app.use('/api/limits', limitsRoutes)
+  console.log('✅ /api/limits ready')
+} catch (error) {
+  console.error('❌ Failed to register limits routes:', error)
+}
+
+try {
+  console.log('🔁 Registering quest routes...')
+  app.use('/api/quests', questsRoutes)
+  console.log('✅ /api/quests ready')
+} catch (error) {
+  console.error('❌ Failed to register quest routes:', error)
+}
+
+try {
+  console.log('🔁 Registering quest-request routes...')
+  app.use('/api/quest-requests', questRequestRoutes)
+  console.log('✅ /api/quest-requests ready')
+} catch (error) {
+  console.error('❌ Failed to register quest-request routes:', error)
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Studiply API is running',
+    timestamp: new Date().toISOString()
+  })
+})
 
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Studiply API Server running on port ${PORT}`)
   console.log(`📧 Email service: ${process.env.EMAIL_USER ? 'Configured' : 'Not configured'}`)
   console.log(`🗄️  Database: ${MONGODB_URI}`)
+  console.log(`\n📋 Available API Routes:`)
+  console.log(`   GET    /api/health`)
+  console.log(`   GET    /api/quests`)
+  console.log(`   GET    /api/quests/by-key`)
+  console.log(`   POST   /api/quests`)
+  console.log(`   POST   /api/quests/bulk`)
+  console.log(`   PUT    /api/quests/by-key`)
+  console.log(`   DELETE /api/quests/:id`)
+  console.log(`   GET    /api/quest-requests`)
+  console.log(`   POST   /api/quest-requests`)
+  console.log(`   POST   /api/quest-requests/:id/approve`)
+  console.log(`   POST   /api/quest-requests/:id/reject`)
+  console.log(`\n✅ All routes registered successfully!\n`)
 })
