@@ -4,9 +4,10 @@ import OpenAI from 'openai'
 
 const router = express.Router()
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || ''
+// Initialize DeepSeek (compatible with OpenAI SDK)
+const deepseek = new OpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY || '',
+  baseURL: 'https://api.deepseek.com/v1'
 })
 
 // Generate AI quest
@@ -34,9 +35,9 @@ router.post('/generate', async (req, res) => {
       return res.status(400).json({ success: false, error: 'prompt is required' })
     }
 
-    if (!process.env.OPENAI_API_KEY) {
-      console.error('❌ [AI Quest] OPENAI_API_KEY not configured')
-      return res.status(500).json({ success: false, error: 'AI service is not configured' })
+    if (!process.env.DEEPSEEK_API_KEY) {
+      console.error('❌ [AI Quest] DEEPSEEK_API_KEY not configured')
+      return res.status(500).json({ success: false, error: 'AI service is not configured. Please set DEEPSEEK_API_KEY environment variable.' })
     }
 
     // Build the AI prompt
@@ -86,9 +87,9 @@ Return the response as a JSON object with this exact structure:
 
     const userPrompt = `Create ${questionCount} ${difficulty} level questions about: ${prompt}`
 
-    console.log('🤖 [AI Quest] Calling OpenAI API...')
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    console.log('🤖 [AI Quest] Calling DeepSeek API...')
+    const completion = await deepseek.chat.completions.create({
+      model: 'deepseek-chat',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -98,7 +99,7 @@ Return the response as a JSON object with this exact structure:
     })
 
     const aiResponse = completion.choices[0].message.content
-    console.log('🤖 [AI Quest] OpenAI response received')
+    console.log('🤖 [AI Quest] DeepSeek response received')
 
     let questData
     try {
@@ -146,7 +147,8 @@ Return the response as a JSON object with this exact structure:
       isPrivate: true,
       metadata: {
         aiGenerated: true,
-        model: 'gpt-4o-mini',
+        model: 'deepseek-chat',
+        provider: 'deepseek',
         questionCount: formattedQuestions.length
       }
     })
