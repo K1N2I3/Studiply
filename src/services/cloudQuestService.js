@@ -3114,13 +3114,15 @@ export const updateUserLevel = async (userId, newTotalXP) => {
     const newLevel = levelProgress.currentLevel;
     const leveledUp = newLevel > oldLevel;
     
-    // 更新用户进度
+    // 更新用户进度 - 只更新等级相关字段，明确保留 gold 不变
     const updatedProgress = {
       ...currentProgress,
       totalXP: newTotalXP,
       currentLevel: newLevel,
       levelProgress: levelProgress,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      // 明确保留 gold 值，不添加任何升级奖励
+      gold: currentProgress.gold || 0
     };
     
     // 如果升级了，只更新成就（不添加 gold 奖励）
@@ -3131,7 +3133,7 @@ export const updateUserLevel = async (userId, newTotalXP) => {
       ];
       
       console.log(`🎉 User leveled up! Level ${oldLevel} → ${newLevel}`);
-      // 不再自动添加 gold 奖励
+      console.log('⚠️ No gold reward on level up - gold remains:', updatedProgress.gold);
     }
     
     // 保存到Firebase
