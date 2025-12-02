@@ -291,9 +291,11 @@ const QuestExecution = () => {
       console.log('User progress save test result:', progressTest)
       
       // 更新用户进度
+      // 使用 URL 参数中的 questId，如果 quest 对象有 id 则优先使用 quest.id
+      const finalQuestId = quest?.id || questId
       console.log('Updating quest progress:', {
         userId: user.id,
-        questId: quest.id,
+        questId: finalQuestId,
         subject,
         category,
         xpEarned,
@@ -302,7 +304,7 @@ const QuestExecution = () => {
       
       await updateQuestProgress(
         user.id,
-        quest.id,
+        finalQuestId,
         subject,
         category,
         'quest',
