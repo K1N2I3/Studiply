@@ -1124,9 +1124,15 @@ const sendStreakReminders = async () => {
   const todayStr = today.toISOString().split('T')[0]
 
   // 获取所有用户
+  console.log('📋 Fetching users from Firestore...')
   const usersSnapshot = await firestore.collection('users').get()
+  console.log(`📋 Found ${usersSnapshot.size} users`)
+  
   let sentCount = 0
   let skippedCount = 0
+  let errorCount = 0
+  const sendPromises = []
+  const MAX_CONCURRENT = 3 // 限制并发数，避免过载
 
   for (const userDoc of usersSnapshot.docs) {
     try {
