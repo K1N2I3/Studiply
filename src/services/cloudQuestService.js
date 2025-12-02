@@ -1,4 +1,6 @@
 import { fetchQuests, fetchQuestByKey, saveQuest, saveQuestsBulk } from './questApi'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 
 const transformQuestsToNested = (quests = []) => {
   const questData = {}
