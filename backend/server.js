@@ -90,7 +90,7 @@ if (!admin.apps.length) {
   firestore = admin.firestore()
 }
 
-// Email configuration - Neo Email SMTP (Optimized for speed)
+// Email configuration - Neo Email SMTP (Optimized for speed and reliability)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp0001.neo.space',
   port: parseInt(process.env.SMTP_PORT || '465'),
@@ -107,16 +107,19 @@ const transporter = nodemailer.createTransport({
   pool: true,
   maxConnections: 5,
   maxMessages: 100,
-  // 超时设置 - 减少等待时间
-  connectionTimeout: 10000, // 10秒连接超时
-  greetingTimeout: 10000, // 10秒问候超时
-  socketTimeout: 10000, // 10秒socket超时
+  // 超时设置 - 增加超时时间以提高可靠性
+  connectionTimeout: 30000, // 30秒连接超时（增加以应对慢速网络）
+  greetingTimeout: 30000, // 30秒问候超时
+  socketTimeout: 60000, // 60秒socket超时（增加以应对慢速SMTP服务器）
   // 快速失败设置
   rateDelta: 1000,
   rateLimit: 5,
   // 禁用不必要的功能以提高速度
   disableFileAccess: true,
-  disableUrlAccess: true
+  disableUrlAccess: true,
+  // 调试选项（生产环境可以关闭）
+  debug: process.env.NODE_ENV === 'development',
+  logger: process.env.NODE_ENV === 'development'
 })
 
 // Generate verification code
@@ -1082,12 +1085,18 @@ const sendStreakReminderEmail = async (email, userName, currentStreak) => {
     `
   }
 
+  const startTime = Date.now()
   try {
+    console.log(`📧 Attempting to send streak reminder to ${email}...`)
     const info = await transporter.sendMail(mailOptions)
-    console.log(`✅ Streak reminder email sent to ${email}. Message ID: ${info.messageId}`)
+    const duration = Date.now() - startTime
+    console.log(`✅ Streak reminder email sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
+    console.log(`   Response: ${info.response || 'No response'}`)
     return info
   } catch (error) {
-    console.error(`❌ Failed to send streak reminder email to ${email}:`, error)
+    const duration = Date.now() - startTime
+    console.error(`❌ Failed to send streak reminder email to ${email} after ${duration}ms:`, error.message)
+    console.error(`   Error details:`, error)
     throw error
   }
 }
@@ -1144,9 +1153,23 @@ const sendStreakReminders = async () => {
 
       // 只给有 streak 且今天还没登录的用户发送
       if (currentStreak > 0 && lastLoginDate !== todayStr) {
-        await sendStreakReminderEmail(userEmail, userName, currentStreak)
-        sentCount++
-        console.log(`📧 Sent streak reminder to ${userEmail} (streak: ${currentStreak})`)
+        // 添加到发送队列（限制并发）
+        sendPromises.push(
+          sendStreakReminderEmail(userEmail, userName, currentStreak)
+            .then(() => {
+              sentCount++
+              console.log(`✅ Streak reminder sent to ${userEmail} (streak: ${currentStreak})`)
+            })
+            .catch((error) => {
+              errorCount++
+              console.error(`❌ Failed to send to ${userEmail}:`, error.message)
+            })
+        )
+        
+        // 当达到并发限制时，等待一批完成
+        if (sendPromises.length >= MAX_CONCURRENT) {
+          await Promise.allSettled(sendPromises.splice(0, MAX_CONCURRENT))
+        }
       } else {
         skippedCount++
       }
@@ -1156,11 +1179,20 @@ const sendStreakReminders = async () => {
     }
   }
 
+  // 等待剩余的邮件发送完成
+  if (sendPromises.length > 0) {
+    console.log(`⏳ Waiting for ${sendPromises.length} remaining emails to send...`)
+    await Promise.allSettled(sendPromises)
+  }
+
+  console.log(`📊 Streak reminder summary: ${sentCount} sent, ${skippedCount} skipped, ${errorCount} errors`)
+
   return {
     success: true,
-    message: `Streak reminders sent successfully`,
+    message: `Streak reminders processed`,
     sent: sentCount,
-    skipped: skippedCount
+    skipped: skippedCount,
+    errors: errorCount
   }
 }
 
