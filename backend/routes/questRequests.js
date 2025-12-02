@@ -18,6 +18,15 @@ const buildQuery = ({ status, userId }) => {
 // Create quest request
 router.post('/', async (req, res) => {
   try {
+    console.log('📝 [Quest Request] Received POST request:', {
+      userId: req.body.userId,
+      userName: req.body.userName,
+      hasQuestData: !!req.body.questData,
+      subject: req.body.questData?.subject,
+      category: req.body.questData?.category,
+      title: req.body.questData?.title
+    })
+
     const {
       userId,
       userName,
@@ -25,10 +34,16 @@ router.post('/', async (req, res) => {
     } = req.body
 
     if (!userId) {
+      console.error('❌ [Quest Request] Missing userId')
       return res.status(400).json({ success: false, error: 'userId is required' })
     }
 
     if (!questData.subject || !questData.category || !questData.title) {
+      console.error('❌ [Quest Request] Missing required fields:', {
+        hasSubject: !!questData.subject,
+        hasCategory: !!questData.category,
+        hasTitle: !!questData.title
+      })
       return res.status(400).json({ success: false, error: 'subject, category and title are required' })
     }
 
@@ -45,7 +60,14 @@ router.post('/', async (req, res) => {
       metadata: questData.metadata || {}
     }
 
+    console.log('💾 [Quest Request] Saving to MongoDB...')
     const request = await QuestRequest.create(payload)
+    console.log('✅ [Quest Request] Successfully saved to MongoDB:', {
+      requestId: request._id,
+      title: request.title,
+      subject: request.subject,
+      category: request.category
+    })
 
     res.json({
       success: true,
@@ -53,7 +75,7 @@ router.post('/', async (req, res) => {
       request
     })
   } catch (error) {
-    console.error('Error creating quest request:', error)
+    console.error('❌ [Quest Request] Error creating quest request:', error)
     res.status(500).json({ success: false, error: 'Failed to create quest request' })
   }
 })
