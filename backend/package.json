@@ -9,7 +9,8 @@
     "dev": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate:quests": "node scripts/migrateQuests.js",
-    "migrate:quest-data": "node scripts/migrateQuestRequests.js"
+    "migrate:quest-data": "node scripts/migrateQuestRequests.js",
+    "clear:studyprogress": "node scripts/clearStudyProgress.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
