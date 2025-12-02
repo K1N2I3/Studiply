@@ -1,6 +1,7 @@
 import { fetchQuests, fetchQuestByKey, saveQuest, saveQuestsBulk } from './questApi'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { checkAndUnlockAchievements } from './achievementService'
 
 const transformQuestsToNested = (quests = []) => {
   const questData = {}
@@ -2760,6 +2761,15 @@ export const updateQuestProgress = async (userId, questId, subject, category, qu
       // 更新用户等级
       const levelUpdateResult = await updateUserLevel(userId, updatedProgress.totalXP);
       
+      // 检查并解锁成就（使用更新后的进度数据）
+      const achievementResult = await checkAndUnlockAchievements(userId, levelUpdateResult);
+      
+      // 如果有新成就，合并到返回结果中
+      if (achievementResult.newAchievements.length > 0) {
+        levelUpdateResult.achievements = achievementResult.allAchievements;
+        levelUpdateResult.newAchievements = achievementResult.newAchievements;
+      }
+      
       return levelUpdateResult;
     } catch (firebaseError) {
       console.error('Firebase save error:', firebaseError);
@@ -3140,11 +3150,22 @@ export const updateUserLevel = async (userId, newTotalXP) => {
     const userProgressRef = doc(db, 'studyprogress', userId);
     await setDoc(userProgressRef, updatedProgress, { merge: true });
     
+    // 检查并解锁成就（升级后检查）
+    const achievementResult = await checkAndUnlockAchievements(userId, updatedProgress);
+    
+    // 如果有新成就，更新到 updatedProgress
+    if (achievementResult.newAchievements.length > 0) {
+      updatedProgress.achievements = achievementResult.allAchievements;
+      // 再次保存包含新成就的数据
+      await setDoc(userProgressRef, updatedProgress, { merge: true });
+    }
+    
     console.log('User level updated successfully');
     return {
       ...updatedProgress,
       leveledUp,
-      levelRewards: leveledUp ? levelRewards : null
+      levelRewards: leveledUp ? levelRewards : null,
+      newAchievements: achievementResult.newAchievements
     };
   } catch (error) {
     console.error('Error updating user level:', error);

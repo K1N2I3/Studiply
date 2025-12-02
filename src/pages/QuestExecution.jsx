@@ -19,6 +19,7 @@ import { getUserQuestProgress, updateQuestProgress, getQuestData } from '../serv
 import { getApprovedQuest } from '../services/questRequestService'
 import { getAIQuest } from '../services/aiQuestService'
 import { testFirebaseConnection, testUserProgressSave } from '../utils/firebaseTest'
+import { getAchievementInfo } from '../services/achievementService'
 import LearningMaterial from '../components/LearningMaterial'
 
 const QuestExecution = () => {
@@ -302,7 +303,7 @@ const QuestExecution = () => {
         goldEarned
       });
       
-      await updateQuestProgress(
+      const result = await updateQuestProgress(
         user.id,
         finalQuestId,
         subject,
@@ -314,7 +315,16 @@ const QuestExecution = () => {
       )
       
       console.log('Quest progress updated successfully');
-      showSuccess(`Quest completed! Great job!`, 3000, 'Quest Complete')
+      
+      // 检查是否有新解锁的成就
+      if (result.newAchievements && result.newAchievements.length > 0) {
+        const achievementNames = result.newAchievements
+          .map(id => getAchievementInfo(id)?.name || id)
+          .join(', ')
+        showSuccess(`Quest completed! 🎉 Unlocked: ${achievementNames}`, 5000, 'Achievement Unlocked!')
+      } else {
+        showSuccess(`Quest completed! Great job!`, 3000, 'Quest Complete')
+      }
       
       // 通知父页面更新进度
       window.dispatchEvent(new CustomEvent('questCompleted', {
