@@ -3097,12 +3097,12 @@ export const LEVEL_CONFIG = {
       achievements: []
     };
     
-    // 特殊等级奖励
-    if (level >= 5) rewards.achievements.push('Rising Star');
-    if (level >= 10) rewards.achievements.push('Experienced Learner');
-    if (level >= 20) rewards.achievements.push('Knowledge Seeker');
-    if (level >= 30) rewards.achievements.push('Master Scholar');
-    if (level >= 50) rewards.achievements.push('Legendary Academic');
+    // 特殊等级奖励（使用成就 ID，而不是名称）
+    if (level >= 5) rewards.achievements.push('level_5');
+    if (level >= 10) rewards.achievements.push('level_10');
+    if (level >= 20) rewards.achievements.push('level_20');
+    if (level >= 30) rewards.achievements.push('level_30');
+    if (level >= 50) rewards.achievements.push('level_50');
     
     return rewards;
   }
