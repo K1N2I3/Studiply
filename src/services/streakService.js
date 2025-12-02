@@ -34,12 +34,13 @@ export const checkAndUpdateStreak = async (userId) => {
         const daysDiff = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24))
         
         if (daysDiff === 0) {
-          // 今天已经登录过了，不更新
+          // 今天已经登录过了，不更新，也不显示模态框
           return {
             currentStreak,
             longestStreak,
             lastLoginDate,
-            isNewStreak: false
+            isNewStreak: false,
+            shouldShowModal: false
           }
         } else if (daysDiff === 1) {
           // 连续登录，增加 streak
@@ -79,7 +80,8 @@ export const checkAndUpdateStreak = async (userId) => {
       currentStreak,
       longestStreak,
       lastLoginDate: todayStr,
-      isNewStreak
+      isNewStreak,
+      shouldShowModal: isNewStreak // 只有新 streak 时才显示模态框
     }
   } catch (error) {
     console.error('Error checking streak:', error)

@@ -4,6 +4,7 @@ import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import nodemailer from 'nodemailer'
+import admin from 'firebase-admin'
 import dotenv from 'dotenv'
 import { sendVerificationCode, verifyCode } from './services/twilioService.js'
 import paymentRoutes from './routes/payment.js'
@@ -62,6 +63,32 @@ const User = mongoose.model('User', userSchema)
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
+
+// Initialize Firebase Admin (if not already initialized)
+let firestore = null
+if (!admin.apps.length) {
+  try {
+    const projectId = process.env.FIREBASE_PROJECT_ID
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+
+    if (projectId && clientEmail && privateKey) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey
+        })
+      })
+      firestore = admin.firestore()
+      console.log('✅ Firebase Admin initialized for streak reminders')
+    }
+  } catch (error) {
+    console.warn('⚠️ Firebase Admin not initialized (streak reminders will be disabled):', error.message)
+  }
+} else {
+  firestore = admin.firestore()
+}
 
 // Email configuration - Neo Email SMTP (Optimized for speed)
 const transporter = nodemailer.createTransport({
@@ -967,6 +994,194 @@ app.get('/api/health', (req, res) => {
   })
 })
 
+// Send streak reminder email
+const sendStreakReminderEmail = async (email, userName, currentStreak) => {
+  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
+  const loginUrl = 'https://www.studiply.it/login'
+  
+  const mailOptions = {
+    from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
+    to: email,
+    subject: `🔥 Don't break your ${currentStreak}-day streak!`,
+    priority: 'high',
+    headers: {
+      'X-Priority': '1',
+      'X-MSMail-Priority': 'High',
+      'Importance': 'high',
+      'Date': new Date().toUTCString()
+    },
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" href="${logoUrl}" type="image/png">
+      </head>
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
+          <tr>
+            <td align="center" valign="top">
+              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 600px;">
+                <!-- Header -->
+                <tr>
+                  <td style="background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); padding: 50px 40px; text-align: center;">
+                    <img src="${logoUrl}" alt="Studiply Logo" style="width: 120px; height: auto; margin: 0 auto 20px; display: block; border-radius: 12px; background: rgba(255, 255, 255, 0.1); padding: 10px;" />
+                    <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">🔥 Keep Your Streak Alive!</h1>
+                    <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 15px;">Don't let your ${currentStreak}-day streak end!</p>
+                  </td>
+                </tr>
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 45px 40px;">
+                    <p style="color: #333333; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">Hi ${userName || 'there'}!</p>
+                    
+                    <div style="background: linear-gradient(135deg, #fff5f0 0%, #ffe8d6 100%); border: 2px solid #ff6b35; border-radius: 12px; padding: 30px; margin: 30px 0; text-align: center;">
+                      <p style="color: #ff6b35; margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Current Streak</p>
+                      <h1 style="color: #ff6b35; margin: 0; font-size: 48px; font-weight: 700; line-height: 1.2;">
+                        ${currentStreak} ${currentStreak === 1 ? 'day' : 'days'}
+                      </h1>
+                      <p style="color: #666666; margin: 12px 0 0 0; font-size: 14px;">🔥 Keep it going!</p>
+                    </div>
+                    
+                    <p style="color: #333333; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">
+                      The day is almost over! Log in now to maintain your amazing ${currentStreak}-day learning streak. Every day counts! 🎯
+                    </p>
+                    
+                    <!-- CTA Button -->
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                      <tr>
+                        <td align="center">
+                          <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);">
+                            Log In Now →
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                    
+                    <div style="background: #f8f9fa; border-left: 3px solid #ff6b35; border-radius: 6px; padding: 18px; margin: 25px 0;">
+                      <p style="color: #666666; margin: 0; font-size: 14px; line-height: 1.6;">
+                        <strong style="color: #ff6b35;">💡 Tip:</strong> Log in before midnight to keep your streak going and unlock amazing achievements!
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                  <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
+                    <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">You're receiving this because you have an active streak. Log in to continue your learning journey!</p>
+                    <p style="color: #cccccc; margin: 0; font-size: 11px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `
+  }
+
+  try {
+    const info = await transporter.sendMail(mailOptions)
+    console.log(`✅ Streak reminder email sent to ${email}. Message ID: ${info.messageId}`)
+    return info
+  } catch (error) {
+    console.error(`❌ Failed to send streak reminder email to ${email}:`, error)
+    throw error
+  }
+}
+
+// Internal function to send streak reminders (used by both API and cron job)
+const sendStreakReminders = async () => {
+  if (!firestore) {
+    console.warn('⚠️ Firebase not initialized. Streak reminders disabled.')
+    return { success: false, sent: 0, skipped: 0 }
+  }
+
+  const currentHour = new Date().getHours()
+  // 只在晚上 8-9 点之间发送（20:00-21:00）
+  if (currentHour < 20 || currentHour >= 21) {
+    return {
+      success: true,
+      message: `Not the right time to send reminders (current hour: ${currentHour}). Reminders are sent between 8-9 PM.`,
+      sent: 0,
+      skipped: 0
+    }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split('T')[0]
+
+  // 获取所有用户
+  const usersSnapshot = await firestore.collection('users').get()
+  let sentCount = 0
+  let skippedCount = 0
+
+  for (const userDoc of usersSnapshot.docs) {
+    try {
+      const userData = userDoc.data()
+      const userId = userDoc.id
+      const userEmail = userData.email
+      const userName = userData.name || 'there'
+
+      if (!userEmail) {
+        skippedCount++
+        continue
+      }
+
+      // 获取用户的 streak 数据
+      const progressDoc = await firestore.collection('studyprogress').doc(userId).get()
+      if (!progressDoc.exists) {
+        skippedCount++
+        continue
+      }
+
+      const progressData = progressDoc.data()
+      const currentStreak = progressData.currentStreak || 0
+      const lastLoginDate = progressData.lastLoginDate
+
+      // 只给有 streak 且今天还没登录的用户发送
+      if (currentStreak > 0 && lastLoginDate !== todayStr) {
+        await sendStreakReminderEmail(userEmail, userName, currentStreak)
+        sentCount++
+        console.log(`📧 Sent streak reminder to ${userEmail} (streak: ${currentStreak})`)
+      } else {
+        skippedCount++
+      }
+    } catch (error) {
+      console.error(`❌ Error processing user ${userDoc.id}:`, error)
+      skippedCount++
+    }
+  }
+
+  return {
+    success: true,
+    message: `Streak reminders sent successfully`,
+    sent: sentCount,
+    skipped: skippedCount
+  }
+}
+
+// API endpoint to send streak reminders (can be called by cron job)
+app.post('/api/send-streak-reminders', async (req, res) => {
+  try {
+    const result = await sendStreakReminders()
+    if (result.success) {
+      res.json(result)
+    } else {
+      res.status(503).json(result)
+    }
+  } catch (error) {
+    console.error('❌ Error sending streak reminders:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send streak reminders'
+    })
+  }
+})
+
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Studiply API Server running on port ${PORT}`)
@@ -988,5 +1203,24 @@ app.listen(PORT, () => {
   console.log(`   GET    /api/ai-quests/user/:userId`)
   console.log(`   GET    /api/ai-quests/:questId`)
   console.log(`   DELETE /api/ai-quests/:questId`)
+  console.log(`   POST   /api/send-streak-reminders`)
   console.log(`\n✅ All routes registered successfully!\n`)
+  
+  // Setup daily streak reminder check (runs every hour, but only sends at 8-9 PM)
+  setInterval(async () => {
+    const currentHour = new Date().getHours()
+    if (currentHour >= 20 && currentHour < 21) {
+      try {
+        console.log('📧 Checking for streak reminders...')
+        const result = await sendStreakReminders()
+        if (result.success) {
+          console.log(`✅ Streak reminders: ${result.sent} sent, ${result.skipped} skipped`)
+        }
+      } catch (error) {
+        console.error('❌ Error in streak reminder cron job:', error.message)
+      }
+    }
+  }, 60 * 60 * 1000) // Check every hour
+  
+  console.log('⏰ Streak reminder scheduler started (checks hourly, sends at 8-9 PM)\n')
 })

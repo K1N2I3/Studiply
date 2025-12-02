@@ -67,8 +67,8 @@ function AppContent() {
           }
           await checkAndUnlockAchievements(user.id, progressWithStreak)
           
-          // 如果是新 streak 或者第一次登录，显示模态框
-          if (streak.isNewStreak || streak.currentStreak === 1) {
+          // 只在当天第一次登录且是新 streak 时显示模态框
+          if (streak.shouldShowModal !== false && streak.isNewStreak) {
             setShowStreakModal(true)
           }
           setHasCheckedStreak(true)
