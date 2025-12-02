@@ -1,48 +1,49 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003/api'
-const QUESTS_API_URL = `${API_BASE_URL}/quests`
+import { fetchQuests, fetchQuestByKey, saveQuest, saveQuestsBulk } from './questApi'
 
-const fetchFromApi = async (endpoint, options = {}) => {
-  const response = await fetch(endpoint, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    },
-    ...options
+const transformQuestsToNested = (quests = []) => {
+  const questData = {}
+  quests.forEach((quest) => {
+    const { subject = 'general', category = 'general', questId } = quest
+    if (!questId) return
+    if (!questData[subject]) {
+      questData[subject] = {}
+    }
+    if (!questData[subject][category]) {
+      questData[subject][category] = {}
+    }
+    questData[subject][category][questId] = quest
   })
+  return questData
+}
 
-  const data = await response.json().catch(() => ({}))
-
-  if (!response.ok || data.success === false) {
-    const errorMessage = data.error || 'Quest API request failed'
-    throw new Error(errorMessage)
+const flattenQuestData = (questsData = {}) => {
+  const quests = []
+  for (const [subject, categories] of Object.entries(questsData)) {
+    for (const [category, questsMap] of Object.entries(categories)) {
+      for (const [questId, questData] of Object.entries(questsMap)) {
+        quests.push({ ...questData, subject, category, questId })
+      }
+    }
   }
-
-  return data
+  return quests
 }
 
 // 从云端获取所有quest数据
 export const getCloudQuestData = async () => {
   try {
-    const result = await fetchFromApi(`${QUESTS_API_URL}/all`)
-    if (result.quests) {
-      return result.quests
-    }
+    const result = await fetchQuests()
+    const questData = transformQuestsToNested(result.quests || [])
+    return Object.keys(questData).length ? questData : FALLBACK_QUESTS
   } catch (error) {
     console.error('Error fetching cloud quest data:', error)
+    return FALLBACK_QUESTS
   }
-  
-  // 如果 API 不可用，使用本地备用任务数据
-  return JSON.parse(JSON.stringify(FALLBACK_QUESTS))
 }
 
 // 获取特定quest
 export const getCloudQuest = async (subject, category, questId) => {
-  if (!subject || !category || !questId) {
-    return null
-  }
-
   try {
-    const result = await fetchFromApi(`${QUESTS_API_URL}/${subject}/${category}/${questId}`)
+    const result = await fetchQuestByKey({ subject, category, questId })
     return result.quest || null
   } catch (error) {
     console.error('Error fetching quest:', error)
@@ -52,41 +53,22 @@ export const getCloudQuest = async (subject, category, questId) => {
 
 // 保存quest到云端
 export const saveCloudQuest = async (subject, category, questId, questData) => {
-  if (!subject || !category || !questId) {
-    throw new Error('Subject, category, and questId are required')
-  }
-
   try {
-    await fetchFromApi(`${QUESTS_API_URL}/${subject}/${category}/${questId}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        ...questData,
-        subject,
-        category,
-        questId,
-        updatedAt: new Date().toISOString()
-      })
-    })
-    console.log('Quest saved to cloud successfully')
+    await saveQuest({ subject, category, questId, ...questData })
+    console.log('Quest saved to MongoDB successfully')
   } catch (error) {
-    console.error('Error saving quest to cloud:', error)
-    throw error
+    console.error('Error saving quest to MongoDB:', error)
   }
 }
 
 // 批量保存quests
 export const saveCloudQuests = async (questsData) => {
   try {
-    await fetchFromApi(`${QUESTS_API_URL}/bulk-sync`, {
-      method: 'POST',
-      body: JSON.stringify({
-        quests: questsData
-      })
-    })
-    console.log('All quests saved to cloud successfully')
+    const quests = flattenQuestData(questsData)
+    await saveQuestsBulk(quests)
+    console.log('All quests saved to MongoDB successfully')
   } catch (error) {
-    console.error('Error saving quests to cloud:', error)
-    throw error
+    console.error('Error saving quests to MongoDB:', error)
   }
 }
 

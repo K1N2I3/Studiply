@@ -10,6 +10,7 @@ import paymentRoutes from './routes/payment.js'
 import limitsRoutes from './routes/limits.js'
 import questsRoutes from './routes/quests.js'
 import questRequestRoutes from './routes/questRequests.js'
+import aiQuestsRoutes from './routes/aiQuests.js'
 
 dotenv.config()
 
@@ -950,6 +951,14 @@ try {
   console.error('❌ Failed to register quest-request routes:', error)
 }
 
+try {
+  console.log('🔁 Registering AI quest routes...')
+  app.use('/api/ai-quests', aiQuestsRoutes)
+  console.log('✅ /api/ai-quests ready')
+} catch (error) {
+  console.error('❌ Failed to register AI quest routes:', error)
+}
+
 app.get('/api/health', (req, res) => {
   res.json({
     success: true,
@@ -975,5 +984,9 @@ app.listen(PORT, () => {
   console.log(`   POST   /api/quest-requests`)
   console.log(`   POST   /api/quest-requests/:id/approve`)
   console.log(`   POST   /api/quest-requests/:id/reject`)
+  console.log(`   POST   /api/ai-quests/generate`)
+  console.log(`   GET    /api/ai-quests/user/:userId`)
+  console.log(`   GET    /api/ai-quests/:questId`)
+  console.log(`   DELETE /api/ai-quests/:questId`)
   console.log(`\n✅ All routes registered successfully!\n`)
 })

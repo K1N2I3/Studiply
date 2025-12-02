@@ -1,22 +1,33 @@
 import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  orderBy,
-  serverTimestamp
-} from 'firebase/firestore'
-import { db } from '../firebase/config'
+  createQuestRequestApi,
+  getQuestRequestsApi,
+  getUserQuestRequestsApi,
+  approveQuestRequestApi,
+  rejectQuestRequestApi
+} from './questRequestApi'
+import { fetchQuests, fetchQuestByKey } from './questApi'
 
-// Firebase 集合名称
-const QUEST_REQUESTS_COLLECTION = 'questRequests'
-const APPROVED_QUESTS_COLLECTION = 'quests'
+if (typeof window !== 'undefined') {
+  window.__QUEST_API_BASE__ = import.meta.env.VITE_API_BASE_URL
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.log('[Quest API Base]', window.__QUEST_API_BASE__)
+  }
+}
+
+const normalizeId = (value) => {
+  if (!value) return value
+  return typeof value === 'object' && value.toString ? value.toString() : value
+}
+
+const addIdField = (doc) => {
+  if (!doc) return doc
+  if (doc.id) return { ...doc, id: normalizeId(doc.id) }
+  return {
+    ...doc,
+    id: normalizeId(doc._id || doc.questId || doc.requestId)
+  }
+}
 
 /**
  * 创建 quest 请求
@@ -27,29 +38,12 @@ const APPROVED_QUESTS_COLLECTION = 'quests'
  */
 export const createQuestRequest = async (userId, userName, questData) => {
   try {
-    const questRequestsRef = collection(db, QUEST_REQUESTS_COLLECTION)
-    
-    const requestData = {
-      title: questData.title,
-      description: questData.description || '',
-      subject: questData.subject,
-      category: questData.category,
-      difficulty: questData.difficulty, // 'beginner' | 'intermediate' | 'advanced'
-      questionType: questData.questionType, // 'multiple-choice' | 'fill-in-blank'
-      questions: questData.questions || [],
-      createdBy: userId,
-      createdByName: userName,
-      status: 'pending',
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    }
-
-    const docRef = await addDoc(questRequestsRef, requestData)
-    
-    console.log('✅ Quest request created:', docRef.id)
+    const result = await createQuestRequestApi({ userId, userName, questData })
+    console.log('✅ Quest request created:', result.requestId)
     return {
       success: true,
-      requestId: docRef.id
+      requestId: result.requestId,
+      request: addIdField(result.request)
     }
   } catch (error) {
     console.error('❌ Error creating quest request:', error)
@@ -66,23 +60,8 @@ export const createQuestRequest = async (userId, userName, questData) => {
  */
 export const getPendingQuestRequests = async () => {
   try {
-    const questRequestsRef = collection(db, QUEST_REQUESTS_COLLECTION)
-    const q = query(
-      questRequestsRef,
-      where('status', '==', 'pending'),
-      orderBy('createdAt', 'desc')
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const requests = []
-    
-    querySnapshot.forEach((docSnap) => {
-      requests.push({
-        id: docSnap.id,
-        ...docSnap.data()
-      })
-    })
-    
+    const result = await getQuestRequestsApi({ status: 'pending' })
+    const requests = (result.requests || []).map(addIdField)
     console.log(`✅ Loaded ${requests.length} pending quest requests`)
     return {
       success: true,
@@ -105,111 +84,13 @@ export const getPendingQuestRequests = async () => {
  */
 export const getQuestRequestsByStatus = async (status = 'all') => {
   try {
-    const questRequestsRef = collection(db, QUEST_REQUESTS_COLLECTION)
-    let q
-    
     console.log(`🔍 Fetching quest requests with status: ${status}`)
-    
-    if (status === 'all') {
-      // For 'all', try to get all documents first, then sort client-side if orderBy fails
-      try {
-        q = query(questRequestsRef, orderBy('createdAt', 'desc'))
-        const querySnapshot = await getDocs(q)
-        const requests = []
-        
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data()
-          requests.push({
-            id: docSnap.id,
-            ...data
-          })
-        })
-        
-        console.log(`✅ Loaded ${requests.length} quest requests (status: ${status})`)
-        return {
-          success: true,
-          requests
-        }
-      } catch (orderByError) {
-        // If orderBy fails (e.g., no index), get all and sort client-side
-        console.log('⚠️ orderBy failed, fetching all and sorting client-side:', orderByError.message)
-        const querySnapshot = await getDocs(questRequestsRef)
-        const requests = []
-        
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data()
-          requests.push({
-            id: docSnap.id,
-            ...data
-          })
-        })
-        
-        // Sort by createdAt client-side
-        requests.sort((a, b) => {
-          const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds || 0
-          const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds || 0
-          return bTime - aTime
-        })
-        
-        console.log(`✅ Loaded ${requests.length} quest requests (status: ${status}, client-side sorted)`)
-        return {
-          success: true,
-          requests
-        }
-      }
-    } else {
-      // For specific status, try with orderBy first
-      try {
-        q = query(
-          questRequestsRef,
-          where('status', '==', status),
-          orderBy('createdAt', 'desc')
-        )
-        const querySnapshot = await getDocs(q)
-        const requests = []
-        
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data()
-          requests.push({
-            id: docSnap.id,
-            ...data
-          })
-        })
-        
-        console.log(`✅ Loaded ${requests.length} quest requests (status: ${status})`)
-        return {
-          success: true,
-          requests
-        }
-      } catch (orderByError) {
-        // If orderBy fails, filter client-side
-        console.log('⚠️ orderBy failed, filtering client-side:', orderByError.message)
-        const querySnapshot = await getDocs(questRequestsRef)
-        const requests = []
-        
-        querySnapshot.forEach((docSnap) => {
-          const data = docSnap.data()
-          if (data.status === status) {
-            requests.push({
-              id: docSnap.id,
-              ...data
-            })
-          }
-        })
-        
-        // Sort by createdAt client-side
-        requests.sort((a, b) => {
-          const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds || 0
-          const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds || 0
-          return bTime - aTime
-        })
-        
-        console.log(`✅ Loaded ${requests.length} quest requests (status: ${status}, client-side filtered & sorted)`)
-        return {
-          success: true,
-          requests
-        }
-      }
+    const result = await getQuestRequestsApi({ status })
+    const requests = (result.requests || []).map(addIdField)
+    console.log(`✅ Loaded ${requests.length} quest requests (status: ${status})`)
+    return {
+      success: true,
+      requests
     }
   } catch (error) {
     console.error('❌ Error fetching quest requests:', error)
@@ -229,49 +110,12 @@ export const getQuestRequestsByStatus = async (status = 'all') => {
  */
 export const approveQuestRequest = async (requestId, adminUserId) => {
   try {
-    // 1. 获取 quest 请求数据
-    const requestRef = doc(db, QUEST_REQUESTS_COLLECTION, requestId)
-    const requestSnap = await getDoc(requestRef)
-    
-    if (!requestSnap.exists()) {
-      return {
-        success: false,
-        error: 'Quest request not found'
-      }
-    }
-    
-    const requestData = requestSnap.data()
-    
-    // 2. 生成 quest ID（使用 subject_category_timestamp 格式）
-    const timestamp = Date.now()
-    const questId = `user-quest-${timestamp}`
-    const questDocId = `${requestData.subject}_${requestData.category}_${questId}`
-    
-    // 3. 保存到 approved quests 集合
-    const approvedQuestRef = doc(db, APPROVED_QUESTS_COLLECTION, questDocId)
-    await setDoc(approvedQuestRef, {
-      ...requestData,
-      id: questId,
-      questId: questId,
-      status: 'approved',
-      reviewedAt: serverTimestamp(),
-      reviewedBy: adminUserId,
-      approvedAt: serverTimestamp()
-    })
-    
-    // 4. 更新 quest 请求状态
-    await updateDoc(requestRef, {
-      status: 'approved',
-      reviewedAt: serverTimestamp(),
-      reviewedBy: adminUserId,
-      approvedQuestId: questId,
-      updatedAt: serverTimestamp()
-    })
-    
-    console.log('✅ Quest request approved:', requestId, '→ Quest ID:', questId)
+    const result = await approveQuestRequestApi(requestId, adminUserId)
+    console.log('✅ Quest request approved:', requestId, '→ Quest ID:', result.questId)
     return {
       success: true,
-      questId: questId
+      questId: result.questId,
+      request: addIdField(result.request)
     }
   } catch (error) {
     console.error('❌ Error approving quest request:', error)
@@ -291,24 +135,7 @@ export const approveQuestRequest = async (requestId, adminUserId) => {
  */
 export const rejectQuestRequest = async (requestId, adminUserId, rejectionReason = '') => {
   try {
-    const requestRef = doc(db, QUEST_REQUESTS_COLLECTION, requestId)
-    const requestSnap = await getDoc(requestRef)
-    
-    if (!requestSnap.exists()) {
-      return {
-        success: false,
-        error: 'Quest request not found'
-      }
-    }
-    
-    await updateDoc(requestRef, {
-      status: 'rejected',
-      reviewedAt: serverTimestamp(),
-      reviewedBy: adminUserId,
-      rejectionReason: rejectionReason || 'No reason provided',
-      updatedAt: serverTimestamp()
-    })
-    
+    await rejectQuestRequestApi(requestId, adminUserId, rejectionReason)
     console.log('✅ Quest request rejected:', requestId)
     return {
       success: true
@@ -330,37 +157,11 @@ export const rejectQuestRequest = async (requestId, adminUserId, rejectionReason
  */
 export const getApprovedQuests = async (subject = null, category = null) => {
   try {
-    const approvedQuestsRef = collection(db, APPROVED_QUESTS_COLLECTION)
-    let q
-    
-    if (subject && category) {
-      q = query(
-        approvedQuestsRef,
-        where('subject', '==', subject),
-        where('category', '==', category),
-        orderBy('createdAt', 'desc')
-      )
-    } else if (subject) {
-      q = query(
-        approvedQuestsRef,
-        where('subject', '==', subject),
-        orderBy('createdAt', 'desc')
-      )
-    } else {
-      q = query(approvedQuestsRef, orderBy('createdAt', 'desc'))
-    }
-    
-    const querySnapshot = await getDocs(q)
-    const quests = []
-    
-    querySnapshot.forEach((docSnap) => {
-      const data = docSnap.data()
-      quests.push({
-        id: docSnap.id,
-        ...data
-      })
-    })
-    
+    const params = {}
+    if (subject) params.subject = subject
+    if (category) params.category = category
+    const result = await fetchQuests(params)
+    const quests = (result.quests || []).map(addIdField)
     console.log(`✅ Loaded ${quests.length} approved quests`)
     return {
       success: true,
@@ -385,44 +186,16 @@ export const getApprovedQuests = async (subject = null, category = null) => {
  */
 export const getApprovedQuest = async (questId, subject, category) => {
   try {
-    const questDocId = `${subject}_${category}_${questId}`
-    const questRef = doc(db, APPROVED_QUESTS_COLLECTION, questDocId)
-    const questSnap = await getDoc(questRef)
-    
-    if (questSnap.exists()) {
+    const result = await fetchQuestByKey({ questId, subject, category })
+    if (result.success) {
       return {
         success: true,
-        quest: {
-          id: questSnap.id,
-          ...questSnap.data()
-        }
+        quest: addIdField(result.quest)
       }
-    } else {
-      // 也尝试直接通过 questId 查找（如果是用户创建的 quest）
-      const approvedQuestsRef = collection(db, APPROVED_QUESTS_COLLECTION)
-      const q = query(
-        approvedQuestsRef,
-        where('questId', '==', questId),
-        where('subject', '==', subject),
-        where('category', '==', category)
-      )
-      const querySnapshot = await getDocs(q)
-      
-      if (!querySnapshot.empty) {
-        const questData = querySnapshot.docs[0].data()
-        return {
-          success: true,
-          quest: {
-            id: querySnapshot.docs[0].id,
-            ...questData
-          }
-        }
-      }
-      
-      return {
-        success: false,
-        error: 'Quest not found'
-      }
+    }
+    return {
+      success: false,
+      error: 'Quest not found'
     }
   } catch (error) {
     console.error('❌ Error fetching approved quest:', error)
@@ -440,23 +213,8 @@ export const getApprovedQuest = async (questId, subject, category) => {
  */
 export const getUserQuestRequests = async (userId) => {
   try {
-    const questRequestsRef = collection(db, QUEST_REQUESTS_COLLECTION)
-    const q = query(
-      questRequestsRef,
-      where('createdBy', '==', userId),
-      orderBy('createdAt', 'desc')
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const requests = []
-    
-    querySnapshot.forEach((docSnap) => {
-      requests.push({
-        id: docSnap.id,
-        ...docSnap.data()
-      })
-    })
-    
+    const result = await getUserQuestRequestsApi(userId)
+    const requests = (result.requests || []).map(addIdField)
     console.log(`✅ Loaded ${requests.length} quest requests for user ${userId}`)
     return {
       success: true,

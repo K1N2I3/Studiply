@@ -14,6 +14,10 @@ import { useTheme } from '../contexts/ThemeContext'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useNotification } from '../contexts/NotificationContext'
 import { getApprovedQuests } from '../services/questRequestService'
+import { getUserAIQuests } from '../services/aiQuestService'
+import AIGenerateQuestModal from '../components/AIGenerateQuestModal'
+import { Sparkles, Trash2 } from 'lucide-react'
+import { deleteAIQuest } from '../services/aiQuestService'
 
 const SUBJECTS = [
   { id: 'italian', name: 'Italian Language' },
@@ -42,18 +46,28 @@ const QuestList = () => {
   const navigate = useNavigate()
   const { isDark } = useTheme()
   const { user } = useSimpleAuth()
-  const { showError } = useNotification()
+  const { showError, showSuccess } = useNotification()
 
   const [quests, setQuests] = useState([])
+  const [aiQuests, setAIQuests] = useState([])
   const [filteredQuests, setFilteredQuests] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('all')
   const [selectedDifficulty, setSelectedDifficulty] = useState('all')
+  const [showAIModal, setShowAIModal] = useState(false)
+  const [activeTab, setActiveTab] = useState('public') // 'public' or 'my-ai'
 
   useEffect(() => {
     loadQuests()
-  }, [])
+    if (user?.id) {
+      loadAIQuests()
+    }
+  }, [user])
+
+  useEffect(() => {
+    filterQuests()
+  }, [quests, aiQuests, searchTerm, selectedSubject, selectedDifficulty, activeTab])
 
   useEffect(() => {
     filterQuests()
@@ -76,8 +90,46 @@ const QuestList = () => {
     }
   }
 
+  const loadAIQuests = async () => {
+    if (!user?.id) return
+    try {
+      const result = await getUserAIQuests(user.id)
+      if (result.success) {
+        setAIQuests(result.quests || [])
+      }
+    } catch (error) {
+      console.error('Error loading AI quests:', error)
+    }
+  }
+
+  const handleDeleteAIQuest = async (questId, e) => {
+    e.stopPropagation()
+    if (!window.confirm('Are you sure you want to delete this AI-generated quest?')) {
+      return
+    }
+    try {
+      const result = await deleteAIQuest(questId, user.id)
+      if (result.success) {
+        showSuccess('Quest deleted successfully', 'Success')
+        loadAIQuests()
+      } else {
+        showError(result.error || 'Failed to delete quest', 'Error')
+      }
+    } catch (error) {
+      console.error('Error deleting AI quest:', error)
+      showError('An error occurred while deleting the quest', 'Error')
+    }
+  }
+
+  const handleAIQuestGenerated = () => {
+    loadAIQuests()
+    setActiveTab('my-ai')
+  }
+
   const filterQuests = () => {
-    let filtered = [...quests]
+    // Choose which quest list to filter based on active tab
+    const sourceQuests = activeTab === 'my-ai' ? aiQuests : quests
+    let filtered = [...sourceQuests]
 
     // Search filter
     if (searchTerm) {
@@ -102,10 +154,12 @@ const QuestList = () => {
     setFilteredQuests(filtered)
   }
 
-  const handleQuestClick = (quest) => {
+  const handleQuestClick = (quest, isAI = false) => {
     // Navigate to QuestExecution with quest data
-    navigate(`/quest-execution/${quest.subject}/${quest.category}/${quest.questId || quest.id}`, {
-      state: { quest }
+    const questId = isAI ? quest._id : (quest.questId || quest.id)
+    const category = quest.category || 'ai-generated'
+    navigate(`/quest-execution/${quest.subject}/${category}/${questId}`, {
+      state: { quest, isAI }
     })
   }
 
@@ -174,18 +228,70 @@ const QuestList = () => {
               </p>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/create-quest')}
-            className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition shadow-lg ${
-              isDark
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
-                : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
-            }`}
-          >
-            <Plus className="h-5 w-5" />
-            Create Quest
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowAIModal(true)}
+              className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition shadow-lg ${
+                isDark
+                  ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600'
+                  : 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600'
+              }`}
+            >
+              <Sparkles className="h-5 w-5" />
+              AI Generate
+            </button>
+            <button
+              onClick={() => navigate('/create-quest')}
+              className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition shadow-lg ${
+                isDark
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
+              }`}
+            >
+              <Plus className="h-5 w-5" />
+              Create Quest
+            </button>
+          </div>
         </div>
+
+        {/* Tabs */}
+        {user && (
+          <div className={`flex gap-2 rounded-xl border p-1 ${
+            isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'
+          }`}>
+            <button
+              onClick={() => setActiveTab('public')}
+              className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
+                activeTab === 'public'
+                  ? isDark
+                    ? 'bg-purple-500/20 text-purple-400 border border-purple-400/30'
+                    : 'bg-purple-100 text-purple-700 border border-purple-200'
+                  : isDark
+                    ? 'text-white/70 hover:text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Public Quests
+            </button>
+            <button
+              onClick={() => setActiveTab('my-ai')}
+              className={`flex-1 px-4 py-2 rounded-lg font-semibold transition ${
+                activeTab === 'my-ai'
+                  ? isDark
+                    ? 'bg-blue-500/20 text-blue-400 border border-blue-400/30'
+                    : 'bg-blue-100 text-blue-700 border border-blue-200'
+                  : isDark
+                    ? 'text-white/70 hover:text-white'
+                    : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <Sparkles className="h-4 w-4" />
+                My AI Quests ({aiQuests.length})
+              </span>
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className={`rounded-[32px] border px-6 py-6 shadow-2xl backdrop-blur-xl ${
@@ -291,16 +397,44 @@ const QuestList = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredQuests.map((quest) => (
-              <div
-                key={quest.id}
-                onClick={() => handleQuestClick(quest)}
-                className={`rounded-2xl border p-6 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl ${
-                  isDark
-                    ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35 hover:border-purple-400/50'
-                    : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-lg'
-                }`}
-              >
+            {filteredQuests.map((quest) => {
+              const isAI = activeTab === 'my-ai'
+              const questId = isAI ? quest._id : quest.id
+              return (
+                <div
+                  key={questId}
+                  onClick={() => handleQuestClick(quest, isAI)}
+                  className={`rounded-2xl border p-6 cursor-pointer transition-all hover:scale-[1.02] hover:shadow-xl relative ${
+                    isDark
+                      ? 'border-white/10 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35 hover:border-purple-400/50'
+                      : 'border-gray-200 bg-white hover:border-purple-300 hover:shadow-lg'
+                  }`}
+                >
+                  {isAI && (
+                    <button
+                      onClick={(e) => handleDeleteAIQuest(quest._id, e)}
+                      className={`absolute top-3 right-3 p-2 rounded-lg transition ${
+                        isDark
+                          ? 'text-red-400 hover:bg-red-500/20'
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
+                      title="Delete this AI quest"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {isAI && (
+                    <div className="absolute top-3 left-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        isDark
+                          ? 'bg-blue-500/20 text-blue-400 border border-blue-400/30'
+                          : 'bg-blue-100 text-blue-700 border border-blue-200'
+                      }`}>
+                        <Sparkles className="h-3 w-3 inline mr-1" />
+                        AI Generated
+                      </span>
+                    </div>
+                  )}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <h3 className={`text-lg font-bold mb-2 ${
@@ -338,7 +472,7 @@ const QuestList = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-xs mt-4">
                   <div className={`flex items-center gap-2 ${
                     isDark ? 'text-white/60' : 'text-slate-500'
                   }`}>
@@ -353,9 +487,17 @@ const QuestList = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            )
+            })}
           </div>
         )}
+
+        {/* AI Generate Modal */}
+        <AIGenerateQuestModal
+          isOpen={showAIModal}
+          onClose={() => setShowAIModal(false)}
+          onQuestGenerated={handleAIQuestGenerated}
+        />
       </div>
     </div>
   )

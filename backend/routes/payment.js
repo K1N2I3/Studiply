@@ -107,7 +107,8 @@ router.post('/stripe/webhook', express.raw({ type: 'application/json' }), async 
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
     if (!webhookSecret) {
-      console.error('Stripe webhook secret not configured')
+      console.error('⚠️ STRIPE_WEBHOOK_SECRET not configured. Webhook verification will fail.')
+      console.error('📝 Please set up webhook in Stripe Dashboard and add the signing secret to environment variables.')
       return res.status(400).send('Webhook secret not configured')
     }
 

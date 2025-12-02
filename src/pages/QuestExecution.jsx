@@ -17,6 +17,7 @@ import { useNotification } from '../contexts/NotificationContext'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { getUserQuestProgress, updateQuestProgress, getQuestData } from '../services/cloudQuestService'
 import { getApprovedQuest } from '../services/questRequestService'
+import { getAIQuest } from '../services/aiQuestService'
 import { testFirebaseConnection, testUserProgressSave } from '../utils/firebaseTest'
 import LearningMaterial from '../components/LearningMaterial'
 
@@ -74,12 +75,21 @@ const QuestExecution = () => {
       const progress = await getUserQuestProgress(user.id)
       setUserProgress(progress)
       
-      // 检查是否是从 QuestList 传递过来的 quest（用户创建的 quest）
+      // 检查是否是从 QuestList 传递过来的 quest（用户创建的 quest 或 AI quest）
       let questData = null
+      const isAI = location.state?.isAI || false
+      
       if (location.state?.quest) {
         // 使用传递过来的 quest 数据
         questData = location.state.quest
-        console.log('Using quest from location.state:', questData)
+        console.log('Using quest from location.state:', questData, 'isAI:', isAI)
+      } else if (isAI || category === 'ai-generated') {
+        // 尝试从 AI quests 集合加载
+        const aiQuestResult = await getAIQuest(questId, user.id)
+        if (aiQuestResult.success && aiQuestResult.quest) {
+          questData = aiQuestResult.quest
+          console.log('Loaded quest from AI quests:', questData)
+        }
       } else {
         // 尝试从 approved quests 集合加载（用户创建的 quest）
         const approvedQuestResult = await getApprovedQuest(questId, subject, category)

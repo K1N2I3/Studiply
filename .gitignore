@@ -37,3 +37,4 @@ large-files/
 *.mp4
 *.avi
 *.zip
+backend/.env

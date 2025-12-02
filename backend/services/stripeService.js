@@ -1,13 +1,34 @@
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+// Initialize Stripe with secret key from environment
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || ''
+const stripeMode = process.env.STRIPE_MODE || (stripeSecretKey.startsWith('sk_test_') ? 'test' : 'live')
+
+if (!stripeSecretKey) {
+  console.warn('⚠️ STRIPE_SECRET_KEY not configured. Payment features will not work.')
+}
+
+const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2024-12-18.acacia'
 })
+
+// Log mode for debugging (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  console.log(`💳 Stripe initialized in ${stripeMode} mode`)
+}
 
 // Create a checkout session for Stripe payment
 export const createCheckoutSession = async (planId, price, userId, userEmail) => {
   try {
-    console.log('Creating Stripe checkout session with locale: en')
+    if (!stripeSecretKey) {
+      return {
+        success: false,
+        error: 'Stripe is not configured. Please contact support.'
+      }
+    }
+    
+    const mode = stripeMode
+    console.log(`Creating Stripe checkout session (${mode} mode) with locale: en`)
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
