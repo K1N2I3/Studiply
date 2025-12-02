@@ -5,6 +5,8 @@ import { NotificationProvider } from './contexts/NotificationContext'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
 import StreakModal from './components/StreakModal'
 import { checkAndUpdateStreak } from './services/streakService'
+import { checkAndUnlockAchievements } from './services/achievementService'
+import { getUserQuestProgress } from './services/cloudQuestService'
 
 // Import pages
 import Home from './pages/Home'
@@ -55,6 +57,16 @@ function AppContent() {
         try {
           const streak = await checkAndUpdateStreak(user.id)
           setStreakData(streak)
+          
+          // 检查 streak 相关的成就
+          const userProgress = await getUserQuestProgress(user.id)
+          const progressWithStreak = {
+            ...userProgress,
+            currentStreak: streak.currentStreak,
+            longestStreak: streak.longestStreak
+          }
+          await checkAndUnlockAchievements(user.id, progressWithStreak)
+          
           // 如果是新 streak 或者第一次登录，显示模态框
           if (streak.isNewStreak || streak.currentStreak === 1) {
             setShowStreakModal(true)
