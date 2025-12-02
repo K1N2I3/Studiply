@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { X, Sparkles, Loader2 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
@@ -38,6 +38,18 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
   const [difficulty, setDifficulty] = useState('beginner')
   const [questionCount, setQuestionCount] = useState(5)
   const [loading, setLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('')
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const timerRef = useRef(null)
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -63,6 +75,27 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
     }
 
     setLoading(true)
+    setElapsedTime(0)
+    setLoadingMessage('正在连接 AI 服务...')
+    
+    // Start timer
+    const startTime = Date.now()
+    timerRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000)
+      setElapsedTime(elapsed)
+      
+      // Update loading messages based on elapsed time
+      if (elapsed < 5) {
+        setLoadingMessage('正在分析您的需求...')
+      } else if (elapsed < 10) {
+        setLoadingMessage('AI 正在生成问题...')
+      } else if (elapsed < 20) {
+        setLoadingMessage('正在优化问题内容...')
+      } else {
+        setLoadingMessage('即将完成，请稍候...')
+      }
+    }, 1000)
+
     try {
       const result = await generateAIQuest(
         user.id,
@@ -73,8 +106,14 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
         questionCount
       )
 
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      
       if (result.success) {
-        showSuccess('AI quest generated successfully!', 'Success')
+        const totalTime = Math.floor((Date.now() - startTime) / 1000)
+        showSuccess(`AI quest 生成成功！用时 ${totalTime} 秒`, 'Success')
         if (onQuestGenerated) {
           onQuestGenerated(result.quest)
         }
@@ -89,9 +128,15 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
       }
     } catch (error) {
       console.error('Error generating AI quest:', error)
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
       showError('An error occurred while generating the quest', 'Error')
     } finally {
       setLoading(false)
+      setLoadingMessage('')
+      setElapsedTime(0)
     }
   }
 
@@ -146,8 +191,57 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
           </button>
         </div>
 
+        {/* Loading Overlay */}
+        {loading && (
+          <div className={`absolute inset-0 rounded-2xl flex flex-col items-center justify-center ${
+            isDark ? 'bg-[#1a1240]/95 backdrop-blur-sm' : 'bg-white/95 backdrop-blur-sm'
+          }`}>
+            <div className="text-center space-y-4 px-8">
+              <div className="relative">
+                <Loader2 className={`h-16 w-16 mx-auto animate-spin ${
+                  isDark ? 'text-purple-400' : 'text-purple-600'
+                }`} />
+                <Sparkles className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 ${
+                  isDark ? 'text-purple-300' : 'text-purple-500'
+                } animate-pulse`} />
+              </div>
+              <div>
+                <h3 className={`text-xl font-bold mb-2 ${
+                  isDark ? 'text-white' : 'text-slate-900'
+                }`}>
+                  {loadingMessage || '正在生成中...'}
+                </h3>
+                <p className={`text-sm ${
+                  isDark ? 'text-white/70' : 'text-slate-600'
+                }`}>
+                  通常需要 10-30 秒，请耐心等待
+                </p>
+                {elapsedTime > 0 && (
+                  <p className={`text-xs mt-2 ${
+                    isDark ? 'text-white/50' : 'text-gray-500'
+                  }`}>
+                    已用时: {elapsedTime} 秒
+                  </p>
+                )}
+              </div>
+              <div className={`w-64 h-1 rounded-full overflow-hidden ${
+                isDark ? 'bg-white/10' : 'bg-gray-200'
+              }`}>
+                <div 
+                  className={`h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300 ${
+                    elapsedTime > 0 ? 'animate-pulse' : ''
+                  }`}
+                  style={{ 
+                    width: `${Math.min((elapsedTime / 30) * 100, 90)}%` 
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className={`p-6 space-y-6 ${loading ? 'opacity-30 pointer-events-none' : ''}`}>
           {/* Subject Selection */}
           <div>
             <label className={`block text-sm font-semibold mb-2 ${
