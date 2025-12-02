@@ -1102,18 +1102,18 @@ const sendStreakReminderEmail = async (email, userName, currentStreak) => {
 }
 
 // Internal function to send streak reminders (used by both API and cron job)
-const sendStreakReminders = async () => {
+const sendStreakReminders = async (forceSend = false) => {
   if (!firestore) {
     console.warn('⚠️ Firebase not initialized. Streak reminders disabled.')
     return { success: false, sent: 0, skipped: 0 }
   }
 
   const currentHour = new Date().getHours()
-  // 只在晚上 8-9 点之间发送（20:00-21:00）
-  if (currentHour < 20 || currentHour >= 21) {
+  // 只在晚上 8-9 点之间发送（20:00-21:00），除非强制发送
+  if (!forceSend && (currentHour < 20 || currentHour >= 21)) {
     return {
       success: true,
-      message: `Not the right time to send reminders (current hour: ${currentHour}). Reminders are sent between 8-9 PM.`,
+      message: `Not the right time to send reminders (current hour: ${currentHour}). Reminders are sent between 8-9 PM. Use ?force=true to override.`,
       sent: 0,
       skipped: 0
     }
@@ -1205,7 +1205,9 @@ const sendStreakReminders = async () => {
 // API endpoint to send streak reminders (can be called by cron job)
 app.post('/api/send-streak-reminders', async (req, res) => {
   try {
-    const result = await sendStreakReminders()
+    // 允许通过查询参数或请求体强制发送（用于测试）
+    const forceSend = req.query.force === 'true' || req.body.force === true
+    const result = await sendStreakReminders(forceSend)
     if (result.success) {
       res.json(result)
     } else {
