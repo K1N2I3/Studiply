@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
 import { SimpleAuthProvider, useSimpleAuth } from './contexts/SimpleAuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
+import StreakModal from './components/StreakModal'
+import { checkAndUpdateStreak } from './services/streakService'
 
 // Import pages
 import Home from './pages/Home'
@@ -36,12 +38,49 @@ function AppContent() {
   const { user } = useSimpleAuth()
   const location = useLocation()
   const { isDark, toggleTheme } = useTheme()
+  const [streakData, setStreakData] = useState(null)
+  const [showStreakModal, setShowStreakModal] = useState(false)
+  const [hasCheckedStreak, setHasCheckedStreak] = useState(false)
 
   useEffect(() => {
     if (!user && isDark) {
       toggleTheme('light')
     }
   }, [user, isDark, toggleTheme])
+
+  // 检查并更新 streak（仅在用户登录时检查一次）
+  useEffect(() => {
+    if (user?.id && !hasCheckedStreak) {
+      const checkStreak = async () => {
+        try {
+          const streak = await checkAndUpdateStreak(user.id)
+          setStreakData(streak)
+          // 如果是新 streak 或者第一次登录，显示模态框
+          if (streak.isNewStreak || streak.currentStreak === 1) {
+            setShowStreakModal(true)
+          }
+          setHasCheckedStreak(true)
+        } catch (error) {
+          console.error('Error checking streak:', error)
+          setHasCheckedStreak(true)
+        }
+      }
+      
+      // 延迟一点显示，让页面先加载
+      const timer = setTimeout(() => {
+        checkStreak()
+      }, 1000)
+      
+      return () => clearTimeout(timer)
+    }
+    
+    // 用户登出时重置
+    if (!user) {
+      setHasCheckedStreak(false)
+      setShowStreakModal(false)
+      setStreakData(null)
+    }
+  }, [user?.id, hasCheckedStreak])
 
   // 检查是否有macOS应用回调参数
   const urlParams = new URLSearchParams(location.search)
@@ -56,7 +95,16 @@ function AppContent() {
 
   // 如果用户已登录，Header会处理整个布局
   if (user) {
-    return <Header />
+    return (
+      <>
+        <Header />
+        <StreakModal
+          isOpen={showStreakModal}
+          onClose={() => setShowStreakModal(false)}
+          streakData={streakData}
+        />
+      </>
+    )
   }
 
   // 如果用户未登录，显示传统的Header + Routes布局

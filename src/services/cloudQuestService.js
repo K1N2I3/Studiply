@@ -2761,8 +2761,16 @@ export const updateQuestProgress = async (userId, questId, subject, category, qu
       // 更新用户等级
       const levelUpdateResult = await updateUserLevel(userId, updatedProgress.totalXP);
       
-      // 检查并解锁成就（使用更新后的进度数据）
-      const achievementResult = await checkAndUnlockAchievements(userId, levelUpdateResult);
+      // 重新获取最新进度（包含 streak 数据）
+      const latestProgress = await getUserQuestProgress(userId);
+      const progressWithStreak = {
+        ...levelUpdateResult,
+        currentStreak: latestProgress.currentStreak || 0,
+        longestStreak: latestProgress.longestStreak || 0
+      };
+      
+      // 检查并解锁成就（使用包含 streak 的进度数据）
+      const achievementResult = await checkAndUnlockAchievements(userId, progressWithStreak);
       
       // 如果有新成就，合并到返回结果中
       if (achievementResult.newAchievements.length > 0) {

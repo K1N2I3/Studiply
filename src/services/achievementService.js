@@ -18,6 +18,7 @@ export const checkAndUnlockAchievements = async (userId, userProgress) => {
     const gold = userProgress?.gold || 0
     const completedQuests = userProgress?.completedQuests || []
     const totalQuests = completedQuests.length
+    const currentStreak = userProgress?.currentStreak || 0
     
     // 检查各种成就条件
     const achievementChecks = {
@@ -37,9 +38,9 @@ export const checkAndUnlockAchievements = async (userId, userProgress) => {
       // Quest 数量成就
       'quest_master': totalQuests >= 50,
       
-      // Streak 成就（暂时跳过，需要实现 streak 追踪）
-      // 'streak_7': false,
-      // 'streak_30': false,
+      // Streak 成就
+      'streak_7': currentStreak >= 7,
+      'streak_30': currentStreak >= 30,
     }
     
     // 去重：确保不会重复添加已存在的成就
@@ -133,6 +134,18 @@ export const getAchievementInfo = (achievementId) => {
       id: 'quest_master',
       name: 'Quest Master',
       description: 'Complete 50 quests',
+      rarity: 'epic'
+    },
+    'streak_7': {
+      id: 'streak_7',
+      name: 'Week Warrior',
+      description: 'Maintain a 7-day streak',
+      rarity: 'rare'
+    },
+    'streak_30': {
+      id: 'streak_30',
+      name: 'Monthly Champion',
+      description: 'Maintain a 30-day streak',
       rarity: 'epic'
     }
   }
