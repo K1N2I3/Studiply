@@ -76,7 +76,7 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
 
     setLoading(true)
     setElapsedTime(0)
-    setLoadingMessage('正在连接 AI 服务...')
+    setLoadingMessage('Connecting to AI service...')
     
     // Start timer
     const startTime = Date.now()
@@ -86,13 +86,13 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
       
       // Update loading messages based on elapsed time
       if (elapsed < 5) {
-        setLoadingMessage('正在分析您的需求...')
+        setLoadingMessage('Analyzing your requirements...')
       } else if (elapsed < 10) {
-        setLoadingMessage('AI 正在生成问题...')
+        setLoadingMessage('AI is generating questions...')
       } else if (elapsed < 20) {
-        setLoadingMessage('正在优化问题内容...')
+        setLoadingMessage('Optimizing question content...')
       } else {
-        setLoadingMessage('即将完成，请稍候...')
+        setLoadingMessage('Almost done, please wait...')
       }
     }, 1000)
 
@@ -113,7 +113,7 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
       
       if (result.success) {
         const totalTime = Math.floor((Date.now() - startTime) / 1000)
-        showSuccess(`AI quest 生成成功！用时 ${totalTime} 秒`, 'Success')
+        showSuccess(`AI quest generated successfully! Took ${totalTime}s`, 'Success')
         if (onQuestGenerated) {
           onQuestGenerated(result.quest)
         }
@@ -209,18 +209,18 @@ const AIGenerateQuestModal = ({ isOpen, onClose, onQuestGenerated }) => {
                 <h3 className={`text-xl font-bold mb-2 ${
                   isDark ? 'text-white' : 'text-slate-900'
                 }`}>
-                  {loadingMessage || '正在生成中...'}
+                  {loadingMessage || 'Generating...'}
                 </h3>
                 <p className={`text-sm ${
                   isDark ? 'text-white/70' : 'text-slate-600'
                 }`}>
-                  通常需要 10-30 秒，请耐心等待
+                  Usually takes 10-30 seconds, please wait...
                 </p>
                 {elapsedTime > 0 && (
                   <p className={`text-xs mt-2 ${
                     isDark ? 'text-white/50' : 'text-gray-500'
                   }`}>
-                    已用时: {elapsedTime} 秒
+                    Elapsed time: {elapsedTime}s
                   </p>
                 )}
               </div>
