@@ -3123,17 +3123,15 @@ export const updateUserLevel = async (userId, newTotalXP) => {
       updatedAt: new Date().toISOString()
     };
     
-    // 如果升级了，添加奖励
+    // 如果升级了，只更新成就（不添加 gold 奖励）
     if (leveledUp) {
-      updatedProgress.gold = (updatedProgress.gold || 0) + levelRewards.gold;
-      updatedProgress.skillPoints = (updatedProgress.skillPoints || 0) + levelRewards.skillPoints;
       updatedProgress.achievements = [
         ...(updatedProgress.achievements || []),
         ...levelRewards.achievements
       ];
       
       console.log(`🎉 User leveled up! Level ${oldLevel} → ${newLevel}`);
-      console.log('Level rewards:', levelRewards);
+      // 不再自动添加 gold 奖励
     }
     
     // 保存到Firebase
