@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   Play, 
   Star, 
@@ -14,9 +14,7 @@ import {
   TrendingUp,
   BookOpen,
   Award,
-  Target,
-  Timer,
-  Loader2
+  Timer
 } from 'lucide-react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -33,7 +31,6 @@ import { db } from '../firebase/config'
 import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore'
 import { joinMeeting } from '../services/meetingService'
 import { useNotification } from '../contexts/NotificationContext'
-import { getUserQuestProgress, updateQuestProgress } from '../services/cloudQuestService'
 import { listenToChatList, formatMessageTime, getUnreadTutorMessagesCount, subscribeUnreadTutorMessagesCount } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
 import { checkLimit, incrementUsage } from '../services/limitsService'
@@ -51,27 +48,11 @@ const StudentDashboard = () => {
   const [videoCallSession, setVideoCallSession] = useState(null)
   const [filterStatus, setFilterStatus] = useState('all') // 'all', 'pending', 'accepted', 'active', 'completed'
   const [showRatings, setShowRatings] = useState(false) // Show all given ratings
-  const [showMissionModal, setShowMissionModal] = useState(false)
-  const [missionsLoading, setMissionsLoading] = useState(false)
-  const [missionProcessingId, setMissionProcessingId] = useState(null)
-  const [userProgress, setUserProgress] = useState(null)
   const [chatList, setChatList] = useState([])
   const [showChatList, setShowChatList] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
   const [unreadTutors, setUnreadTutors] = useState([]) // 存储有未读消息的 tutor 列表
 
-  const reloadUserProgress = useCallback(async () => {
-    if (!user?.id) return
-    setMissionsLoading(true)
-    try {
-      const progress = await getUserQuestProgress(user.id)
-      setUserProgress(progress)
-    } catch (error) {
-      console.error('Error loading mission progress:', error)
-    } finally {
-      setMissionsLoading(false)
-    }
-  }, [user?.id])
 
   // 加载聊天列表（只显示 tutor chat 类型的消息）
   useEffect(() => {
@@ -129,9 +110,6 @@ const StudentDashboard = () => {
     return cleanup
   }, [user?.id, showChatList])
 
-  useEffect(() => {
-    reloadUserProgress()
-  }, [reloadUserProgress])
 
   // 实时监听来自 Tutors 的未读消息
   useEffect(() => {
@@ -473,92 +451,6 @@ const StudentDashboard = () => {
     })
   }
 
-  const missionCompletionSet = useMemo(() => {
-    const completed = userProgress?.completedQuests || []
-    return new Set(
-      completed
-        .filter(id => typeof id === 'string' && id.startsWith('missions_'))
-    )
-  }, [userProgress])
-
-  const missions = useMemo(() => {
-    const completedSessions = sessions.filter(s => s.status === 'completed').length
-    const ratedSessions = sessions.filter(s => s.rating).length
-    const upcomingSessions = sessions.filter(s => ['pending', 'accepted', 'active'].includes(s.status)).length
-
-    const baseMissions = [
-      {
-        id: 'first-completed-session',
-        title: 'Finish a tutoring session',
-        description: 'Complete any tutoring session to earn bonus XP.',
-        xp: 150,
-        category: 'daily',
-        progressLabel: `${completedSessions} completed session${completedSessions === 1 ? '' : 's'}`,
-        isEligible: completedSessions > 0
-      },
-      {
-        id: 'leave-a-rating',
-        title: 'Leave feedback for a tutor',
-        description: 'Submit a rating or review after a tutoring session.',
-        xp: 120,
-        category: 'daily',
-        progressLabel: `${ratedSessions} rating${ratedSessions === 1 ? '' : 's'} submitted`,
-        isEligible: ratedSessions > 0
-      },
-      {
-        id: 'plan-next-session',
-        title: 'Plan your next session',
-        description: 'Keep the momentum by having at least one upcoming or pending session.',
-        xp: 80,
-        category: 'daily',
-        progressLabel: `${upcomingSessions} upcoming session${upcomingSessions === 1 ? '' : 's'}`,
-        isEligible: upcomingSessions > 0
-      }
-    ]
-
-    return baseMissions.map(mission => ({
-      ...mission,
-      completed: missionCompletionSet.has(`missions_${mission.category}_${mission.id}`)
-    }))
-  }, [sessions, missionCompletionSet])
-
-  const handleMissionClaim = async (mission) => {
-    if (!user?.id) {
-      showError('Please log in to claim mission rewards.', 4000, 'Login Required')
-      return
-    }
-
-    if (mission.completed) {
-      showError('You already claimed this mission reward.', 3000, 'Mission Completed')
-      return
-    }
-
-    if (!mission.isEligible) {
-      showError('Complete the mission requirement before claiming the reward.', 3000, 'Not Ready')
-      return
-    }
-
-    try {
-      setMissionProcessingId(mission.id)
-      const result = await updateQuestProgress(
-        user.id,
-        mission.id,
-        'missions',
-        mission.category,
-        'mission',
-        mission.xp,
-        0,
-        []
-      )
-      setUserProgress(result)
-      showSuccess(`Mission complete! You earned ${mission.xp} XP.`, 4000, 'XP Earned')
-    } catch (error) {
-      console.error('Error claiming mission reward:', error)
-      showError('Failed to claim mission reward. Please try again.', 4000, 'Mission Error')
-    } finally {
-      setMissionProcessingId(null)
-    }
-  }
 
   const formatDuration = (seconds) => {
     if (seconds === undefined || seconds === null) return null
@@ -807,17 +699,6 @@ const StudentDashboard = () => {
                 >
                   <Star className="h-4 w-4" />
                   {showRatings ? 'Hide Ratings' : 'View Ratings'}
-                </button>
-                <button
-                  onClick={() => setShowMissionModal(true)}
-                  className={`rounded-xl px-4 py-2 text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
-                    isDark
-                      ? 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
-                      : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
-                  }`}
-                >
-                  <Target className="h-4 w-4" />
-                  View Missions
                 </button>
                 <button
                   onClick={() => setShowChatList(!showChatList)}
@@ -1108,153 +989,6 @@ const StudentDashboard = () => {
         </section>
       </div>
 
-      {/* Missions Modal */}
-      {showMissionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className={`relative w-full max-w-3xl rounded-[32px] border shadow-2xl backdrop-blur-xl ${
-            isDark
-              ? 'border-white/12 bg-gradient-to-br from-[#1f1748] via-[#251c59] to-[#130d2f]'
-              : 'border-white/70 bg-white'
-          }`}>
-            <div className="flex flex-col gap-2 border-b border-white/10 px-6 py-6 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                  isDark ? 'bg-purple-500/15 text-purple-200' : 'bg-purple-100 text-purple-600'
-                }`}>
-                  <Target className="h-4 w-4" /> Daily Missions
-                </div>
-                <h2 className={`mt-3 text-2xl font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  Level up with focused missions
-                </h2>
-                <p className={`mt-1 text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
-                  Complete tutoring milestones to earn bonus XP and climb the study leaderboard faster.
-                </p>
-              </div>
-              <div className={`flex flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-sm md:items-end ${
-                isDark ? 'border-white/10 bg-white/5 text-white/80' : 'border-slate-200 bg-slate-50 text-slate-600'
-              }`}>
-                <span className={`text-xs uppercase tracking-wide ${isDark ? 'text-purple-200/80' : 'text-purple-500'}`}>
-                  Current XP
-                </span>
-                <span className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                  {userProgress?.totalXP ?? 0} XP
-                </span>
-                <button
-                  onClick={() => setShowMissionModal(false)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                    isDark ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white text-purple-600 hover:bg-purple-50'
-                  }`}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <div className="max-h-[65vh] overflow-y-auto px-6 py-6 space-y-4">
-              {missionsLoading ? (
-                <div className={`flex flex-col items-center justify-center gap-3 py-16 text-sm ${
-                  isDark ? 'text-white/70' : 'text-slate-600'
-                }`}>
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  Loading missions...
-                </div>
-              ) : (
-                <>
-                  {missions.map((mission) => (
-                    <div
-                      key={mission.id}
-                      className={`flex flex-col gap-4 rounded-3xl border px-5 py-4 md:flex-row md:items-center md:justify-between ${
-                        isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-white'
-                      }`}
-                    >
-                      <div>
-                        <h4 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                          {mission.title}
-                        </h4>
-                        <p className={`mt-1 text-sm ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
-                          {mission.description}
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                          <span className={`rounded-full px-3 py-1 font-semibold ${
-                            isDark ? 'bg-purple-500/25 text-purple-100' : 'bg-purple-100 text-purple-700'
-                          }`}>
-                            Reward: {mission.xp} XP
-                          </span>
-                          <span className={`rounded-full px-3 py-1 ${
-                            mission.completed
-                              ? (isDark ? 'bg-emerald-500/20 text-emerald-200' : 'bg-emerald-100 text-emerald-700')
-                              : (isDark ? 'bg-white/10 text-white/70' : 'bg-slate-100 text-slate-600')
-                          }`}>
-                            {mission.progressLabel}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex min-w-[180px] flex-col items-center gap-2 md:items-end">
-                        {mission.completed ? (
-                          <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ${
-                            isDark ? 'bg-emerald-500/20 text-emerald-200' : 'bg-emerald-100 text-emerald-700'
-                          }`}>
-                            <CheckCircle className="h-4 w-4" />
-                            Completed
-                          </span>
-                        ) : (
-                          <>
-                            {!mission.isEligible && (
-                              <span className={`text-xs ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
-                                Requirement not met yet
-                              </span>
-                            )}
-                            <button
-                              onClick={() => handleMissionClaim(mission)}
-                              disabled={!mission.isEligible || missionProcessingId === mission.id}
-                              className={`inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                                mission.isEligible
-                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 hover:-translate-y-0.5'
-                                  : isDark
-                                    ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                              }`}
-                            >
-                              {missionProcessingId === mission.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  Claiming...
-                                </>
-                              ) : (
-                                <>Claim {mission.xp} XP</>
-                              )}
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {missions.length === 0 && (
-                    <div className={`rounded-3xl border px-6 py-12 text-center text-sm ${
-                      isDark ? 'border-white/10 bg-white/5 text-white/60' : 'border-slate-200 bg-white text-slate-600'
-                    }`}>
-                      No missions available right now. Check back soon for new challenges!
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-
-            <div className="flex justify-end border-t border-white/10 px-6 py-4">
-              <button
-                onClick={() => setShowMissionModal(false)}
-                className={`rounded-2xl px-5 py-2 text-sm font-semibold transition ${
-                  isDark ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Submit Review Modal */}
       {showRatingModal && selectedSession && (

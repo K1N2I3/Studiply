@@ -270,9 +270,9 @@ const QuestExecution = () => {
       setIsCompleted(true)
       setIsTimerRunning(false)
       
-      // 计算奖励
-      const xpEarned = quest.xpReward
-      const goldEarned = quest.goldReward
+      // 固定奖励：每个 quest 给 25 gold, 50 XP
+      const xpEarned = 50
+      const goldEarned = 25
       
       // 测试Firebase连接
       console.log('Testing Firebase connection before saving...')
