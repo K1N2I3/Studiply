@@ -1,33 +1,61 @@
 import express from 'express'
 import AIQuest from '../models/AIQuest.js'
 import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 
 const router = express.Router()
 
-// Initialize AI client - supports both OpenAI and DeepSeek
-// Priority: OpenAI > DeepSeek
+// Initialize AI client - supports Claude, OpenAI, and DeepSeek
+// Priority: Claude > OpenAI GPT-4o > OpenAI GPT-4o-mini > DeepSeek
 const getAIClient = () => {
-  if (process.env.OPENAI_API_KEY) {
+  // Claude (Anthropic) - Currently considered one of the strongest models
+  if (process.env.ANTHROPIC_API_KEY) {
+    console.log('🤖 [AI Quest] Using Claude (Anthropic) API')
+    const anthropic = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
+    })
+    return {
+      client: anthropic,
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022', // claude-3-5-sonnet is the strongest
+      provider: 'claude',
+      isAnthropic: true // Flag to handle Anthropic's different API format
+    }
+  }
+  // OpenAI GPT-4o (stronger than gpt-4o-mini)
+  else if (process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL === 'gpt-4o') {
+    console.log('🤖 [AI Quest] Using OpenAI GPT-4o API')
+    return {
+      client: new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      }),
+      model: 'gpt-4o',
+      provider: 'openai'
+    }
+  }
+  // OpenAI GPT-4o-mini (cheaper option)
+  else if (process.env.OPENAI_API_KEY) {
     console.log('🤖 [AI Quest] Using OpenAI API')
     return {
       client: new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
       }),
-      model: 'gpt-4o-mini', // or 'gpt-3.5-turbo' for cheaper option
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
       provider: 'openai'
     }
-  } else if (process.env.DEEPSEEK_API_KEY) {
+  }
+  // DeepSeek (cheapest, good quality)
+  else if (process.env.DEEPSEEK_API_KEY) {
     console.log('🤖 [AI Quest] Using DeepSeek API')
     return {
       client: new OpenAI({
         apiKey: process.env.DEEPSEEK_API_KEY,
         baseURL: 'https://api.deepseek.com/v1'
       }),
-      model: 'deepseek-chat',
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
       provider: 'deepseek'
     }
   } else {
-    throw new Error('No AI API key configured. Please set OPENAI_API_KEY or DEEPSEEK_API_KEY')
+    throw new Error('No AI API key configured. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, or DEEPSEEK_API_KEY')
   }
 }
 
@@ -64,7 +92,7 @@ router.post('/generate', async (req, res) => {
       console.error('❌ [AI Quest] AI service not configured:', error.message)
       return res.status(500).json({ 
         success: false, 
-        error: 'AI service is not configured. Please set OPENAI_API_KEY or DEEPSEEK_API_KEY environment variable.' 
+        error: 'AI service is not configured. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, or DEEPSEEK_API_KEY environment variable.' 
       })
     }
 
@@ -87,6 +115,11 @@ router.post('/generate', async (req, res) => {
     }
 
     const subjectName = subjectNames[subject] || subject
+
+    // Build system prompt - Claude needs explicit JSON instruction
+    const jsonInstruction = aiConfig.isAnthropic 
+      ? `\n\nIMPORTANT: You MUST return ONLY valid JSON. Do not include any markdown formatting, code blocks, or explanatory text. Return the JSON object directly.`
+      : ''
 
     const systemPrompt = `You are an educational content creator. Generate ${questionCount} multiple-choice questions for ${subjectName} based on the user's request.
 
@@ -111,22 +144,39 @@ Return the response as a JSON object with this exact structure:
       "explanation": "Explanation of why this is correct"
     }
   ]
-}`
+}${jsonInstruction}`
 
     const userPrompt = `Create ${questionCount} ${difficulty} level questions about: ${prompt}`
 
     console.log(`🤖 [AI Quest] Calling ${aiConfig.provider.toUpperCase()} API with model: ${aiConfig.model}...`)
-    const completion = await aiConfig.client.chat.completions.create({
-      model: aiConfig.model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7,
-      response_format: { type: 'json_object' }
-    })
-
-    const aiResponse = completion.choices[0].message.content
+    
+    let aiResponse
+    // Handle Anthropic Claude API (different format)
+    if (aiConfig.isAnthropic) {
+      const message = await aiConfig.client.messages.create({
+        model: aiConfig.model,
+        max_tokens: 4096,
+        temperature: 0.7,
+        system: systemPrompt,
+        messages: [
+          { role: 'user', content: userPrompt }
+        ]
+      })
+      aiResponse = message.content[0].text
+    } else {
+      // Handle OpenAI-compatible APIs (OpenAI, DeepSeek)
+      const completion = await aiConfig.client.chat.completions.create({
+        model: aiConfig.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: 'json_object' }
+      })
+      aiResponse = completion.choices[0].message.content
+    }
+    
     console.log(`✅ [AI Quest] ${aiConfig.provider.toUpperCase()} response received`)
 
     let questData
