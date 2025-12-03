@@ -16,7 +16,7 @@ const getAIClient = () => {
     })
     return {
       client: anthropic,
-      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022', // claude-3-5-sonnet is the strongest
+      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022', // Common models: claude-3-5-sonnet-20241022, claude-3-5-sonnet-20250514, claude-3-5-sonnet
       provider: 'claude',
       isAnthropic: true // Flag to handle Anthropic's different API format
     }
