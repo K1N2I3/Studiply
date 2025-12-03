@@ -16,7 +16,7 @@ const getAIClient = () => {
     })
     return {
       client: anthropic,
-      model: process.env.CLAUDE_MODEL || 'claude-3-5-sonnet-20241022', // Common models: claude-3-5-sonnet-20241022, claude-3-5-sonnet-20250514, claude-3-5-sonnet
+      model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514', // Latest: claude-sonnet-4-20250514, Alternative: claude-3-7-sonnet-20250219
       provider: 'claude',
       isAnthropic: true // Flag to handle Anthropic's different API format
     }
