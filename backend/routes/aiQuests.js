@@ -4,11 +4,32 @@ import OpenAI from 'openai'
 
 const router = express.Router()
 
-// Initialize DeepSeek (compatible with OpenAI SDK)
-const deepseek = new OpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY || '',
-  baseURL: 'https://api.deepseek.com/v1'
-})
+// Initialize AI client - supports both OpenAI and DeepSeek
+// Priority: OpenAI > DeepSeek
+const getAIClient = () => {
+  if (process.env.OPENAI_API_KEY) {
+    console.log('🤖 [AI Quest] Using OpenAI API')
+    return {
+      client: new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY
+      }),
+      model: 'gpt-4o-mini', // or 'gpt-3.5-turbo' for cheaper option
+      provider: 'openai'
+    }
+  } else if (process.env.DEEPSEEK_API_KEY) {
+    console.log('🤖 [AI Quest] Using DeepSeek API')
+    return {
+      client: new OpenAI({
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        baseURL: 'https://api.deepseek.com/v1'
+      }),
+      model: 'deepseek-chat',
+      provider: 'deepseek'
+    }
+  } else {
+    throw new Error('No AI API key configured. Please set OPENAI_API_KEY or DEEPSEEK_API_KEY')
+  }
+}
 
 // Generate AI quest
 router.post('/generate', async (req, res) => {
@@ -35,9 +56,16 @@ router.post('/generate', async (req, res) => {
       return res.status(400).json({ success: false, error: 'prompt is required' })
     }
 
-    if (!process.env.DEEPSEEK_API_KEY) {
-      console.error('❌ [AI Quest] DEEPSEEK_API_KEY not configured')
-      return res.status(500).json({ success: false, error: 'AI service is not configured. Please set DEEPSEEK_API_KEY environment variable.' })
+    // Get AI client (OpenAI or DeepSeek)
+    let aiConfig
+    try {
+      aiConfig = getAIClient()
+    } catch (error) {
+      console.error('❌ [AI Quest] AI service not configured:', error.message)
+      return res.status(500).json({ 
+        success: false, 
+        error: 'AI service is not configured. Please set OPENAI_API_KEY or DEEPSEEK_API_KEY environment variable.' 
+      })
     }
 
     // Build the AI prompt
@@ -87,9 +115,9 @@ Return the response as a JSON object with this exact structure:
 
     const userPrompt = `Create ${questionCount} ${difficulty} level questions about: ${prompt}`
 
-    console.log('🤖 [AI Quest] Calling DeepSeek API...')
-    const completion = await deepseek.chat.completions.create({
-      model: 'deepseek-chat',
+    console.log(`🤖 [AI Quest] Calling ${aiConfig.provider.toUpperCase()} API with model: ${aiConfig.model}...`)
+    const completion = await aiConfig.client.chat.completions.create({
+      model: aiConfig.model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -99,7 +127,7 @@ Return the response as a JSON object with this exact structure:
     })
 
     const aiResponse = completion.choices[0].message.content
-    console.log('🤖 [AI Quest] DeepSeek response received')
+    console.log(`✅ [AI Quest] ${aiConfig.provider.toUpperCase()} response received`)
 
     let questData
     try {
@@ -147,8 +175,8 @@ Return the response as a JSON object with this exact structure:
       isPrivate: true,
       metadata: {
         aiGenerated: true,
-        model: 'deepseek-chat',
-        provider: 'deepseek',
+        model: aiConfig.model,
+        provider: aiConfig.provider,
         questionCount: formattedQuestions.length
       }
     })
