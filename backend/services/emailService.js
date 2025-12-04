@@ -101,7 +101,8 @@ const generateVerificationEmailHTML = (code) => {
                   <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">If you didn't create a Studiply account, you can safely ignore this email.</p>
                   <p style="color: #cccccc; margin: 0; font-size: 11px;">
                     © ${new Date().getFullYear()} Studiply. All rights reserved.<br>
-                    <a href="${websiteUrl}/unsubscribe" style="color: #999999; text-decoration: none; font-size: 11px;">Unsubscribe</a>
+                    <a href="${websiteUrl}/unsubscribe" style="color: #999999; text-decoration: none; font-size: 11px;">Unsubscribe</a> | 
+                    <a href="${websiteUrl}" style="color: #999999; text-decoration: none; font-size: 11px;">Visit Studiply</a>
                   </p>
                 </td>
               </tr>
