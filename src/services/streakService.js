@@ -11,9 +11,10 @@ export const checkAndUpdateStreak = async (userId) => {
     const userProgressRef = doc(db, 'studyprogress', userId)
     const userProgressDoc = await getDoc(userProgressRef)
     
+    // 使用 UTC 日期来避免时区问题
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayStr = today.toISOString().split('T')[0]
+    const todayUTC = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))
+    const todayStr = todayUTC.toISOString().split('T')[0]
     
     let currentStreak = 0
     let longestStreak = 0
@@ -27,34 +28,59 @@ export const checkAndUpdateStreak = async (userId) => {
       lastLoginDate = data.lastLoginDate || null
       
       if (lastLoginDate) {
-        const lastLogin = new Date(lastLoginDate)
-        lastLogin.setHours(0, 0, 0, 0)
-        const lastLoginStr = lastLogin.toISOString().split('T')[0]
+        // 确保 lastLoginDate 是字符串格式 (YYYY-MM-DD)
+        let lastLoginStr = lastLoginDate
+        if (lastLoginDate instanceof Date) {
+          lastLoginStr = lastLoginDate.toISOString().split('T')[0]
+        } else if (typeof lastLoginDate === 'string') {
+          // 如果是 ISO 字符串，提取日期部分
+          lastLoginStr = lastLoginDate.split('T')[0]
+        }
         
-        const daysDiff = Math.floor((today - lastLogin) / (1000 * 60 * 60 * 24))
-        
-        if (daysDiff === 0) {
+        // 直接比较日期字符串，避免时区问题
+        if (lastLoginStr === todayStr) {
           // 今天已经登录过了，不更新，也不显示模态框
+          console.log('Streak already checked today, skipping update')
           return {
             currentStreak,
             longestStreak,
-            lastLoginDate,
+            lastLoginDate: lastLoginStr,
             isNewStreak: false,
             shouldShowModal: false
           }
-        } else if (daysDiff === 1) {
+        }
+        
+        // 计算日期差（使用日期字符串比较）
+        const lastLoginDateObj = new Date(lastLoginStr + 'T00:00:00Z')
+        const todayDateObj = new Date(todayStr + 'T00:00:00Z')
+        const daysDiff = Math.floor((todayDateObj - lastLoginDateObj) / (1000 * 60 * 60 * 24))
+        
+        if (daysDiff === 1) {
           // 连续登录，增加 streak
           currentStreak += 1
           isNewStreak = true
-        } else {
+          console.log(`Streak increased: ${currentStreak} days`)
+        } else if (daysDiff > 1) {
           // 中断了，重置 streak
           currentStreak = 1
           isNewStreak = true
+          console.log(`Streak reset: ${daysDiff} days gap`)
+        } else {
+          // daysDiff < 0 或异常情况，不更新
+          console.warn(`Unexpected daysDiff: ${daysDiff}, keeping current streak`)
+          return {
+            currentStreak,
+            longestStreak,
+            lastLoginDate: lastLoginStr,
+            isNewStreak: false,
+            shouldShowModal: false
+          }
         }
       } else {
         // 第一次登录
         currentStreak = 1
         isNewStreak = true
+        console.log('First login, starting streak')
       }
       
       // 更新最长 streak
@@ -66,15 +92,18 @@ export const checkAndUpdateStreak = async (userId) => {
       currentStreak = 1
       longestStreak = 1
       isNewStreak = true
+      console.log('New user, starting streak')
     }
     
-    // 保存到 Firebase
+    // 保存到 Firebase（只有在需要更新时才保存）
     await setDoc(userProgressRef, {
       currentStreak,
       longestStreak,
       lastLoginDate: todayStr,
       updatedAt: new Date().toISOString()
     }, { merge: true })
+    
+    console.log(`Streak updated: ${currentStreak} days, lastLoginDate: ${todayStr}`)
     
     return {
       currentStreak,

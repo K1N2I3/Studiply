@@ -50,40 +50,60 @@ function AppContent() {
     }
   }, [user, isDark, toggleTheme])
 
-  // 检查并更新 streak（仅在用户登录时检查一次）
+  // 检查并更新 streak（仅在用户登录时检查一次，使用 localStorage 持久化）
   useEffect(() => {
-    if (user?.id && !hasCheckedStreak) {
-      const checkStreak = async () => {
-        try {
-          const streak = await checkAndUpdateStreak(user.id)
-          setStreakData(streak)
-          
-          // 检查 streak 相关的成就
-          const userProgress = await getUserQuestProgress(user.id)
-          const progressWithStreak = {
-            ...userProgress,
-            currentStreak: streak.currentStreak,
-            longestStreak: streak.longestStreak
-          }
-          await checkAndUnlockAchievements(user.id, progressWithStreak)
-          
-          // 只在当天第一次登录且是新 streak 时显示模态框
-          if (streak.shouldShowModal !== false && streak.isNewStreak) {
-            setShowStreakModal(true)
-          }
-          setHasCheckedStreak(true)
-        } catch (error) {
-          console.error('Error checking streak:', error)
-          setHasCheckedStreak(true)
-        }
+    if (user?.id) {
+      // 检查 localStorage 中是否今天已经检查过
+      const today = new Date().toISOString().split('T')[0]
+      const lastCheckKey = `streak_check_${user.id}`
+      const lastCheckDate = localStorage.getItem(lastCheckKey)
+      
+      // 如果今天已经检查过，直接返回，不重复检查
+      if (lastCheckDate === today) {
+        console.log('Streak already checked today (from localStorage), skipping')
+        setHasCheckedStreak(true)
+        return
       }
       
-      // 延迟一点显示，让页面先加载
-      const timer = setTimeout(() => {
-        checkStreak()
-      }, 1000)
-      
-      return () => clearTimeout(timer)
+      // 如果还没有检查过，执行检查
+      if (!hasCheckedStreak) {
+        const checkStreak = async () => {
+          try {
+            const streak = await checkAndUpdateStreak(user.id)
+            setStreakData(streak)
+            
+            // 检查 streak 相关的成就
+            const userProgress = await getUserQuestProgress(user.id)
+            const progressWithStreak = {
+              ...userProgress,
+              currentStreak: streak.currentStreak,
+              longestStreak: streak.longestStreak
+            }
+            await checkAndUnlockAchievements(user.id, progressWithStreak)
+            
+            // 只在当天第一次登录且是新 streak 时显示模态框
+            if (streak.shouldShowModal !== false && streak.isNewStreak) {
+              setShowStreakModal(true)
+            }
+            
+            // 标记今天已经检查过
+            localStorage.setItem(lastCheckKey, today)
+            setHasCheckedStreak(true)
+          } catch (error) {
+            console.error('Error checking streak:', error)
+            // 即使出错也标记为已检查，避免重复尝试
+            localStorage.setItem(lastCheckKey, today)
+            setHasCheckedStreak(true)
+          }
+        }
+        
+        // 延迟一点显示，让页面先加载
+        const timer = setTimeout(() => {
+          checkStreak()
+        }, 1000)
+        
+        return () => clearTimeout(timer)
+      }
     }
     
     // 用户登出时重置
