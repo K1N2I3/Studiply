@@ -815,22 +815,6 @@ const sendStreakReminderEmail = async (email, userName, currentStreak) => {
 }
 
 // 旧的 streak 提醒代码已移至 services/emailService.js
-const _oldStreakReminderCode = () => {
-  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
-  const loginUrl = 'https://www.studiply.it/login'
-  
-  const mailOptions = {
-    from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
-    to: email,
-    subject: `🔥 Don't break your ${currentStreak}-day streak!`,
-    priority: 'high',
-    headers: {
-      'X-Priority': '1',
-      'X-MSMail-Priority': 'High',
-      'Importance': 'high',
-      'Date': new Date().toUTCString()
-    },
-    html: `
       <!DOCTYPE html>
       <html>
       <head>
