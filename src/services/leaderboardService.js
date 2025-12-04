@@ -10,29 +10,39 @@ import { doc, getDoc } from 'firebase/firestore'
  */
 export const getLeaderboard = async (type = 'streak', topN = 100) => {
   try {
-    const studyProgressRef = collection(db, 'studyprogress')
-    const allProgressDocs = await getDocs(studyProgressRef)
+    console.log(`📊 Fetching leaderboard for type: ${type}`)
+    
+    // 先从 users 集合获取所有用户
+    const usersRef = collection(db, 'users')
+    const allUsersDocs = await getDocs(usersRef)
+    console.log(`👥 Found ${allUsersDocs.docs.length} users`)
     
     const leaderboardData = []
     
-    // 遍历所有用户进度数据
-    for (const progressDoc of allProgressDocs.docs) {
-      const progressData = progressDoc.data()
-      const userId = progressDoc.id
+    // 遍历所有用户
+    for (const userDoc of allUsersDocs.docs) {
+      const userData = userDoc.data()
+      const userId = userDoc.id
+      
+      // 跳过被封禁的用户
+      if (userData.banned === true) {
+        continue
+      }
       
       // 获取用户基本信息
-      let userName = 'Anonymous'
-      let userAvatar = null
+      const userName = userData.name || userData.email?.split('@')[0] || 'Anonymous'
+      const userAvatar = userData.avatar || null
+      
+      // 获取用户的进度数据
+      let progressData = {}
       try {
-        const userRef = doc(db, 'users', userId)
-        const userDoc = await getDoc(userRef)
-        if (userDoc.exists()) {
-          const userData = userDoc.data()
-          userName = userData.name || userData.email?.split('@')[0] || 'Anonymous'
-          userAvatar = userData.avatar || null
+        const progressRef = doc(db, 'studyprogress', userId)
+        const progressDoc = await getDoc(progressRef)
+        if (progressDoc.exists()) {
+          progressData = progressDoc.data()
         }
       } catch (error) {
-        console.warn(`Failed to fetch user data for ${userId}:`, error)
+        console.warn(`Failed to fetch progress for user ${userId}:`, error)
       }
       
       // 根据类型获取对应的值
@@ -42,7 +52,7 @@ export const getLeaderboard = async (type = 'streak', topN = 100) => {
           value = progressData.currentStreak || 0
           break
         case 'level':
-          value = progressData.currentLevel || 1
+          value = progressData.currentLevel || 1 // 默认等级为 1
           break
         case 'quests':
           value = (progressData.completedQuests || []).length
@@ -51,27 +61,29 @@ export const getLeaderboard = async (type = 'streak', topN = 100) => {
           value = 0
       }
       
-      // 只添加有值的用户
-      if (value > 0) {
-        leaderboardData.push({
-          userId,
-          userName,
-          userAvatar,
-          value,
-          // 额外信息
-          totalXP: progressData.totalXP || 0,
-          gold: progressData.gold || 0
-        })
-      }
+      // 添加所有用户（包括值为 0 的）
+      leaderboardData.push({
+        userId,
+        userName,
+        userAvatar,
+        value,
+        // 额外信息
+        totalXP: progressData.totalXP || 0,
+        gold: progressData.gold || 0
+      })
     }
+    
+    console.log(`📈 Processed ${leaderboardData.length} users for leaderboard`)
     
     // 按值降序排序
     leaderboardData.sort((a, b) => b.value - a.value)
     
     // 返回前 N 名
-    return leaderboardData.slice(0, topN)
+    const result = leaderboardData.slice(0, topN)
+    console.log(`✅ Returning top ${result.length} users`)
+    return result
   } catch (error) {
-    console.error('Error fetching leaderboard:', error)
+    console.error('❌ Error fetching leaderboard:', error)
     return []
   }
 }
