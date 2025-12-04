@@ -31,6 +31,7 @@ import {
   BookOpen,
   GraduationCap,
   Users,
+  User,
   BarChart3,
   ArrowRight,
   GiftIcon,
