@@ -131,20 +131,32 @@ const sendWithResend = async (to, subject, html, text, fromEmail = null, headers
     const from = fromEmail || defaultFromEmail
     const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
     
+    // 优化邮件头，提高送达率
     const defaultHeaders = {
       'X-Entity-Ref-ID': `${subject.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
       'List-Unsubscribe': `<${websiteUrl}/unsubscribe>`,
       'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      'X-Mailer': 'Studiply Email Service',
+      'X-Priority': '3', // Normal priority (避免 high 触发过滤器)
+      'Importance': 'normal',
+      'Precedence': 'bulk',
+      'Auto-Submitted': 'auto-generated', // 标记为自动生成
       ...headers
     }
     
     const { data, error } = await resend.emails.send({
       from: `Studiply <${from}>`,
       to: [to],
+      replyTo: process.env.RESEND_REPLY_TO || `support@studiply.it`, // 添加回复地址
       subject: subject,
       html: html,
       text: text,
       headers: defaultHeaders,
+      // 添加标签用于分类（Resend 功能）
+      tags: [
+        { name: 'category', value: 'transactional' },
+        { name: 'source', value: 'studiply-api' }
+      ]
     })
 
     if (error) {
