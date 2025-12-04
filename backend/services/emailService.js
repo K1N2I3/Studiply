@@ -41,6 +41,7 @@ if (process.env.SMTP_HOST && process.env.EMAIL_PASSWORD) {
  */
 const generateVerificationEmailHTML = (code) => {
   const logoUrl = 'https://www.studiply.it/studiply-logo.png'
+  const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
   return `
     <!DOCTYPE html>
     <html>
@@ -98,7 +99,10 @@ const generateVerificationEmailHTML = (code) => {
               <tr>
                 <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
                   <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">If you didn't create a Studiply account, you can safely ignore this email.</p>
-                  <p style="color: #cccccc; margin: 0; font-size: 11px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                  <p style="color: #cccccc; margin: 0; font-size: 11px;">
+                    © ${new Date().getFullYear()} Studiply. All rights reserved.<br>
+                    <a href="${process.env.FRONTEND_URL || 'https://www.studiply.it'}/unsubscribe" style="color: #999999; text-decoration: none; font-size: 11px;">Unsubscribe</a>
+                  </p>
                 </td>
               </tr>
             </table>
@@ -118,12 +122,21 @@ const sendWithResend = async (email, code) => {
   
   try {
     const fromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_USER || 'noreply@studiply.it'
+    const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
     
     const { data, error } = await resend.emails.send({
       from: `Studiply <${fromEmail}>`,
       to: [email],
       subject: 'Studiply - Email Verification',
       html: generateVerificationEmailHTML(code),
+      // 添加防垃圾邮件配置
+      headers: {
+        'X-Entity-Ref-ID': `verification-${Date.now()}`,
+        'List-Unsubscribe': `<${websiteUrl}/unsubscribe>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
+      // 添加纯文本版本（提高送达率）
+      text: `Welcome to Studiply!\n\nYour verification code is: ${code}\n\nThis code is valid for 10 minutes.\n\nIf you didn't create a Studiply account, you can safely ignore this email.\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`,
     })
 
     if (error) {
@@ -145,19 +158,26 @@ const sendWithResend = async (email, code) => {
  */
 const sendWithSMTP = async (email, code) => {
   const startTime = Date.now()
+  const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
   
   const mailOptions = {
     from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
     to: email,
     subject: 'Studiply - Email Verification',
-    priority: 'high',
+    priority: 'normal', // 改为 normal，high priority 可能触发垃圾邮件过滤器
     headers: {
-      'X-Priority': '1',
-      'X-MSMail-Priority': 'High',
-      'Importance': 'high',
-      'Date': new Date().toUTCString()
+      'X-Priority': '3', // 改为 3 (normal)，1 (high) 可能触发垃圾邮件过滤器
+      'X-MSMail-Priority': 'Normal',
+      'Importance': 'normal',
+      'Date': new Date().toUTCString(),
+      'X-Entity-Ref-ID': `verification-${Date.now()}`,
+      'List-Unsubscribe': `<${websiteUrl}/unsubscribe>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      'Precedence': 'bulk', // 标记为批量邮件
     },
-    html: generateVerificationEmailHTML(code)
+    html: generateVerificationEmailHTML(code),
+    // 添加纯文本版本（提高送达率）
+    text: `Welcome to Studiply!\n\nYour verification code is: ${code}\n\nThis code is valid for 10 minutes.\n\nIf you didn't create a Studiply account, you can safely ignore this email.\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
   }
 
   try {
