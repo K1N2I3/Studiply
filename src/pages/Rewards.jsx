@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { getUserQuestProgress, LEVEL_CONFIG } from '../services/cloudQuestService'
 import { doc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { getLeaderboard, getUserRank } from '../services/leaderboardService'
 import { 
   Star, 
   Crown, 
@@ -42,6 +43,10 @@ const Rewards = () => {
   const [userProgress, setUserProgress] = useState(null)
   const [loading, setLoading] = useState(true)
   const [selectedTab, setSelectedTab] = useState('overview')
+  const [leaderboardType, setLeaderboardType] = useState('streak')
+  const [leaderboardData, setLeaderboardData] = useState([])
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
+  const [userRank, setUserRank] = useState(null)
 
   // 实时监听用户进度
   useEffect(() => {
@@ -254,6 +259,7 @@ const Rewards = () => {
             { id: 'overview', label: 'Overview', icon: BarChart3 },
             { id: 'achievements', label: 'Achievements', icon: Trophy },
             { id: 'progress', label: 'Progress', icon: TrendingUp },
+            { id: 'leaderboard', label: 'Leaderboard', icon: Users },
             { id: 'shop', label: 'Reward Shop', icon: Gift }
           ].map(tab => {
             const Icon = tab.icon
