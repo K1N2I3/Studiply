@@ -105,18 +105,20 @@ const transporter = nodemailer.createTransport({
   },
   // 连接池配置 - 复用连接以提高速度
   pool: true,
-  maxConnections: 5,
+  maxConnections: 10, // 增加连接数以提高并发
   maxMessages: 100,
-  // 超时设置 - 增加超时时间以提高可靠性
-  connectionTimeout: 30000, // 30秒连接超时（增加以应对慢速网络）
-  greetingTimeout: 30000, // 30秒问候超时
-  socketTimeout: 60000, // 60秒socket超时（增加以应对慢速SMTP服务器）
+  // 超时设置 - 减少超时时间以快速失败并重试
+  connectionTimeout: 10000, // 10秒连接超时（更快失败）
+  greetingTimeout: 10000, // 10秒问候超时
+  socketTimeout: 20000, // 20秒socket超时（更快响应）
   // 快速失败设置
   rateDelta: 1000,
-  rateLimit: 5,
+  rateLimit: 10, // 增加速率限制
   // 禁用不必要的功能以提高速度
   disableFileAccess: true,
   disableUrlAccess: true,
+  // 启用快速连接
+  requireTLS: false,
   // 调试选项（生产环境可以关闭）
   debug: process.env.NODE_ENV === 'development',
   logger: process.env.NODE_ENV === 'development'
@@ -127,8 +129,9 @@ const generateVerificationCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-// Send verification email
-const sendVerificationEmail = async (email, code) => {
+// Send verification email (async, non-blocking)
+const sendVerificationEmail = async (email, code, options = {}) => {
+  const { waitForCompletion = false } = options
   const logoUrl = 'https://www.studiply.it/studiply-logo.png'
   const startTime = Date.now()
   
@@ -216,15 +219,31 @@ const sendVerificationEmail = async (email, code) => {
     `
   }
 
-  try {
-    const info = await transporter.sendMail(mailOptions)
-    const duration = Date.now() - startTime
-    console.log(`✅ Verification email sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
-    return info
-  } catch (error) {
-    const duration = Date.now() - startTime
-    console.error(`❌ Failed to send verification email to ${email} after ${duration}ms:`, error)
-    throw error
+  // 发送邮件的异步函数
+  const sendEmailAsync = async () => {
+    try {
+      const info = await transporter.sendMail(mailOptions)
+      const duration = Date.now() - startTime
+      console.log(`✅ Verification email sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
+      return info
+    } catch (error) {
+      const duration = Date.now() - startTime
+      console.error(`❌ Failed to send verification email to ${email} after ${duration}ms:`, error)
+      // 不抛出错误，避免影响主流程
+      return null
+    }
+  }
+
+  // 如果需要等待完成（如注册流程），则等待
+  if (waitForCompletion) {
+    return await sendEmailAsync()
+  } else {
+    // 否则异步发送，不阻塞
+    sendEmailAsync().catch(err => {
+      console.error(`Background email sending error for ${email}:`, err)
+    })
+    // 立即返回，不等待邮件发送完成
+    return Promise.resolve({ accepted: [email], messageId: 'queued' })
   }
 }
 
@@ -322,13 +341,12 @@ app.post('/api/register', async (req, res) => {
 
     await user.save()
 
-    // Send verification email
-    try {
-      await sendVerificationEmail(email, verificationCode)
-    } catch (emailError) {
+    // Send verification email (async, non-blocking)
+    // 不等待邮件发送完成，立即返回响应
+    sendVerificationEmail(email, verificationCode).catch(emailError => {
       console.error('Email sending failed:', emailError)
       // Don't fail registration if email fails
-    }
+    })
 
     res.status(201).json({
       success: true,
@@ -512,20 +530,16 @@ app.post('/api/resend-verification', async (req, res) => {
     user.verificationCode = verificationCode
     await user.save()
 
-    // Send verification email
-    try {
-      await sendVerificationEmail(email, verificationCode)
-      res.json({
-        success: true,
-        message: 'Verification code sent successfully'
-      })
-    } catch (emailError) {
+    // Send verification email (async, non-blocking)
+    // 不等待邮件发送完成，立即返回响应
+    sendVerificationEmail(email, verificationCode).catch(emailError => {
       console.error('Email sending failed:', emailError)
-      res.status(500).json({
-        success: false,
-        error: 'Failed to send verification email'
-      })
-    }
+    })
+    
+    res.json({
+      success: true,
+      message: 'Verification code is being sent'
+    })
 
   } catch (error) {
     console.error('Resend verification error:', error)
@@ -660,18 +674,23 @@ app.post('/api/send-verification-email', async (req, res) => {
       })
     }
 
-    await sendVerificationEmail(email, code)
+    // 立即返回响应，不等待邮件发送完成
+    // 邮件在后台异步发送，提高响应速度
+    sendVerificationEmail(email, code).catch(error => {
+      console.error('❌ Background email sending error:', error)
+    })
     
-    console.log('✅ Verification email sent successfully to:', email)
+    // 立即返回成功响应
+    console.log('✅ Verification email queued for:', email)
     res.json({
       success: true,
-      message: 'Verification email sent successfully'
+      message: 'Verification email is being sent'
     })
   } catch (error) {
-    console.error('❌ Error sending verification email:', error)
+    console.error('❌ Error processing verification email request:', error)
     res.status(500).json({
       success: false,
-      error: 'Failed to send verification email'
+      error: 'Failed to process verification email request'
     })
   }
 })
