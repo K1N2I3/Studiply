@@ -216,7 +216,7 @@ export const sendVerificationEmail = async (email, code, options = {}) => {
       // 优先使用 Resend（如果配置了）
       if (resend) {
         const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@studiply.it'
-        const text = `Welcome to Studiply!\n\nYour verification code is: ${code}\n\nThis code is valid for 10 minutes.\n\nIf you didn't create a Studiply account, you can safely ignore this email.\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
+        const text = `Hello,\n\nPlease use the following code to verify your email address:\n\n${code}\n\nThis code will expire in 10 minutes. If you did not request this code, please ignore this email.\n\nBest regards,\nStudiply Team\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
         return await sendWithResend(email, 'Studiply - Email Verification', generateVerificationEmailHTML(code), text, fromEmail)
       }
       
