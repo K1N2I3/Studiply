@@ -85,6 +85,57 @@ const Rewards = () => {
     return () => unsubscribe()
   }, [user?.id])
 
+  // 获取排行榜数据
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      if (selectedTab !== 'leaderboard') {
+        setLeaderboardData([])
+        setUserRank(null)
+        return
+      }
+      
+      console.log('🔄 [Rewards] Fetching leaderboard...', { type: leaderboardType, userId: user?.id })
+      setLeaderboardLoading(true)
+      setLeaderboardData([])
+      setUserRank(null)
+      
+      try {
+        console.log('📊 [Rewards] Calling getLeaderboard...')
+        const data = await getLeaderboard(leaderboardType, 100)
+        console.log('📊 [Rewards] Received leaderboard data:', data.length, 'entries')
+        if (data && data.length > 0) {
+          console.log('📊 [Rewards] First entry:', data[0])
+          setLeaderboardData(data)
+        } else {
+          console.warn('⚠️ [Rewards] No leaderboard data returned')
+          setLeaderboardData([])
+        }
+        
+        // 获取用户排名
+        if (user?.id) {
+          console.log('📊 [Rewards] Getting user rank for:', user.id)
+          const rank = await getUserRank(user.id, leaderboardType)
+          console.log('📊 [Rewards] User rank:', rank)
+          setUserRank(rank)
+        }
+      } catch (error) {
+        console.error('❌ [Rewards] Error fetching leaderboard:', error)
+        console.error('Error details:', {
+          code: error.code,
+          message: error.message,
+          stack: error.stack
+        })
+        setLeaderboardData([])
+        setUserRank(null)
+      } finally {
+        setLeaderboardLoading(false)
+        console.log('✅ [Rewards] Leaderboard fetch completed')
+      }
+    }
+    
+    fetchLeaderboard()
+  }, [selectedTab, leaderboardType, user?.id])
+
   // 成就列表
   const allAchievements = [
     { id: 'first_quest', name: 'First Steps', description: 'Complete your first quest', icon: Star, color: 'from-yellow-400 to-orange-500', rarity: 'common' },
