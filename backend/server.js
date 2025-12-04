@@ -4,6 +4,7 @@ import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import nodemailer from 'nodemailer'
+import { sendVerificationEmail } from './services/emailService.js'
 import admin from 'firebase-admin'
 import dotenv from 'dotenv'
 import { sendVerificationCode, verifyCode } from './services/twilioService.js'
@@ -90,162 +91,37 @@ if (!admin.apps.length) {
   firestore = admin.firestore()
 }
 
-// Email configuration - Neo Email SMTP (Optimized for speed and reliability)
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp0001.neo.space',
-  port: parseInt(process.env.SMTP_PORT || '465'),
-  secure: process.env.SMTP_PORT === '465' || !process.env.SMTP_PORT, // 465 端口使用 SSL
-  auth: {
-    user: process.env.EMAIL_USER || 'noreply@studiply.it',
-    pass: process.env.EMAIL_PASSWORD
-  },
-  tls: {
-    rejectUnauthorized: false, // 如果需要
-    minVersion: 'TLSv1.2' // 使用更快的 TLS 版本
-  },
-  // 连接池配置 - 复用连接以提高速度
-  pool: true,
-  maxConnections: 10, // 增加连接数以提高并发
-  maxMessages: 100,
-  // 超时设置 - 减少超时时间以快速失败并重试
-  connectionTimeout: 10000, // 10秒连接超时（更快失败）
-  greetingTimeout: 10000, // 10秒问候超时
-  socketTimeout: 20000, // 20秒socket超时（更快响应）
-  // 快速失败设置
-  rateDelta: 1000,
-  rateLimit: 10, // 增加速率限制
-  // 禁用不必要的功能以提高速度
-  disableFileAccess: true,
-  disableUrlAccess: true,
-  // 启用快速连接
-  requireTLS: false,
-  // 调试选项（生产环境可以关闭）
-  debug: process.env.NODE_ENV === 'development',
-  logger: process.env.NODE_ENV === 'development'
-})
-
 // Generate verification code
 const generateVerificationCode = () => {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
-// Send verification email (async, non-blocking)
-const sendVerificationEmail = async (email, code, options = {}) => {
-  const { waitForCompletion = false } = options
-  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
-  const startTime = Date.now()
-  
-  const mailOptions = {
-    from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
-    to: email,
-    subject: 'Studiply - Email Verification',
-    priority: 'high', // 高优先级
-    headers: {
-      'X-Priority': '1', // 高优先级
-      'X-MSMail-Priority': 'High',
-      'Importance': 'high',
-      'Date': new Date().toUTCString() // 确保日期正确
-    },
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" href="https://www.studiply.it/studiply-logo.png" type="image/png">
-        <link rel="apple-touch-icon" href="https://www.studiply.it/studiply-logo.png">
-        <meta name="msapplication-TileImage" content="https://www.studiply.it/studiply-logo.png">
-        <meta property="og:image" content="https://www.studiply.it/studiply-logo.png">
-      </head>
-      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
-          <tr>
-            <td align="center" valign="top">
-              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 600px;">
-                <!-- Header -->
-                <tr>
-                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center;">
-                    <!-- Logo -->
-                    <img src="${logoUrl}" alt="Studiply Logo" style="width: 120px; height: auto; margin: 0 auto 20px; display: block; border-radius: 12px; background: rgba(255, 255, 255, 0.1); padding: 10px;" />
-                    <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Email Verification</h1>
-                    <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 15px;">Verify your account to get started</p>
-                  </td>
-                </tr>
-                <!-- Content -->
-                <tr>
-                  <td style="padding: 45px 40px;">
-                    <p style="color: #333333; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">Welcome to Studiply! Please enter the verification code below to complete your registration.</p>
-                    
-                    <!-- Verification Code Box -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                      <tr>
-                        <td align="center">
-                          <table cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 2px solid #667eea; border-radius: 12px; padding: 30px;">
-                            <tr>
-                              <td align="center" style="padding: 0;">
-                                <p style="color: #667eea; margin: 0 0 12px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Verification Code</p>
-                                <div style="background: #ffffff; border-radius: 8px; padding: 20px 30px; margin: 0;">
-                                  <h1 style="color: #667eea; margin: 0; font-size: 42px; font-weight: 700; letter-spacing: 8px; font-family: 'Courier New', monospace; line-height: 1.2;">${code}</h1>
-                                </div>
-                                <p style="color: #999999; margin: 12px 0 0 0; font-size: 12px; font-weight: 500;">Valid for 10 minutes</p>
-                              </td>
-                            </tr>
-                          </table>
-                        </td>
-                      </tr>
-                    </table>
-                    
-                    <!-- Instructions -->
-                    <div style="background: #f8f9fa; border-left: 3px solid #667eea; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                      <p style="color: #666666; margin: 0; font-size: 14px; line-height: 1.6;">
-                        <strong style="color: #667eea;">Next Steps:</strong> Copy the code above and paste it into the verification field in the Studiply app.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-                <!-- Footer -->
-                <tr>
-                  <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
-                    <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">If you didn't create a Studiply account, you can safely ignore this email.</p>
-                    <p style="color: #cccccc; margin: 0; font-size: 11px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
-      </html>
-    `
-  }
-
-  // 发送邮件的异步函数
-  const sendEmailAsync = async () => {
-    try {
-      const info = await transporter.sendMail(mailOptions)
-      const duration = Date.now() - startTime
-      console.log(`✅ Verification email sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
-      return info
-    } catch (error) {
-      const duration = Date.now() - startTime
-      console.error(`❌ Failed to send verification email to ${email} after ${duration}ms:`, error)
-      // 不抛出错误，避免影响主流程
-      return null
-    }
-  }
-
-  // 如果需要等待完成（如注册流程），则等待
-  if (waitForCompletion) {
-    return await sendEmailAsync()
-  } else {
-    // 否则异步发送，不阻塞
-    sendEmailAsync().catch(err => {
-      console.error(`Background email sending error for ${email}:`, err)
-    })
-    // 立即返回，不等待邮件发送完成
-    return Promise.resolve({ accepted: [email], messageId: 'queued' })
-  }
-}
+// SMTP transporter for other email types (email change, calendar reminders, etc.)
+// Note: Verification emails now use Resend API (see services/emailService.js)
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp0001.neo.space',
+  port: parseInt(process.env.SMTP_PORT || '465'),
+  secure: process.env.SMTP_PORT === '465' || !process.env.SMTP_PORT,
+  auth: {
+    user: process.env.EMAIL_USER || 'noreply@studiply.it',
+    pass: process.env.EMAIL_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1.2'
+  },
+  pool: true,
+  maxConnections: 10,
+  maxMessages: 100,
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 20000,
+  rateDelta: 1000,
+  rateLimit: 10,
+  disableFileAccess: true,
+  disableUrlAccess: true,
+  requireTLS: false
+})
 
 // API Routes
 
