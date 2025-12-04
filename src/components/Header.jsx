@@ -6,6 +6,8 @@ import { db } from '../firebase/config'
 import { Link, useLocation, Routes, Route, useNavigate } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { getUserQuestProgress, LEVEL_CONFIG } from '../services/questService'
+import { getUserStreak } from '../services/streakService'
+import { getStreakStyle } from '../utils/streakStyles'
 import { 
   BookOpen, 
   Users, 
@@ -77,6 +79,7 @@ const Header = () => {
   const [userProgress, setUserProgress] = useState(null)
   const [hasStudiplyPass, setHasStudiplyPass] = useState(false)
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(true)
+  const [streakData, setStreakData] = useState(null)
   
   // 专注测试功能
   const {
@@ -329,6 +332,26 @@ const Header = () => {
     })
     
     return cleanup
+  }, [user?.id])
+
+  // 获取用户 streak 数据
+  useEffect(() => {
+    const fetchStreak = async () => {
+      if (!user?.id) {
+        setStreakData(null)
+        return
+      }
+      
+      try {
+        const streak = await getUserStreak(user.id)
+        setStreakData(streak)
+      } catch (error) {
+        console.error('Error fetching streak:', error)
+        setStreakData(null)
+      }
+    }
+    
+    fetchStreak()
   }, [user?.id])
 
   // 获取导航项目配置
@@ -606,6 +629,18 @@ const Header = () => {
                   )}
                 </div>
                 <p className="text-xs text-slate-400 truncate">{user?.email || ''}</p>
+                {/* Streak 显示 */}
+                {streakData && streakData.currentStreak > 0 && (() => {
+                  const streakStyle = getStreakStyle(streakData.currentStreak)
+                  return (
+                    <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${streakStyle.colors.border} bg-gradient-to-r ${streakStyle.colors.gradient} ${streakStyle.animation}`}>
+                      <span className="text-xs">{streakStyle.icon}</span>
+                      <span className={`text-xs font-semibold ${streakStyle.colors.text}`}>
+                        {streakData.currentStreak} day{streakData.currentStreak !== 1 ? 's' : ''} streak
+                      </span>
+                    </div>
+                  )
+                })()}
               </div>
               <button
                 onClick={async () => {
