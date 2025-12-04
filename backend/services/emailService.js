@@ -37,73 +37,62 @@ if (process.env.SMTP_HOST && process.env.EMAIL_PASSWORD) {
 }
 
 /**
- * 生成验证码邮件 HTML 模板
+ * 生成验证码邮件 HTML 模板（简洁专业版，降低垃圾邮件风险）
  */
 const generateVerificationEmailHTML = (code) => {
-  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
   const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
   return `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="icon" href="${logoUrl}" type="image/png">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <title>Email Verification - Studiply</title>
     </head>
-    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #ffffff; color: #333333;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; padding: 20px;">
         <tr>
-          <td align="center" valign="top">
-            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 600px;">
-              <!-- Header -->
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 1px solid #e5e7eb;">
+              <!-- Simple Header -->
               <tr>
-                <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center;">
-                  <img src="${logoUrl}" alt="Studiply Logo" style="width: 120px; height: auto; margin: 0 auto 20px; display: block; border-radius: 12px; background: rgba(255, 255, 255, 0.1); padding: 10px;" />
-                  <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Email Verification</h1>
-                  <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 15px;">Verify your account to get started</p>
+                <td style="padding: 32px 24px 24px; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #111827; letter-spacing: -0.5px;">Studiply</h1>
                 </td>
               </tr>
-              <!-- Content -->
+              
+              <!-- Main Content -->
               <tr>
-                <td style="padding: 45px 40px;">
-                  <p style="color: #333333; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">Welcome to Studiply! Please enter the verification code below to complete your registration.</p>
+                <td style="padding: 40px 24px;">
+                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.5; color: #374151;">Hello,</p>
                   
-                  <!-- Verification Code Box -->
-                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                  <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.5; color: #374151;">Please use the following code to verify your email address:</p>
+                  
+                  <!-- Verification Code -->
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px 0;">
                     <tr>
-                      <td align="center">
-                        <table cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 2px solid #667eea; border-radius: 12px; padding: 30px;">
-                          <tr>
-                            <td align="center" style="padding: 0;">
-                              <p style="color: #667eea; margin: 0 0 12px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Verification Code</p>
-                              <div style="background: #ffffff; border-radius: 8px; padding: 20px 30px; margin: 0;">
-                                <h1 style="color: #667eea; margin: 0; font-size: 42px; font-weight: 700; letter-spacing: 8px; font-family: 'Courier New', monospace; line-height: 1.2;">${code}</h1>
-                              </div>
-                              <p style="color: #999999; margin: 12px 0 0 0; font-size: 12px; font-weight: 500;">Valid for 10 minutes</p>
-                            </td>
-                          </tr>
-                        </table>
+                      <td align="center" style="padding: 24px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                        <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Verification Code</p>
+                        <p style="margin: 0; font-size: 36px; font-weight: 700; color: #111827; letter-spacing: 4px; font-family: 'Courier New', Courier, monospace;">${code}</p>
                       </td>
                     </tr>
                   </table>
                   
-                  <!-- Instructions -->
-                  <div style="background: #f8f9fa; border-left: 3px solid #667eea; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                    <p style="color: #666666; margin: 0; font-size: 14px; line-height: 1.6;">
-                      <strong style="color: #667eea;">Next Steps:</strong> Copy the code above and paste it into the verification field in the Studiply app.
-                    </p>
-                  </div>
+                  <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.5; color: #6b7280;">This code will expire in 10 minutes. If you did not request this code, please ignore this email.</p>
+                  
+                  <p style="margin: 0; font-size: 16px; line-height: 1.5; color: #374151;">Best regards,<br>Studiply Team</p>
                 </td>
               </tr>
+              
               <!-- Footer -->
               <tr>
-                <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
-                  <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">If you didn't create a Studiply account, you can safely ignore this email.</p>
-                  <p style="color: #cccccc; margin: 0; font-size: 11px;">
-                    © ${new Date().getFullYear()} Studiply. All rights reserved.<br>
-                    <a href="${websiteUrl}/unsubscribe" style="color: #999999; text-decoration: none; font-size: 11px;">Unsubscribe</a> | 
-                    <a href="${websiteUrl}" style="color: #999999; text-decoration: none; font-size: 11px;">Visit Studiply</a>
+                <td style="padding: 24px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb;">
+                  <p style="margin: 0 0 12px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
+                    <a href="${websiteUrl}" style="color: #6b7280; text-decoration: underline;">Visit Studiply</a> | 
+                    <a href="${websiteUrl}/unsubscribe" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
                   </p>
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
                 </td>
               </tr>
             </table>
@@ -267,58 +256,52 @@ export const sendEmailChangeVerification = async (email, token, oldEmail) => {
     throw new Error('Resend is not configured. Please set RESEND_API_KEY.')
   }
 
-  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
   const verificationLink = `${process.env.FRONTEND_URL || 'https://www.studiply.it'}/verify-email-change?token=${token}`
   const fromEmail = process.env.RESEND_CHANGE_EMAIL || 'change-email@studiply.it'
   const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
 
   const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Verify Email Change - Studiply</title>
     </head>
-    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #ffffff; color: #333333;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; padding: 20px;">
         <tr>
-          <td align="center" valign="top">
-            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 600px;">
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 1px solid #e5e7eb;">
               <tr>
-                <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center;">
-                  <img src="${logoUrl}" alt="Studiply Logo" style="width: 120px; height: auto; margin: 0 auto 20px; display: block; border-radius: 12px; background: rgba(255, 255, 255, 0.1); padding: 10px;" />
-                  <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Change Email Address</h1>
-                  <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 15px;">Verify your new email address</p>
+                <td style="padding: 32px 24px 24px; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #111827;">Studiply</h1>
                 </td>
               </tr>
               <tr>
-                <td style="padding: 45px 40px;">
-                  <p style="color: #333333; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">You requested to change your email address from <strong>${oldEmail}</strong> to <strong>${email}</strong>.</p>
-                  <p style="color: #333333; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">Click the button below to confirm this change:</p>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                <td style="padding: 40px 24px;">
+                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.5; color: #374151;">Hello,</p>
+                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.5; color: #374151;">You requested to change your email address from <strong>${oldEmail}</strong> to <strong>${email}</strong>.</p>
+                  <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.5; color: #374151;">Click the button below to confirm this change:</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px 0;">
                     <tr>
                       <td align="center">
-                        <a href="${verificationLink}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">Verify Email Change</a>
+                        <a href="${verificationLink}" style="display: inline-block; padding: 12px 32px; background-color: #111827; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 500; font-size: 16px;">Verify Email Change</a>
                       </td>
                     </tr>
                   </table>
-                  <div style="background: #f8f9fa; border-left: 3px solid #667eea; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                    <p style="color: #666666; margin: 0 0 8px 0; font-size: 14px; line-height: 1.6;">
-                      <strong style="color: #667eea;">Button not working?</strong> Copy and paste this link into your browser:
-                    </p>
-                    <p style="color: #667eea; margin: 0; font-size: 12px; word-break: break-all; font-family: 'Courier New', monospace;">${verificationLink}</p>
-                  </div>
-                  <div style="background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                    <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.6;">
-                      <strong>⏰ Important:</strong> This verification link will expire in 1 hour. If you didn't request this change, you can safely ignore this email.
-                    </p>
-                  </div>
+                  <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.5; color: #6b7280;">If the button does not work, copy and paste this link into your browser:</p>
+                  <p style="margin: 0 0 24px 0; font-size: 12px; line-height: 1.5; color: #6b7280; word-break: break-all; font-family: 'Courier New', monospace;">${verificationLink}</p>
+                  <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6b7280;">This link will expire in 1 hour. If you did not request this change, please ignore this email.</p>
                 </td>
               </tr>
               <tr>
-                <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
-                  <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">If you didn't request to change your email address, you can safely ignore this email.</p>
-                  <p style="color: #cccccc; margin: 0; font-size: 11px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                <td style="padding: 24px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb;">
+                  <p style="margin: 0 0 12px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
+                    <a href="${websiteUrl}" style="color: #6b7280; text-decoration: underline;">Visit Studiply</a> | 
+                    <a href="${websiteUrl}/unsubscribe" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+                  </p>
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
                 </td>
               </tr>
             </table>
@@ -364,47 +347,46 @@ export const sendCalendarReminder = async (email, eventTitle, eventDate, eventTi
 
   const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Calendar Reminder - Studiply</title>
     </head>
-    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #ffffff; color: #333333;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; padding: 20px;">
         <tr>
-          <td align="center" valign="top">
-            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 600px;">
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 1px solid #e5e7eb;">
               <tr>
-                <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center;">
-                  <img src="${logoUrl}" alt="Studiply Logo" style="width: 120px; height: auto; margin: 0 auto 20px; display: block; border-radius: 12px; background: rgba(255, 255, 255, 0.1); padding: 10px;" />
-                  <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">📅 Calendar Reminder</h1>
-                  <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 15px;">Don't forget your upcoming event!</p>
+                <td style="padding: 32px 24px 24px; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #111827;">Studiply</h1>
                 </td>
               </tr>
               <tr>
-                <td style="padding: 45px 40px;">
-                  <p style="color: #333333; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">You have an upcoming event:</p>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 2px solid #667eea; border-radius: 12px; padding: 30px;">
+                <td style="padding: 40px 24px;">
+                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.5; color: #374151;">Hello,</p>
+                  <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.5; color: #374151;">You have an upcoming event:</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px 0; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px;">
                     <tr>
                       <td>
-                        <p style="margin: 0 0 12px 0; color: #667eea; font-size: 18px; font-weight: 700;">${eventTitle}</p>
-                        ${formattedDate ? `<p style="margin: 8px 0; color: #333333; font-size: 15px; line-height: 1.6;"><span style="color: #667eea; margin-right: 8px;">📅</span>${formattedDate}</p>` : ''}
-                        ${eventTime ? `<p style="margin: 8px 0; color: #333333; font-size: 15px; line-height: 1.6;"><span style="color: #667eea; margin-right: 8px;">🕐</span>${eventTime}</p>` : ''}
-                        <p style="margin: 12px 0 0 0; color: #333333; font-size: 15px; line-height: 1.6;"><span style="color: #667eea; font-size: 18px; margin-right: 8px;">🔔</span><strong style="color: #667eea;">Reminder:</strong> ${reminderDays} day${reminderDays > 1 ? 's' : ''} before</p>
+                        <p style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #111827;">${eventTitle}</p>
+                        ${formattedDate ? `<p style="margin: 8px 0; font-size: 15px; line-height: 1.5; color: #374151;">Date: ${formattedDate}</p>` : ''}
+                        ${eventTime ? `<p style="margin: 8px 0; font-size: 15px; line-height: 1.5; color: #374151;">Time: ${eventTime}</p>` : ''}
+                        <p style="margin: 16px 0 0 0; font-size: 14px; line-height: 1.5; color: #6b7280;">Reminder: ${reminderDays} day${reminderDays > 1 ? 's' : ''} before</p>
                       </td>
                     </tr>
                   </table>
-                  <div style="background: #f8f9fa; border-left: 3px solid #667eea; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                    <p style="color: #666666; margin: 0; font-size: 14px; line-height: 1.6;">
-                      <strong style="color: #667eea;">💡 Tip:</strong> Make sure to prepare everything you need for this event ahead of time!
-                    </p>
-                  </div>
+                  <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #6b7280;">Make sure to prepare everything you need for this event ahead of time.</p>
                 </td>
               </tr>
               <tr>
-                <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
-                  <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">This is an automated reminder from Studiply Calendar.</p>
-                  <p style="color: #cccccc; margin: 0; font-size: 11px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                <td style="padding: 24px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb;">
+                  <p style="margin: 0 0 12px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
+                    <a href="${websiteUrl}" style="color: #6b7280; text-decoration: underline;">Visit Studiply</a> | 
+                    <a href="${websiteUrl}/unsubscribe" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+                  </p>
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
                 </td>
               </tr>
             </table>
@@ -428,52 +410,49 @@ export const sendStreakReminder = async (email, userName, currentStreak) => {
     throw new Error('Resend is not configured. Please set RESEND_API_KEY.')
   }
 
-  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
   const fromEmail = process.env.RESEND_NOTIFICATION_EMAIL || 'notification@studiply.it'
   const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
 
   const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Keep Your Streak Going - Studiply</title>
     </head>
-    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
-      <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #ffffff; color: #333333;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; padding: 20px;">
         <tr>
-          <td align="center" valign="top">
-            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 600px;">
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 1px solid #e5e7eb;">
               <tr>
-                <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center;">
-                  <img src="${logoUrl}" alt="Studiply Logo" style="width: 120px; height: auto; margin: 0 auto 20px; display: block; border-radius: 12px; background: rgba(255, 255, 255, 0.1); padding: 10px;" />
-                  <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">🔥 Keep Your Streak Going!</h1>
-                  <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 15px;">Don't break your learning streak!</p>
+                <td style="padding: 32px 24px 24px; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #111827;">Studiply</h1>
                 </td>
               </tr>
               <tr>
-                <td style="padding: 45px 40px;">
-                  <p style="color: #333333; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">Hi ${userName},</p>
-                  <p style="color: #333333; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">You're on a ${currentStreak}-day learning streak! 🎉 Don't let it break today!</p>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f4ff 100%); border: 2px solid #667eea; border-radius: 12px; padding: 30px; margin: 20px 0;">
+                <td style="padding: 40px 24px;">
+                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.5; color: #374151;">Hi ${userName},</p>
+                  <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.5; color: #374151;">You're on a ${currentStreak}-day learning streak. Don't let it break today.</p>
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px 0; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px;">
                     <tr>
                       <td align="center">
-                        <p style="color: #667eea; margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">Current Streak</p>
-                        <h1 style="color: #667eea; margin: 0; font-size: 48px; font-weight: 700; font-family: 'Courier New', monospace;">${currentStreak} days</h1>
+                        <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Current Streak</p>
+                        <p style="margin: 0; font-size: 36px; font-weight: 700; color: #111827; font-family: 'Courier New', Courier, monospace;">${currentStreak} days</p>
                       </td>
                     </tr>
                   </table>
-                  <div style="background: #f8f9fa; border-left: 3px solid #667eea; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                    <p style="color: #666666; margin: 0; font-size: 14px; line-height: 1.6;">
-                      <strong style="color: #667eea;">💪 Keep it up!</strong> Log in today to maintain your streak and continue your learning journey.
-                    </p>
-                  </div>
+                  <p style="margin: 0; font-size: 16px; line-height: 1.5; color: #374151;">Log in today to maintain your streak and continue your learning journey.</p>
                 </td>
               </tr>
               <tr>
-                <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
-                  <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">This is an automated reminder from Studiply.</p>
-                  <p style="color: #cccccc; margin: 0; font-size: 11px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                <td style="padding: 24px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb;">
+                  <p style="margin: 0 0 12px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
+                    <a href="${websiteUrl}" style="color: #6b7280; text-decoration: underline;">Visit Studiply</a> | 
+                    <a href="${websiteUrl}/unsubscribe" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+                  </p>
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
                 </td>
               </tr>
             </table>
@@ -484,8 +463,8 @@ export const sendStreakReminder = async (email, userName, currentStreak) => {
     </html>
   `
 
-  const text = `Hi ${userName},\n\nYou're on a ${currentStreak}-day learning streak! 🎉 Don't let it break today!\n\nLog in today to maintain your streak and continue your learning journey.\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
+  const text = `Hi ${userName},\n\nYou're on a ${currentStreak}-day learning streak. Don't let it break today.\n\nLog in today to maintain your streak and continue your learning journey.\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
 
-  return await sendWithResend(email, `🔥 Keep Your ${currentStreak}-Day Streak Going!`, html, text, fromEmail)
+  return await sendWithResend(email, `Keep Your ${currentStreak}-Day Streak Going`, html, text, fromEmail)
 }
 
