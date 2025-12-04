@@ -16,6 +16,7 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.0",
     "@emailjs/browser": "^4.3.1",
     "agora-rtc-sdk-ng": "^4.24.0",
     "firebase": "^12.2.1",

@@ -11,7 +11,7 @@
 2. **注册账户**
    - 如果已有 WordPress.com 账户，直接登录
    - 如果没有，点击 "Create Account" 注册
-   - 使用你的邮箱地址注册（建议使用 `noreply@studiply.it`）
+   - 使用你的邮箱地址注册（建议使用 `no-reply@studiply.it`）
 
 ### 步骤 2: 上传头像
 
@@ -39,7 +39,7 @@
    - 在 Gravatar 主页，点击 "My Gravatars"
    - 点击 "Add email address"
    - 添加以下邮箱地址（一次一个）：
-     - `noreply@studiply.it`
+     - `no-reply@studiply.it`
      - `change-email@studiply.it`
      - `calendar@studiply.it`
      - `notification@studiply.it`
@@ -61,7 +61,7 @@
 #### 方法 1: 使用 Gravatar 测试工具（最快）
 
 1. 访问 [Gravatar 测试页面](https://gravatar.com)
-2. 在页面顶部输入你的邮箱地址（如 `noreply@studiply.it`）
+2. 在页面顶部输入你的邮箱地址（如 `no-reply@studiply.it`）
 3. 查看是否显示头像
 
 #### 方法 2: 发送测试邮件
@@ -74,7 +74,7 @@
 
 - [ ] 在 Gravatar 注册账户
 - [ ] 上传 Studiply Logo 作为头像
-- [ ] 添加 `noreply@studiply.it` 并关联头像
+- [ ] 添加 `no-reply@studiply.it` 并关联头像
 - [ ] 添加 `change-email@studiply.it` 并关联头像
 - [ ] 添加 `calendar@studiply.it` 并关联头像
 - [ ] 添加 `notification@studiply.it` 并关联头像
@@ -109,7 +109,7 @@
 1. 登录 Gravatar
 2. 点击 "My Gravatars"
 3. 你应该看到所有 4 个邮箱地址：
-   - ✅ `noreply@studiply.it` - 显示头像
+   - ✅ `no-reply@studiply.it` - 显示头像
    - ✅ `change-email@studiply.it` - 显示头像
    - ✅ `calendar@studiply.it` - 显示头像
    - ✅ `notification@studiply.it` - 显示头像

@@ -18,7 +18,7 @@
 RESEND_API_KEY=re_CT8bkJqY_NKrRjboXZZq7RGVHN62BPU3E
 
 # Resend 邮箱地址（已验证的域名）
-RESEND_FROM_EMAIL=noreply@studiply.it              # 注册验证码邮件
+RESEND_FROM_EMAIL=no-reply@studiply.it              # 注册验证码邮件
 RESEND_CHANGE_EMAIL=change-email@studiply.it        # 更换邮箱验证
 RESEND_CALENDAR_EMAIL=calendar@studiply.it          # 日历提醒
 RESEND_NOTIFICATION_EMAIL=notification@studiply.it # 所有提醒（包括 streak）
@@ -40,7 +40,7 @@ PORT=3003
 
 | 邮件类型 | 发件地址 | 用途 |
 |---------|---------|------|
-| 注册验证码 | `noreply@studiply.it` | 用户注册时的验证码 |
+| 注册验证码 | `no-reply@studiply.it` | 用户注册时的验证码 |
 | 更换邮箱验证 | `change-email@studiply.it` | 用户更换邮箱时的验证 |
 | 日历提醒 | `calendar@studiply.it` | 日历事件提醒 |
 | 连续学习提醒 | `notification@studiply.it` | Day streak 提醒 |

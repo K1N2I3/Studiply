@@ -6,7 +6,7 @@
 
 在 Gravatar 中，确保以下所有发件邮箱地址都已上传并关联头像：
 
-- [ ] `noreply@studiply.it` - 注册验证码邮件
+- [ ] `no-reply@studiply.it` - 注册验证码邮件
 - [ ] `change-email@studiply.it` - 更换邮箱验证
 - [ ] `calendar@studiply.it` - 日历提醒
 - [ ] `notification@studiply.it` - 所有提醒（streak 等）
@@ -28,7 +28,7 @@
 #### 方法 1: 使用 Gravatar 测试工具
 
 1. 访问 [Gravatar 测试页面](https://gravatar.com)
-2. 输入你的邮箱地址（如 `noreply@studiply.it`）
+2. 输入你的邮箱地址（如 `no-reply@studiply.it`）
 3. 查看是否显示头像
 
 #### 方法 2: 发送测试邮件
@@ -50,7 +50,7 @@
 ```bash
 # 在 Render 环境变量中确认：
 RESEND_API_KEY=re_CT8bkJqY_NKrRjboXZZq7RGVHN62BPU3E
-RESEND_FROM_EMAIL=noreply@studiply.it
+RESEND_FROM_EMAIL=no-reply@studiply.it
 RESEND_CHANGE_EMAIL=change-email@studiply.it
 RESEND_CALENDAR_EMAIL=calendar@studiply.it
 RESEND_NOTIFICATION_EMAIL=notification@studiply.it
@@ -60,7 +60,7 @@ RESEND_NOTIFICATION_EMAIL=notification@studiply.it
 
 发送测试邮件，检查每种邮件的头像：
 
-- [ ] 注册验证码邮件（使用 `noreply@studiply.it`）
+- [ ] 注册验证码邮件（使用 `no-reply@studiply.it`）
 - [ ] 更换邮箱验证（使用 `change-email@studiply.it`）
 - [ ] 日历提醒（使用 `calendar@studiply.it`）
 - [ ] Streak 提醒（使用 `notification@studiply.it`）

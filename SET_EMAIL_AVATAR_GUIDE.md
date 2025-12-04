@@ -17,7 +17,7 @@ Gravatar 是大多数邮件客户端使用的头像服务。
 
 1. 访问 [https://gravatar.com](https://gravatar.com)
 2. 点击 "Create Your Gravatar"
-3. 使用你的**发件人邮箱地址**注册（例如：`noreply@studiply.it`）
+3. 使用你的**发件人邮箱地址**注册（例如：`no-reply@studiply.it`）
 
 ### 步骤 2: 上传头像
 
@@ -30,7 +30,7 @@ Gravatar 是大多数邮件客户端使用的头像服务。
 ### 步骤 3: 关联邮箱地址
 
 1. 在 Gravatar 中，确保以下邮箱地址都已关联头像：
-   - `noreply@studiply.it`
+   - `no-reply@studiply.it`
    - `change-email@studiply.it`
    - `calendar@studiply.it`
    - `notification@studiply.it`
@@ -61,7 +61,7 @@ Gravatar 是大多数邮件客户端使用的头像服务。
 1. **Gravatar 是最可靠的方法**：大多数邮件客户端（Gmail、Outlook、Apple Mail 等）都支持 Gravatar
 
 2. **需要为每个邮箱地址设置**：
-   - `noreply@studiply.it`
+   - `no-reply@studiply.it`
    - `change-email@studiply.it`
    - `calendar@studiply.it`
    - `notification@studiply.it`
@@ -86,7 +86,7 @@ Gravatar 是大多数邮件客户端使用的头像服务。
 ## 📋 快速检查清单
 
 - [ ] 在 Gravatar 注册账户
-- [ ] 使用 `noreply@studiply.it` 注册
+- [ ] 使用 `no-reply@studiply.it` 注册
 - [ ] 上传 Studiply Logo 作为头像
 - [ ] 为所有发件邮箱地址关联头像
 - [ ] 等待 24-48 小时让头像生效
