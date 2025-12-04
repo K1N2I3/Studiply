@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import nodemailer from 'nodemailer'
-import { sendVerificationEmail } from './services/emailService.js'
+import { sendVerificationEmail, sendEmailChangeVerification, sendCalendarReminder, sendStreakReminder } from './services/emailService.js'
 import admin from 'firebase-admin'
 import dotenv from 'dotenv'
 import { sendVerificationCode, verifyCode } from './services/twilioService.js'
@@ -572,106 +572,7 @@ app.post('/api/send-verification-email', async (req, res) => {
 })
 
 // Send email change verification email
-const sendEmailChangeVerification = async (email, token, oldEmail) => {
-  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
-  const verificationLink = `https://www.studiply.it/verify-email-change?token=${token}`
-  const startTime = Date.now()
-  
-  const mailOptions = {
-    from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
-    to: email,
-    subject: 'Studiply - Verify Your New Email Address',
-    priority: 'high', // 高优先级
-    headers: {
-      'X-Priority': '1', // 高优先级
-      'X-MSMail-Priority': 'High',
-      'Importance': 'high',
-      'Date': new Date().toUTCString() // 确保日期正确
-    },
-    html: `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" href="https://www.studiply.it/studiply-logo.png" type="image/png">
-        <link rel="apple-touch-icon" href="https://www.studiply.it/studiply-logo.png">
-        <meta name="msapplication-TileImage" content="https://www.studiply.it/studiply-logo.png">
-        <meta property="og:image" content="https://www.studiply.it/studiply-logo.png">
-      </head>
-      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background: #f8f9fa; padding: 40px 20px;">
-          <tr>
-            <td align="center" valign="top">
-              <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); max-width: 600px;">
-                <!-- Header -->
-                <tr>
-                  <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 50px 40px; text-align: center;">
-                    <!-- Logo -->
-                    <img src="${logoUrl}" alt="Studiply Logo" style="width: 120px; height: auto; margin: 0 auto 20px; display: block; border-radius: 12px; background: rgba(255, 255, 255, 0.1); padding: 10px;" />
-                    <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Change Email Address</h1>
-                    <p style="color: rgba(255, 255, 255, 0.9); margin: 8px 0 0 0; font-size: 15px;">Verify your new email address</p>
-                  </td>
-                </tr>
-                <!-- Content -->
-                <tr>
-                  <td style="padding: 45px 40px;">
-                    <p style="color: #333333; margin: 0 0 20px 0; font-size: 16px; line-height: 1.6;">You requested to change your email address from <strong>${oldEmail}</strong> to <strong>${email}</strong>.</p>
-                    
-                    <p style="color: #333333; margin: 0 0 30px 0; font-size: 16px; line-height: 1.6;">Click the button below to confirm this change:</p>
-                    
-                    <!-- Verification Button -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                      <tr>
-                        <td align="center">
-                          <a href="${verificationLink}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);">Verify Email Change</a>
-                        </td>
-                      </tr>
-                    </table>
-                    
-                    <!-- Alternative Link -->
-                    <div style="background: #f8f9fa; border-left: 3px solid #667eea; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                      <p style="color: #666666; margin: 0 0 8px 0; font-size: 14px; line-height: 1.6;">
-                        <strong style="color: #667eea;">Button not working?</strong> Copy and paste this link into your browser:
-                      </p>
-                      <p style="color: #667eea; margin: 0; font-size: 12px; word-break: break-all; font-family: 'Courier New', monospace;">${verificationLink}</p>
-                    </div>
-                    
-                    <!-- Expiration Notice -->
-                    <div style="background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 6px; padding: 18px; margin: 25px 0;">
-                      <p style="color: #856404; margin: 0; font-size: 14px; line-height: 1.6;">
-                        <strong>⏰ Important:</strong> This verification link will expire in 1 hour. If you didn't request this change, you can safely ignore this email.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-                <!-- Footer -->
-                <tr>
-                  <td style="background: #f8f9fa; padding: 25px 40px; text-align: center; border-top: 1px solid #e9ecef;">
-                    <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px; line-height: 1.5;">If you didn't request to change your email address, you can safely ignore this email.</p>
-                    <p style="color: #cccccc; margin: 0; font-size: 11px;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-        </table>
-      </body>
-      </html>
-    `
-  }
-
-  try {
-    const info = await transporter.sendMail(mailOptions)
-    const duration = Date.now() - startTime
-    console.log(`✅ Email change verification sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
-    return info
-  } catch (error) {
-    const duration = Date.now() - startTime
-    console.error(`❌ Failed to send email change verification to ${email} after ${duration}ms:`, error)
-    throw error
-  }
-}
+// sendEmailChangeVerification 已移至 services/emailService.js
 
 // API endpoint to send email change verification
 app.post('/api/send-email-change-verification', async (req, res) => {
@@ -695,7 +596,10 @@ app.post('/api/send-email-change-verification', async (req, res) => {
       })
     }
 
-    await sendEmailChangeVerification(newEmail, token, oldEmail)
+    // 使用 Resend 发送更换邮箱验证邮件
+    sendEmailChangeVerification(newEmail, token, oldEmail).catch(error => {
+      console.error('Failed to send email change verification:', error)
+    })
     
     console.log('✅ Email change verification email sent successfully to:', newEmail)
     res.json({
@@ -733,30 +637,49 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
       })
     }
 
-    const logoUrl = 'https://www.studiply.it/studiply-logo.png'
+    // 使用 Resend 发送日历提醒邮件
+    await sendCalendarReminder(email, eventTitle, eventDate, eventTime, reminderDays)
     
-    // Format event date
-    let formattedDate = ''
-    if (eventDate) {
-      try {
-        const date = new Date(eventDate)
-        formattedDate = date.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        })
-      } catch (error) {
-        console.warn('Error formatting date:', error)
-        formattedDate = eventDate // Fallback to original
-      }
+    console.log('✅ Calendar reminder sent successfully to:', email)
+    res.json({
+      success: true,
+      message: 'Calendar reminder sent successfully'
+    })
+  } catch (error) {
+    console.error('❌ Error sending calendar reminder:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send calendar reminder'
+    })
+  }
+})
+
+// 旧的日历提醒代码已移至 services/emailService.js
+const _oldCalendarReminderCode = () => {
+  const logoUrl = 'https://www.studiply.it/studiply-logo.png'
+  
+  // Format event date
+  let formattedDate = ''
+  if (eventDate) {
+    try {
+      const date = new Date(eventDate)
+      formattedDate = date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    } catch (error) {
+      console.warn('Error formatting date:', error)
+      formattedDate = eventDate // Fallback to original
     }
-    
-    const mailOptions = {
-      from: `"Studiply Calendar" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
-      to: email,
-      subject: `Reminder: ${eventTitle} - ${reminderDays} day${reminderDays > 1 ? 's' : ''} before`,
-      html: `
+  }
+  
+  const mailOptions = {
+    from: `"Studiply Calendar" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
+    to: email,
+    subject: `Reminder: ${eventTitle} - ${reminderDays} day${reminderDays > 1 ? 's' : ''} before`,
+    html: `
         <!DOCTYPE html>
         <html>
         <head>
@@ -827,21 +750,8 @@ app.post('/api/send-calendar-reminder', async (req, res) => {
       `
     }
 
-    await transporter.sendMail(mailOptions)
-    
-    console.log('✅ Calendar reminder sent successfully to:', email)
-    res.json({
-      success: true,
-      message: 'Calendar reminder sent successfully'
-    })
-  } catch (error) {
-    console.error('❌ Error sending calendar reminder:', error)
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send calendar reminder'
-    })
-  }
-})
+  // 旧代码已移除，现在使用 sendCalendarReminder 函数
+}
 
 // Use routes
 try {
@@ -892,8 +802,20 @@ app.get('/api/health', (req, res) => {
   })
 })
 
-// Send streak reminder email
+// Send streak reminder email (使用 Resend)
 const sendStreakReminderEmail = async (email, userName, currentStreak) => {
+  // 使用 Resend 发送 streak 提醒邮件
+  try {
+    await sendStreakReminder(email, userName, currentStreak)
+    return { success: true }
+  } catch (error) {
+    console.error('Failed to send streak reminder:', error)
+    throw error
+  }
+}
+
+// 旧的 streak 提醒代码已移至 services/emailService.js
+const _oldStreakReminderCode = () => {
   const logoUrl = 'https://www.studiply.it/studiply-logo.png'
   const loginUrl = 'https://www.studiply.it/login'
   
