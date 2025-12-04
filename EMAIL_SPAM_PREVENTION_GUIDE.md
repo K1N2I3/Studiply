@@ -63,7 +63,7 @@ Value: v=DMARC1; p=none; rua=mailto:dmarc@studiply.it
 
 在环境变量中设置：
 ```bash
-RESEND_FROM_EMAIL=no-reply@studiply.it  # 使用验证的域名
+RESEND_FROM_EMAIL=noreply@studiply.it  # 使用验证的域名
 ```
 
 ### 方案 2: 配置 SMTP 的 SPF/DKIM/DMARC

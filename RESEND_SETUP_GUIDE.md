@@ -29,7 +29,7 @@
 
 ### 3. 验证域名（可选但推荐）
 
-为了使用 `no-reply@studiply.it` 这样的自定义发件地址：
+为了使用 `noreply@studiply.it` 这样的自定义发件地址：
 
 1. 进入 "Domains" 页面
 2. 点击 "Add Domain"
@@ -48,7 +48,7 @@
 RESEND_API_KEY=re_your_api_key_here
 
 # 发件邮箱（如果验证了域名，使用你的域名邮箱）
-RESEND_FROM_EMAIL=no-reply@studiply.it
+RESEND_FROM_EMAIL=noreply@studiply.it
 
 # 或者使用 Resend 测试域名
 # RESEND_FROM_EMAIL=onboarding@resend.dev

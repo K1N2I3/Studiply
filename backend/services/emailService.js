@@ -15,7 +15,7 @@ if (process.env.SMTP_HOST && process.env.EMAIL_PASSWORD) {
     port: parseInt(process.env.SMTP_PORT || '465'),
     secure: process.env.SMTP_PORT === '465' || !process.env.SMTP_PORT,
     auth: {
-      user: process.env.EMAIL_USER || 'no-reply@studiply.it',
+      user: process.env.EMAIL_USER || 'noreply@studiply.it',
       pass: process.env.EMAIL_PASSWORD
     },
     tls: {
@@ -117,7 +117,7 @@ const sendWithResend = async (to, subject, html, text, fromEmail = null, headers
   const startTime = Date.now()
   
   try {
-    const defaultFromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_USER || 'no-reply@studiply.it'
+    const defaultFromEmail = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_USER || 'noreply@studiply.it'
     const from = fromEmail || defaultFromEmail
     const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
     
@@ -171,7 +171,7 @@ const sendWithSMTP = async (email, code) => {
   const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
   
   const mailOptions = {
-    from: `"Studiply" <${process.env.EMAIL_USER || 'no-reply@studiply.it'}>`,
+    from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
     to: email,
     subject: 'Studiply - Email Verification',
     priority: 'normal', // 改为 normal，high priority 可能触发垃圾邮件过滤器
@@ -215,7 +215,7 @@ export const sendVerificationEmail = async (email, code, options = {}) => {
     try {
       // 优先使用 Resend（如果配置了）
       if (resend) {
-        const fromEmail = process.env.RESEND_FROM_EMAIL || 'no-reply@studiply.it'
+        const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@studiply.it'
         const text = `Hello,\n\nPlease use the following code to verify your email address:\n\n${code}\n\nThis code will expire in 10 minutes. If you did not request this code, please ignore this email.\n\nBest regards,\nStudiply Team\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
         return await sendWithResend(email, 'Studiply - Email Verification', generateVerificationEmailHTML(code), text, fromEmail)
       }

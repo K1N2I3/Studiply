@@ -103,7 +103,7 @@ const transporter = nodemailer.createTransport({
   port: parseInt(process.env.SMTP_PORT || '465'),
   secure: process.env.SMTP_PORT === '465' || !process.env.SMTP_PORT,
   auth: {
-    user: process.env.EMAIL_USER || 'no-reply@studiply.it',
+    user: process.env.EMAIL_USER || 'noreply@studiply.it',
     pass: process.env.EMAIL_PASSWORD
   },
   tls: {
@@ -676,7 +676,7 @@ const _oldCalendarReminderCode = () => {
   }
   
   const mailOptions = {
-    from: `"Studiply Calendar" <${process.env.EMAIL_USER || 'no-reply@studiply.it'}>`,
+    from: `"Studiply Calendar" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
     to: email,
     subject: `Reminder: ${eventTitle} - ${reminderDays} day${reminderDays > 1 ? 's' : ''} before`,
     html: `
