@@ -399,7 +399,10 @@ export const sendCalendarReminder = async (email, eventTitle, eventDate, eventTi
 
   const text = `Calendar Reminder\n\nYou have an upcoming event: ${eventTitle}\n${formattedDate ? `Date: ${formattedDate}\n` : ''}${eventTime ? `Time: ${eventTime}\n` : ''}Reminder: ${reminderDays} day${reminderDays > 1 ? 's' : ''} before\n\nMake sure to prepare everything you need for this event ahead of time!\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
 
-  return await sendWithResend(email, `📅 Reminder: ${eventTitle}`, html, text, fromEmail)
+  // 移除 emoji 从主题行，避免触发垃圾邮件过滤器
+  const subject = `Reminder: ${eventTitle} - ${reminderDays} day${reminderDays > 1 ? 's' : ''} before`
+
+  return await sendWithResend(email, subject, html, text, fromEmail)
 }
 
 /**
