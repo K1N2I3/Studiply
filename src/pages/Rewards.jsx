@@ -538,6 +538,192 @@ const Rewards = () => {
             </div>
           )}
 
+          {/* Leaderboard Tab */}
+          {selectedTab === 'leaderboard' && (
+            <div className="space-y-6">
+              {/* Leaderboard Type Selector */}
+              <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+                isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+              }`}>
+                <div className="p-6">
+                  <h2 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Leaderboard
+                  </h2>
+                  <div className="flex gap-3 flex-wrap">
+                    {[
+                      { id: 'streak', label: 'Day Streak', icon: Flame },
+                      { id: 'level', label: 'Level', icon: GraduationCap },
+                      { id: 'quests', label: 'Quests', icon: Target }
+                    ].map(type => {
+                      const Icon = type.icon
+                      return (
+                        <button
+                          key={type.id}
+                          onClick={() => setLeaderboardType(type.id)}
+                          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
+                            leaderboardType === type.id
+                              ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                              : isDark
+                                ? 'bg-white/5 text-white/70 hover:bg-white/10'
+                                : 'bg-white text-slate-700 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Icon className="w-5 h-5" />
+                          {type.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* User Rank Card */}
+              {userRank && userRank.rank && (
+                <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+                  isDark ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-pink-500/10' : 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50'
+                }`}>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'} mb-1`}>Your Rank</p>
+                        <p className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          #{userRank.rank}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`text-sm ${isDark ? 'text-white/70' : 'text-slate-600'} mb-1`}>
+                          {leaderboardType === 'streak' ? 'Day Streak' :
+                           leaderboardType === 'level' ? 'Level' :
+                           'Quests Completed'}
+                        </p>
+                        <p className={`text-3xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                          {userRank.value}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Leaderboard List */}
+              <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
+                isDark ? 'border-white/12 bg-white/6' : 'border-white/80 bg-white'
+              }`}>
+                <div className="p-6">
+                  {leaderboardLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  ) : leaderboardData.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Trophy className={`w-16 h-16 mx-auto mb-4 ${isDark ? 'text-white/30' : 'text-slate-300'}`} />
+                      <p className={`text-lg ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                        No data available yet
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {leaderboardData.map((entry, index) => {
+                        const isCurrentUser = entry.userId === user?.id
+                        const rank = index + 1
+                        const medalColors = {
+                          1: 'from-yellow-400 to-amber-500',
+                          2: 'from-slate-300 to-slate-400',
+                          3: 'from-orange-400 to-orange-600'
+                        }
+                        
+                        return (
+                          <div
+                            key={entry.userId}
+                            className={`rounded-xl border p-4 transition-all ${
+                              isCurrentUser
+                                ? isDark
+                                  ? 'border-purple-500/50 bg-gradient-to-r from-purple-500/20 to-pink-500/20'
+                                  : 'border-purple-300 bg-gradient-to-r from-purple-50 to-pink-50'
+                                : isDark
+                                  ? 'border-white/10 bg-white/5 hover:bg-white/10'
+                                  : 'border-slate-200 bg-white hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center gap-4">
+                              {/* Rank */}
+                              <div className="flex-shrink-0 w-12 text-center">
+                                {rank <= 3 ? (
+                                  <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${medalColors[rank]} flex items-center justify-center mx-auto shadow-lg`}>
+                                    <Trophy className="w-6 h-6 text-white" />
+                                  </div>
+                                ) : (
+                                  <span className={`text-lg font-bold ${
+                                    isDark ? 'text-white/70' : 'text-slate-600'
+                                  }`}>
+                                    #{rank}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Avatar */}
+                              <div className="flex-shrink-0">
+                                {entry.userAvatar ? (
+                                  <img
+                                    src={entry.userAvatar}
+                                    alt={entry.userName}
+                                    className="w-12 h-12 rounded-full border-2 border-purple-500/30"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center border-2 border-purple-500/30">
+                                    <User className="w-6 h-6 text-white" />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* User Info */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className={`font-semibold truncate ${
+                                    isDark ? 'text-white' : 'text-slate-900'
+                                  }`}>
+                                    {entry.userName}
+                                    {isCurrentUser && (
+                                      <span className="ml-2 text-xs text-purple-500">(You)</span>
+                                    )}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-4 mt-1">
+                                  <span className={`text-xs ${
+                                    isDark ? 'text-white/60' : 'text-slate-500'
+                                  }`}>
+                                    {leaderboardType === 'streak' ? `${entry.value} day${entry.value !== 1 ? 's' : ''} streak` :
+                                     leaderboardType === 'level' ? `Level ${entry.value}` :
+                                     `${entry.value} quest${entry.value !== 1 ? 's' : ''} completed`}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Value Badge */}
+                              <div className={`flex-shrink-0 px-4 py-2 rounded-lg ${
+                                rank === 1
+                                  ? 'bg-gradient-to-r from-yellow-400 to-amber-500 text-white'
+                                  : rank === 2
+                                    ? 'bg-gradient-to-r from-slate-300 to-slate-400 text-white'
+                                    : rank === 3
+                                      ? 'bg-gradient-to-r from-orange-400 to-orange-600 text-white'
+                                      : isDark
+                                        ? 'bg-purple-500/20 text-purple-300'
+                                        : 'bg-purple-100 text-purple-700'
+                              }`}>
+                                <span className="font-bold text-lg">{entry.value}</span>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Shop Tab */}
           {selectedTab === 'shop' && (
             <div className={`rounded-3xl border shadow-2xl backdrop-blur-xl overflow-hidden ${
