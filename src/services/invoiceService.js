@@ -244,22 +244,28 @@ export const hasUnpaidInvoices = async (studentId) => {
  */
 export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
   try {
+    console.log('📄 Marking invoice as paid:', invoiceId)
+    
     const invoiceRef = doc(db, 'invoices', invoiceId)
     const invoiceDoc = await getDoc(invoiceRef)
     
     if (!invoiceDoc.exists()) {
+      console.error('❌ Invoice not found:', invoiceId)
       return { success: false, error: 'Invoice not found' }
     }
     
     const invoiceData = invoiceDoc.data()
+    console.log('📄 Invoice data:', invoiceData)
     
     // 更新账单状态
     await updateDoc(invoiceRef, {
       status: 'paid',
       paidAt: serverTimestamp(),
-      stripeSessionId,
+      stripeSessionId: stripeSessionId || 'manual',
       updatedAt: serverTimestamp()
     })
+    
+    console.log('✅ Invoice status updated to paid')
     
     // 更新导师的收入统计
     const tutorStatsRef = doc(db, 'tutorStats', invoiceData.tutorId)
@@ -268,13 +274,15 @@ export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
     if (tutorStatsDoc.exists()) {
       const currentStats = tutorStatsDoc.data()
       await updateDoc(tutorStatsRef, {
-        totalEarnings: (currentStats.totalEarnings || 0) + invoiceData.tutorEarnings,
-        pendingEarnings: Math.max(0, (currentStats.pendingEarnings || 0) - invoiceData.tutorEarnings),
+        totalEarnings: (currentStats.totalEarnings || 0) + (invoiceData.tutorEarnings || 0),
+        pendingEarnings: Math.max(0, (currentStats.pendingEarnings || 0) - (invoiceData.tutorEarnings || 0)),
+        completedSessions: (currentStats.completedSessions || 0) + 1,
         updatedAt: serverTimestamp()
       })
+      console.log('✅ Tutor stats updated')
     } else {
       await setDoc(tutorStatsRef, {
-        totalEarnings: invoiceData.tutorEarnings,
+        totalEarnings: invoiceData.tutorEarnings || 0,
         pendingEarnings: 0,
         totalSessions: 1,
         totalRating: 0,
@@ -283,15 +291,23 @@ export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
+      console.log('✅ Tutor stats created')
     }
     
     console.log('✅ Invoice marked as paid:', invoiceId)
     
     return { success: true }
   } catch (error) {
-    console.error('Error marking invoice as paid:', error)
+    console.error('❌ Error marking invoice as paid:', error)
     return { success: false, error: error.message }
   }
+}
+
+/**
+ * 直接通过 invoiceId 更新账单为已支付（用于手动修复或前端直接调用）
+ */
+export const forceMarkInvoiceAsPaid = async (invoiceId) => {
+  return markInvoiceAsPaid(invoiceId, 'force_paid_' + Date.now())
 }
 
 /**
