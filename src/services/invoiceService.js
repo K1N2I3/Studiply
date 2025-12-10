@@ -14,14 +14,30 @@ const PLATFORM_FEE_RATE = 0.05
  */
 export const createInvoice = async (sessionId, studentId, tutorId, durationMinutes, subject) => {
   try {
+    console.log('📄 Creating invoice...', { sessionId, studentId, tutorId, durationMinutes, subject })
+    
+    // 验证必需参数
+    if (!sessionId || !studentId || !tutorId) {
+      console.error('❌ Missing required parameters:', { sessionId, studentId, tutorId })
+      return { success: false, error: 'Missing required parameters: sessionId, studentId, or tutorId' }
+    }
+    
+    if (!durationMinutes || durationMinutes <= 0) {
+      console.error('❌ Invalid duration:', durationMinutes)
+      return { success: false, error: 'Invalid duration' }
+    }
+    
     // 获取导师的小时费率
     const tutorDoc = await getDoc(doc(db, 'users', tutorId))
     if (!tutorDoc.exists()) {
+      console.error('❌ Tutor not found:', tutorId)
       return { success: false, error: 'Tutor not found' }
     }
     
     const tutorData = tutorDoc.data()
     const hourlyRate = tutorData.tutorProfile?.hourlyRate || 15
+    
+    console.log('💰 Tutor hourly rate:', hourlyRate)
     
     // 计算费用（按分钟比例）
     const hours = durationMinutes / 60
@@ -34,14 +50,14 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
     const studentName = studentDoc.exists() ? studentDoc.data().name : 'Unknown'
     const tutorName = tutorData.name || 'Unknown'
     
-    // 创建账单
-    const invoiceRef = await addDoc(collection(db, 'invoices'), {
+    // 创建账单数据
+    const invoiceData = {
       sessionId,
       studentId,
       tutorId,
       studentName,
       tutorName,
-      subject,
+      subject: subject || 'Tutoring Session',
       durationMinutes,
       hourlyRate,
       subtotal,
@@ -51,9 +67,14 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
       status: 'pending', // pending, paid, cancelled
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    })
+    }
     
-    console.log('📄 Invoice created:', invoiceRef.id)
+    console.log('📄 Invoice data:', invoiceData)
+    
+    // 创建账单
+    const invoiceRef = await addDoc(collection(db, 'invoices'), invoiceData)
+    
+    console.log('✅ Invoice created successfully:', invoiceRef.id)
     
     return { 
       success: true, 
@@ -66,7 +87,7 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
       }
     }
   } catch (error) {
-    console.error('Error creating invoice:', error)
+    console.error('❌ Error creating invoice:', error)
     return { success: false, error: error.message }
   }
 }
@@ -76,17 +97,40 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
  */
 export const getStudentInvoices = async (studentId) => {
   try {
-    const q = query(
-      collection(db, 'invoices'),
-      where('studentId', '==', studentId),
-      orderBy('createdAt', 'desc')
-    )
+    console.log('📋 Fetching invoices for student:', studentId)
     
-    const snapshot = await getDocs(q)
+    let snapshot
+    try {
+      // 优先使用排序（需要索引）
+      const q = query(
+        collection(db, 'invoices'),
+        where('studentId', '==', studentId),
+        orderBy('createdAt', 'desc')
+      )
+      snapshot = await getDocs(q)
+    } catch (indexError) {
+      // 如果索引不存在，降级为不排序查询
+      console.warn('⚠️ Index not available, falling back to unsorted query:', indexError.message)
+      const fallbackQuery = query(
+        collection(db, 'invoices'),
+        where('studentId', '==', studentId)
+      )
+      snapshot = await getDocs(fallbackQuery)
+    }
+    
     const invoices = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }))
+    
+    // 本地排序（按 createdAt 降序）
+    invoices.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
+      const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
+      return bTime - aTime
+    })
+    
+    console.log('📋 Found', invoices.length, 'invoices for student')
     
     return { success: true, invoices }
   } catch (error) {
@@ -100,17 +144,38 @@ export const getStudentInvoices = async (studentId) => {
  */
 export const getTutorInvoices = async (tutorId) => {
   try {
-    const q = query(
-      collection(db, 'invoices'),
-      where('tutorId', '==', tutorId),
-      orderBy('createdAt', 'desc')
-    )
+    console.log('📋 Fetching invoices for tutor:', tutorId)
     
-    const snapshot = await getDocs(q)
+    let snapshot
+    try {
+      const q = query(
+        collection(db, 'invoices'),
+        where('tutorId', '==', tutorId),
+        orderBy('createdAt', 'desc')
+      )
+      snapshot = await getDocs(q)
+    } catch (indexError) {
+      console.warn('⚠️ Index not available, falling back to unsorted query:', indexError.message)
+      const fallbackQuery = query(
+        collection(db, 'invoices'),
+        where('tutorId', '==', tutorId)
+      )
+      snapshot = await getDocs(fallbackQuery)
+    }
+    
     const invoices = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }))
+    
+    // 本地排序
+    invoices.sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() || a.createdAt?.seconds * 1000 || 0
+      const bTime = b.createdAt?.toMillis?.() || b.createdAt?.seconds * 1000 || 0
+      return bTime - aTime
+    })
+    
+    console.log('📋 Found', invoices.length, 'invoices for tutor')
     
     return { success: true, invoices }
   } catch (error) {
@@ -124,13 +189,40 @@ export const getTutorInvoices = async (tutorId) => {
  */
 export const hasUnpaidInvoices = async (studentId) => {
   try {
-    const q = query(
-      collection(db, 'invoices'),
-      where('studentId', '==', studentId),
-      where('status', '==', 'pending')
-    )
+    console.log('🔍 Checking unpaid invoices for student:', studentId)
     
-    const snapshot = await getDocs(q)
+    let snapshot
+    try {
+      const q = query(
+        collection(db, 'invoices'),
+        where('studentId', '==', studentId),
+        where('status', '==', 'pending')
+      )
+      snapshot = await getDocs(q)
+    } catch (indexError) {
+      // 如果复合索引不存在，获取所有学生的发票然后筛选
+      console.warn('⚠️ Index not available, falling back to filter:', indexError.message)
+      const fallbackQuery = query(
+        collection(db, 'invoices'),
+        where('studentId', '==', studentId)
+      )
+      const allInvoices = await getDocs(fallbackQuery)
+      const pendingDocs = allInvoices.docs.filter(doc => doc.data().status === 'pending')
+      
+      console.log('🔍 Found', pendingDocs.length, 'unpaid invoices')
+      
+      return { 
+        success: true, 
+        hasUnpaid: pendingDocs.length > 0,
+        unpaidCount: pendingDocs.length,
+        unpaidInvoices: pendingDocs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }))
+      }
+    }
+    
+    console.log('🔍 Found', snapshot.size, 'unpaid invoices')
     
     return { 
       success: true, 

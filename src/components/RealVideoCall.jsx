@@ -941,15 +941,29 @@ const RealVideoCall = ({ sessionData, onClose }) => {
         
         console.log('✅ Session marked as completed:', sessionData.id)
         
+        // 获取正确的 studentId 和 tutorId
+        // sessionData 可能有直接的 studentId/tutorId 或者通过 student/tutor 对象
+        const studentId = sessionData.studentId || sessionData.student?.id
+        const tutorId = sessionData.tutorId || sessionData.tutor?.id
+        
+        console.log('📊 Invoice creation check:', {
+          safeDuration,
+          studentId,
+          tutorId,
+          sessionDataKeys: Object.keys(sessionData),
+          hasStudent: !!sessionData.student,
+          hasTutor: !!sessionData.tutor
+        })
+        
         // 创建账单（只有当通话时长超过1分钟时）
-        if (safeDuration >= 60 && sessionData.studentId && sessionData.tutorId) {
+        if (safeDuration >= 60 && studentId && tutorId) {
           try {
             const { createInvoice } = await import('../services/invoiceService')
             const durationMinutes = Math.ceil(safeDuration / 60) // 向上取整到分钟
             const result = await createInvoice(
               sessionData.id,
-              sessionData.studentId,
-              sessionData.tutorId,
+              studentId,
+              tutorId,
               durationMinutes,
               sessionData.subject || 'Tutoring Session'
             )
@@ -962,6 +976,13 @@ const RealVideoCall = ({ sessionData, onClose }) => {
           } catch (invoiceError) {
             console.error('❌ Error creating invoice:', invoiceError)
           }
+        } else {
+          console.warn('⚠️ Invoice not created:', {
+            reason: safeDuration < 60 ? 'Duration too short' : 'Missing studentId or tutorId',
+            safeDuration,
+            studentId,
+            tutorId
+          })
         }
       } catch (error) {
         console.error('❌ Failed to update session status:', error)
