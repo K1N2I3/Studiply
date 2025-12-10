@@ -14,7 +14,10 @@ import {
   TrendingUp,
   BookOpen,
   Award,
-  Timer
+  Timer,
+  Receipt,
+  Wallet,
+  CreditCard
 } from 'lucide-react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -34,6 +37,8 @@ import { useNotification } from '../contexts/NotificationContext'
 import { listenToChatList, formatMessageTime, getUnreadTutorMessagesCount, subscribeUnreadTutorMessagesCount } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
 import { checkLimit, incrementUsage } from '../services/limitsService'
+import { hasUnpaidInvoices, getStudentInvoices } from '../services/invoiceService'
+import InvoiceCard from '../components/InvoiceCard'
 
 const StudentDashboard = () => {
   const { user } = useSimpleAuth()
@@ -52,7 +57,37 @@ const StudentDashboard = () => {
   const [showChatList, setShowChatList] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
   const [unreadTutors, setUnreadTutors] = useState([]) // 存储有未读消息的 tutor 列表
+  const [unpaidInvoicesData, setUnpaidInvoicesData] = useState({ hasUnpaid: false, unpaidCount: 0, invoices: [] })
+  const [invoices, setInvoices] = useState([])
+  const [selectedTab, setSelectedTab] = useState('sessions') // 'sessions' or 'invoices'
 
+  // 检查未支付账单
+  useEffect(() => {
+    const checkInvoices = async () => {
+      if (!user?.id) return
+      
+      try {
+        const result = await hasUnpaidInvoices(user.id)
+        if (result.success) {
+          setUnpaidInvoicesData({
+            hasUnpaid: result.hasUnpaid,
+            unpaidCount: result.unpaidCount,
+            invoices: result.unpaidInvoices || []
+          })
+        }
+        
+        // 获取所有账单
+        const allInvoices = await getStudentInvoices(user.id)
+        if (allInvoices.success) {
+          setInvoices(allInvoices.invoices)
+        }
+      } catch (error) {
+        console.error('Error checking invoices:', error)
+      }
+    }
+    
+    checkInvoices()
+  }, [user?.id])
 
   // 加载聊天列表（只显示 tutor chat 类型的消息）
   useEffect(() => {
@@ -240,6 +275,17 @@ const StudentDashboard = () => {
 
   const handleStartSession = async (sessionId) => {
     try {
+      // 检查是否有未支付账单
+      if (unpaidInvoicesData.hasUnpaid) {
+        showError(
+          `You have ${unpaidInvoicesData.unpaidCount} unpaid invoice(s). Please pay your outstanding invoices before joining video calls.`,
+          6000,
+          'Payment Required'
+        )
+        setSelectedTab('invoices')
+        return
+      }
+
       let session = sessions.find(s => s.id === sessionId)
       if (!session) return
 
@@ -714,6 +760,41 @@ const StudentDashboard = () => {
                   {showChatList ? 'Hide Chat' : 'Chat with Tutors'}
                 </button>
               </div>
+
+              {/* Tabs: Sessions / Invoices */}
+              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-white/10">
+                <button
+                  onClick={() => setSelectedTab('sessions')}
+                  className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+                    selectedTab === 'sessions'
+                      ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30'
+                      : isDark
+                        ? 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
+                        : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+                  }`}
+                >
+                  <Video className="h-4 w-4" />
+                  Sessions
+                </button>
+                <button
+                  onClick={() => setSelectedTab('invoices')}
+                  className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 flex items-center gap-2 ${
+                    selectedTab === 'invoices'
+                      ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30'
+                      : isDark
+                        ? 'bg-white/8 text-white/70 hover:bg-white/12 border border-white/10'
+                        : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+                  }`}
+                >
+                  <Receipt className="h-4 w-4" />
+                  Invoices
+                  {unpaidInvoicesData.hasUnpaid && (
+                    <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                      {unpaidInvoicesData.unpaidCount}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -884,109 +965,154 @@ const StudentDashboard = () => {
         )}
 
         {/* Sessions list */}
-        <section className={`rounded-[32px] border px-6 py-6 backdrop-blur-xl ${
-          isDark ? 'border-white/12 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
-        } hide-scrollbar`}>
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">My Sessions</h3>
-            {getFilteredSessions().length === 0 && (
-              <span className={`text-xs ${isDark ? 'text-white/60' : 'text-slate-500'}`}>No sessions yet — start your learning journey!</span>
-            )}
-          </div>
-
-          {getFilteredSessions().length === 0 ? (
-            <div className={`mt-10 rounded-2xl border px-6 py-12 text-center text-sm ${
-              isDark ? 'border-white/10 bg-white/8 text-white/60' : 'border-slate-200 bg-white text-slate-600'
-            }`}>
-              <div className="text-5xl mb-4">🗓️</div>
-              <p>No sessions found for this filter.</p>
+        {selectedTab === 'sessions' && (
+          <section className={`rounded-[32px] border px-6 py-6 backdrop-blur-xl ${
+            isDark ? 'border-white/12 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
+          } hide-scrollbar`}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">My Sessions</h3>
+              {getFilteredSessions().length === 0 && (
+                <span className={`text-xs ${isDark ? 'text-white/60' : 'text-slate-500'}`}>No sessions yet — start your learning journey!</span>
+              )}
             </div>
-          ) : (
-            <div className="mt-6 space-y-4">
-              {getFilteredSessions().map(session => {
-                const duration = getSessionDurationLabel(session)
-                const statusGradient = {
-                  pending: 'from-yellow-500 to-orange-500',
-                  accepted: 'from-green-500 to-emerald-500',
-                  active: 'from-blue-500 to-cyan-500',
-                  completed: 'from-slate-500 to-slate-600',
-                  rejected: 'from-red-500 to-pink-500',
-                  declined: 'from-red-500 to-pink-500',
-                  cancelled: 'from-red-500 to-pink-500'
-                }[session.status] || 'from-slate-500 to-slate-600'
 
-                return (
-                  <div key={session.id} className={`rounded-[28px] border px-5 py-5 backdrop-blur-xl transition-transform hover:-translate-y-1 hover:shadow-2xl ${
-                    isDark ? 'border-white/12 bg-white/8' : 'border-slate-200 bg-white'
-                  }`}>
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-4">
-                        <Avatar user={session.tutor} size="lg" />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{session.tutor?.name}</h3>
-                            <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                              isDark ? 'bg-white/10 text-white/80' : 'bg-purple-100 text-purple-600'
-                            }`}>
-                              {session.subject || 'General'}
-                            </span>
-                          </div>
-                          <div className={`mt-1 flex flex-wrap items-center gap-3 text-xs ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
-                            <span className="flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5" />
-                              {session.preferredTime
-                                ? new Date(session.preferredTime).toLocaleString()
-                                : session.scheduledTime
-                                ? new Date(session.scheduledTime).toLocaleString()
-                                : 'Flexible'}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Star className="h-3.5 w-3.5" />
-                              {session.tutor.rating || 'New Tutor'}
-                            </span>
-                            {duration && (
-                              <span className="flex items-center gap-1">
-                                <Timer className="h-3.5 w-3.5" />
-                                {duration}
+            {getFilteredSessions().length === 0 ? (
+              <div className={`mt-10 rounded-2xl border px-6 py-12 text-center text-sm ${
+                isDark ? 'border-white/10 bg-white/8 text-white/60' : 'border-slate-200 bg-white text-slate-600'
+              }`}>
+                <div className="text-5xl mb-4">🗓️</div>
+                <p>No sessions found for this filter.</p>
+              </div>
+            ) : (
+              <div className="mt-6 space-y-4">
+                {getFilteredSessions().map(session => {
+                  const duration = getSessionDurationLabel(session)
+                  const statusGradient = {
+                    pending: 'from-yellow-500 to-orange-500',
+                    accepted: 'from-green-500 to-emerald-500',
+                    active: 'from-blue-500 to-cyan-500',
+                    completed: 'from-slate-500 to-slate-600',
+                    rejected: 'from-red-500 to-pink-500',
+                    declined: 'from-red-500 to-pink-500',
+                    cancelled: 'from-red-500 to-pink-500'
+                  }[session.status] || 'from-slate-500 to-slate-600'
+
+                  return (
+                    <div key={session.id} className={`rounded-[28px] border px-5 py-5 backdrop-blur-xl transition-transform hover:-translate-y-1 hover:shadow-2xl ${
+                      isDark ? 'border-white/12 bg-white/8' : 'border-slate-200 bg-white'
+                    }`}>
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <Avatar user={session.tutor} size="lg" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className={`text-base font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>{session.tutor?.name}</h3>
+                              <span className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                                isDark ? 'bg-white/10 text-white/80' : 'bg-purple-100 text-purple-600'
+                              }`}>
+                                {session.subject || 'General'}
                               </span>
+                            </div>
+                            <div className={`mt-1 flex flex-wrap items-center gap-3 text-xs ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                {session.preferredTime
+                                  ? new Date(session.preferredTime).toLocaleString()
+                                  : session.scheduledTime
+                                  ? new Date(session.scheduledTime).toLocaleString()
+                                  : 'Flexible'}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Star className="h-3.5 w-3.5" />
+                                {session.tutor.rating || 'New Tutor'}
+                              </span>
+                              {duration && (
+                                <span className="flex items-center gap-1">
+                                  <Timer className="h-3.5 w-3.5" />
+                                  {duration}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-3">
+                          <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r ${statusGradient} shadow-lg shadow-black/20`}> 
+                            {getStatusIcon(session.status)}
+                            <span>{getStatusText(session.status)}</span>
+                          </div>
+
+                          <div className="flex gap-2">
+                            {(session.status === 'accepted' || session.status === 'active') && (
+                              <button
+                                onClick={() => handleStartSession(session.id)}
+                                className="rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 transition"
+                              >
+                                {session.status === 'active' ? 'Join meeting' : 'Start session'}
+                              </button>
+                            )}
+
+                            {session.status === 'completed' && (
+                              <button
+                                onClick={() => handleRateTutor(session.id)}
+                                className="rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 hover:-translate-y-0.5 transition"
+                              >
+                                {session.rated ? 'Rated' : 'Rate tutor'}
+                              </button>
                             )}
                           </div>
                         </div>
                       </div>
-
-                      <div className="flex flex-col items-end gap-3">
-                        <div className={`flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold text-white bg-gradient-to-r ${statusGradient} shadow-lg shadow-black/20`}> 
-                          {getStatusIcon(session.status)}
-                          <span>{getStatusText(session.status)}</span>
-                        </div>
-
-                        <div className="flex gap-2">
-                          {(session.status === 'accepted' || session.status === 'active') && (
-                            <button
-                              onClick={() => handleStartSession(session.id)}
-                              className="rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 hover:-translate-y-0.5 transition"
-                            >
-                              {session.status === 'active' ? 'Join meeting' : 'Start session'}
-                            </button>
-                          )}
-
-                          {session.status === 'completed' && (
-                            <button
-                              onClick={() => handleRateTutor(session.id)}
-                              className="rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 hover:-translate-y-0.5 transition"
-                            >
-                              {session.rated ? 'Rated' : 'Rate tutor'}
-                            </button>
-                          )}
-                        </div>
-                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Invoices list */}
+        {selectedTab === 'invoices' && (
+          <section className={`rounded-[32px] border px-6 py-6 backdrop-blur-xl ${
+            isDark ? 'border-white/12 bg-gradient-to-br from-white/12 via-white/6 to-transparent/35' : 'border-white/70 bg-white'
+          } hide-scrollbar`}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-slate-900'}`}>My Invoices</h3>
+                <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
+                  Pay your tutoring session invoices to continue booking new sessions
+                </p>
+              </div>
+              {unpaidInvoicesData.hasUnpaid && (
+                <div className={`px-4 py-2 rounded-xl ${
+                  isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'
+                }`}>
+                  <span className="font-semibold">{unpaidInvoicesData.unpaidCount} Unpaid</span>
+                </div>
+              )}
             </div>
-          )}
-        </section>
+
+            {invoices.length === 0 ? (
+              <div className={`rounded-2xl border px-6 py-12 text-center ${
+                isDark ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'
+              }`}>
+                <Receipt className={`w-16 h-16 mx-auto mb-4 ${isDark ? 'text-white/30' : 'text-slate-300'}`} />
+                <p className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  No invoices yet
+                </p>
+                <p className={`text-sm ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
+                  Complete tutoring sessions to receive invoices
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {invoices.map(invoice => (
+                  <InvoiceCard key={invoice.id} invoice={invoice} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </div>
 
 

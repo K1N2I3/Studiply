@@ -84,3 +84,86 @@ export const verifyPaymentStatus = async (sessionId) => {
   }
 }
 
+// Create Stripe checkout session for tutoring invoice
+export const createInvoiceCheckout = async (invoiceId, amount, studentId, studentEmail, tutorName, subject) => {
+  try {
+    console.log('Creating Invoice Stripe checkout session...', { invoiceId, amount, studentId, studentEmail })
+    
+    const response = await fetch(`${API_BASE_URL}/payment/stripe/create-invoice-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        invoiceId,
+        amount,
+        studentId,
+        studentEmail,
+        tutorName,
+        subject
+      })
+    })
+
+    console.log('Response status:', response.status)
+    const result = await response.json()
+    console.log('Response result:', result)
+
+    if (result.success) {
+      console.log('Invoice checkout session created successfully, redirecting to:', result.url)
+      return {
+        success: true,
+        sessionId: result.sessionId,
+        url: result.url
+      }
+    } else {
+      console.error('Failed to create invoice checkout session:', result.error)
+      return {
+        success: false,
+        error: result.error || 'Failed to create checkout session'
+      }
+    }
+  } catch (error) {
+    console.error('Error creating Invoice Stripe checkout:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+
+// Verify invoice payment status
+export const verifyInvoicePayment = async (sessionId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/payment/stripe/verify-invoice-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        sessionId
+      })
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      return {
+        success: true,
+        studentId: result.studentId,
+        invoiceId: result.invoiceId
+      }
+    } else {
+      return {
+        success: false,
+        error: result.error || 'Invoice payment verification failed'
+      }
+    }
+  } catch (error) {
+    console.error('Error verifying invoice payment:', error)
+    return {
+      success: false,
+      error: 'Network error. Please try again.'
+    }
+  }
+}
+

@@ -940,6 +940,29 @@ const RealVideoCall = ({ sessionData, onClose }) => {
         })
         
         console.log('✅ Session marked as completed:', sessionData.id)
+        
+        // 创建账单（只有当通话时长超过1分钟时）
+        if (safeDuration >= 60 && sessionData.studentId && sessionData.tutorId) {
+          try {
+            const { createInvoice } = await import('../services/invoiceService')
+            const durationMinutes = Math.ceil(safeDuration / 60) // 向上取整到分钟
+            const result = await createInvoice(
+              sessionData.id,
+              sessionData.studentId,
+              sessionData.tutorId,
+              durationMinutes,
+              sessionData.subject || 'Tutoring Session'
+            )
+            
+            if (result.success) {
+              console.log('📄 Invoice created successfully:', result.invoiceId)
+            } else {
+              console.error('❌ Failed to create invoice:', result.error)
+            }
+          } catch (invoiceError) {
+            console.error('❌ Error creating invoice:', invoiceError)
+          }
+        }
       } catch (error) {
         console.error('❌ Failed to update session status:', error)
       }

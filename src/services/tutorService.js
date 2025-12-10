@@ -402,6 +402,9 @@ export const createTutorProfile = async (userId, tutorData) => {
   try {
     const userRef = doc(db, 'users', userId)
     
+    // 解析小时费率
+    const hourlyRate = parseFloat(tutorData.hourlyRate) || 15
+    
     // 更新用户信息，设置为导师
     await updateDoc(userRef, {
       isTutor: true,
@@ -411,6 +414,7 @@ export const createTutorProfile = async (userId, tutorData) => {
         experience: tutorData.experience,
         description: tutorData.description,
         availability: tutorData.availability,
+        hourlyRate: hourlyRate, // 小时费率（欧元）
         isAvailable: true,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
@@ -424,7 +428,8 @@ export const createTutorProfile = async (userId, tutorData) => {
       totalSessions: 0,
       totalRating: 0,
       ratingCount: 0,
-      totalEarnings: 0,
+      totalEarnings: 0, // 总收入（扣除平台费后）
+      pendingEarnings: 0, // 待结算收入
       completedSessions: 0,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()

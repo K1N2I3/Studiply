@@ -30,6 +30,7 @@ import Avatar from '../components/Avatar'
 import EditTutorProfileModal from '../components/EditTutorProfileModal'
 import { listenToChatList, formatMessageTime, subscribeUnreadStudentMessagesCount, getUnreadStudentsList } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
+import TutorWallet from '../components/TutorWallet'
 
 const TutorDashboard = () => {
   const { user } = useSimpleAuth()
@@ -797,6 +798,61 @@ const TutorDashboard = () => {
             </div>
           </div>
         </section>
+
+        {/* Tutor Wallet */}
+        <div className="mb-12 grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-1">
+            <TutorWallet tutorId={user?.id} />
+          </div>
+          <div className={`lg:col-span-2 rounded-[28px] border p-6 backdrop-blur-xl ${
+            isDark ? 'border-white/10 bg-white/5' : 'border-white/70 bg-white'
+          }`}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Quick Stats
+              </h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className={`rounded-xl p-4 ${
+                isDark ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/10' : 'bg-gradient-to-br from-blue-50 to-cyan-50'
+              }`}>
+                <p className={`text-sm font-medium ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Total Sessions</p>
+                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {sessions.length}
+                </p>
+              </div>
+              <div className={`rounded-xl p-4 ${
+                isDark ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/10' : 'bg-gradient-to-br from-purple-50 to-pink-50'
+              }`}>
+                <p className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>Completion Rate</p>
+                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {sessions.length > 0 
+                    ? Math.round((completedSessions.length / sessions.length) * 100)
+                    : 0}%
+                </p>
+              </div>
+              <div className={`rounded-xl p-4 ${
+                isDark ? 'bg-gradient-to-br from-emerald-500/20 to-teal-500/10' : 'bg-gradient-to-br from-emerald-50 to-teal-50'
+              }`}>
+                <p className={`text-sm font-medium ${isDark ? 'text-emerald-300' : 'text-emerald-600'}`}>Response Rate</p>
+                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {pendingRequests.length + acceptedSessions.length + completedSessions.length > 0
+                    ? Math.round(((acceptedSessions.length + completedSessions.length) / 
+                        (pendingRequests.length + acceptedSessions.length + completedSessions.length)) * 100)
+                    : 100}%
+                </p>
+              </div>
+              <div className={`rounded-xl p-4 ${
+                isDark ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/10' : 'bg-gradient-to-br from-amber-50 to-orange-50'
+              }`}>
+                <p className={`text-sm font-medium ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>Active Now</p>
+                <p className={`text-2xl font-bold mt-1 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                  {activeSessions.length}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Unread messages notification */}
         {unreadMessageCount > 0 && (

@@ -26,7 +26,8 @@ const Homepage = () => {
     subjects: '',
     experience: '',
     description: '',
-    availability: ''
+    availability: '',
+    hourlyRate: ''
   })
 
   const handleGetStarted = () => {
@@ -494,6 +495,39 @@ const Homepage = () => {
                     <option value="flexible">Flexible schedule</option>
                     <option value="evenings">Evenings only</option>
                   </select>
+                </div>
+
+                {/* Hourly Rate */}
+                <div>
+                  <label className={`block text-sm font-semibold mb-2 ${
+                    isDark ? 'text-white/90' : 'text-slate-700'
+                  }`}>
+                    Hourly Rate (€) *
+                  </label>
+                  <div className="relative">
+                    <span className={`absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold ${
+                      isDark ? 'text-white/60' : 'text-slate-500'
+                    }`}>€</span>
+                    <input
+                      type="number"
+                      name="hourlyRate"
+                      value={tutorForm.hourlyRate}
+                      onChange={handleFormChange}
+                      placeholder="15"
+                      min="5"
+                      max="100"
+                      step="1"
+                      className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all ${
+                        isDark
+                          ? 'border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:border-purple-400/50 focus:ring-2 focus:ring-purple-500/30'
+                          : 'border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-purple-300 focus:ring-2 focus:ring-purple-500/20'
+                      }`}
+                      required
+                    />
+                  </div>
+                  <p className={`mt-2 text-xs ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
+                    Set your hourly rate between €5 - €100. A 5% platform fee will be deducted from payments.
+                  </p>
                 </div>
 
                 {/* Submit Button */}

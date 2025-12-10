@@ -37,6 +37,7 @@ import { useNavigate } from 'react-router-dom'
 import { isUserOnline } from '../services/presenceService'
 import LimitsIndicator from '../components/LimitsIndicator'
 import { checkLimit, incrementUsage } from '../services/limitsService'
+import { hasUnpaidInvoices } from '../services/invoiceService'
 // removed debug: testFirebaseConnection
 
 const Tutoring = () => {
@@ -64,11 +65,30 @@ const Tutoring = () => {
   const [tutorRequestStatus, setTutorRequestStatus] = useState({}) // 跟踪每个导师的请求状态
   const [showVideoCall, setShowVideoCall] = useState(false)
   const [videoCallSession, setVideoCallSession] = useState(null)
+  const [unpaidInvoicesData, setUnpaidInvoicesData] = useState({ hasUnpaid: false, unpaidCount: 0 })
 
   useEffect(() => {
     loadTutors()
     checkUserTutorStatus()
+    checkUnpaidInvoices()
   }, [user])
+
+  // 检查未支付账单
+  const checkUnpaidInvoices = async () => {
+    if (!user?.id) return
+    
+    try {
+      const result = await hasUnpaidInvoices(user.id)
+      if (result.success) {
+        setUnpaidInvoicesData({
+          hasUnpaid: result.hasUnpaid,
+          unpaidCount: result.unpaidCount
+        })
+      }
+    } catch (error) {
+      console.error('Error checking unpaid invoices:', error)
+    }
+  }
 
   // 实时监听tutor列表变化
   useEffect(() => {
@@ -306,6 +326,17 @@ const Tutoring = () => {
   const handleRequestSession = (tutor) => {
     if (!user) {
       showError('Please log in to request a tutoring session', 5000, 'Login Required')
+      return
+    }
+
+    // 检查是否有未支付账单
+    if (unpaidInvoicesData.hasUnpaid) {
+      showError(
+        `You have ${unpaidInvoicesData.unpaidCount} unpaid invoice(s). Please pay your outstanding invoices before requesting new sessions.`,
+        6000,
+        'Payment Required'
+      )
+      navigate('/student-dashboard?tab=invoices')
       return
     }
 
