@@ -1,8 +1,14 @@
 import { collection, doc, getDocs, query, where, orderBy, updateDoc, getDoc, addDoc, serverTimestamp, setDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
-// 平台费率 (5%)
-const PLATFORM_FEE_RATE = 0.05
+// 平台费率 (20%)
+// 注意：Stripe 还会额外收取约 1.4% + €0.25（欧洲卡）或 2.9% + €0.25（非欧洲卡）
+// 例如学生支付 €10：
+//   - Stripe 扣费: €0.39 (1.4% + €0.25)
+//   - 平台费 (20%): €2.00
+//   - 导师收入 (80%): €8.00
+//   - 平台实际利润: €2.00 - €0.39 = €1.61
+const PLATFORM_FEE_RATE = 0.20
 
 /**
  * 创建账单（在 session 完成后调用）
