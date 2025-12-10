@@ -321,7 +321,7 @@ const TutorWallet = ({ tutorId }) => {
           isDark ? 'bg-white/5' : 'bg-slate-50'
         }`}>
           <p className={`text-xs ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
-            💡 5% platform fee is already deducted from displayed earnings
+            💡 20% platform fee is already deducted from displayed earnings
           </p>
         </div>
       </div>

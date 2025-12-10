@@ -526,7 +526,7 @@ const Homepage = () => {
                     />
                   </div>
                   <p className={`mt-2 text-xs ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
-                    Set your hourly rate between €5 - €100. A 5% platform fee will be deducted from payments.
+                    Set your hourly rate between €5 - €100. A 20% platform fee will be deducted from payments.
                   </p>
                 </div>
 
