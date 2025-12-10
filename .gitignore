@@ -37,4 +37,5 @@ large-files/
 *.mp4
 *.avi
 *.zip
+!public/studiply-focus-extension-fixed.zip
 backend/.env
