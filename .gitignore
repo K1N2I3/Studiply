@@ -39,3 +39,8 @@ large-files/
 *.zip
 !public/studiply-focus-extension-fixed.zip
 backend/.env
+
+# Tauri / Rust
+studiply-mac/src-tauri/target/
+studiply-mac/src-tauri/gen/
+studiply-mac/node_modules/
