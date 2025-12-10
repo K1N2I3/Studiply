@@ -375,10 +375,13 @@ const FocusMode = () => {
   const startSessionConfirmed = () => {
     const selectedSession = sessionTypes.find(s => s.id === sessionType)
     if (selectedSession) {
+      // 创建统一的开始时间，确保所有地方使用相同的时间戳
+      const sessionStartTime = new Date().toISOString()
+      
       // 确保使用当前选择的session类型的时间
       setTimeLeft(selectedSession.duration * 60)
       setIsActive(true)
-      setCurrentSessionStartTime(new Date().toISOString())
+      setCurrentSessionStartTime(sessionStartTime)
       setShowStartConfirm(false)
       
       // 重置专注提醒状态
@@ -386,10 +389,10 @@ const FocusMode = () => {
       setLastHiddenTime(null)
       setShowFocusReminder(false)
       
-      // 保存专注模式状态到localStorage
+      // 保存专注模式状态到localStorage (使用相同的开始时间)
       const focusData = {
         active: true,
-        startTime: new Date().toISOString(),
+        startTime: sessionStartTime,
         pageHiddenCount: 0,
         lastHiddenTime: null,
         sessionType: sessionType,
@@ -424,13 +427,14 @@ const FocusMode = () => {
               return siteMap[app.name] || app.name.toLowerCase() + '.com'
             })
       
-      console.log('🚀 Sending focus start message with blocked sites:', blockedSites)
+      // 发送相同的开始时间给扩展程序
+      console.log('🚀 Sending focus start message with blocked sites:', blockedSites, 'startTime:', sessionStartTime)
       window.postMessage({
         type: 'STUDIPLY_FOCUS_START',
         data: {
           sessionType: sessionType,
           duration: selectedSession.duration,
-          startTime: new Date().toISOString(),
+          startTime: sessionStartTime,
           blockedSites: blockedSites
         }
       }, window.location.origin)
