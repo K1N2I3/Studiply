@@ -40,7 +40,7 @@ const Homepage = () => {
 
   const handleBecomeTutor = () => {
     if (user) {
-      setShowTutorForm(true)
+      navigate('/become-tutor')
     } else {
       navigate('/login')
     }

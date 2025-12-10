@@ -31,6 +31,7 @@ import TutorAccountsAdmin from './pages/TutorAccountsAdmin'
 import LearningSession from './pages/LearningSession'
 import MacOSLoginHandler from './pages/MacOSLoginHandler'
 import MacOSLogin from './pages/MacOSLogin'
+import BecomeTutor from './pages/BecomeTutor'
 
 // Import components
 import Header from './components/Header'
@@ -163,6 +164,7 @@ function AppContent() {
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/tutor-dashboard" element={<ProtectedRoute><TutorDashboard /></ProtectedRoute>} />
         <Route path="/student-dashboard" element={<ProtectedRoute><StudentDashboard /></ProtectedRoute>} />
+        <Route path="/become-tutor" element={<ProtectedRoute><BecomeTutor /></ProtectedRoute>} />
         <Route path="/admin/tutor-accounts" element={<ProtectedRoute><TutorAccountsAdmin /></ProtectedRoute>} />
         <Route path="/macos-login" element={<MacOSLoginHandler />} />
       </Routes>
