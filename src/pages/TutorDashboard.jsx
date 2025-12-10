@@ -29,8 +29,9 @@ import RealVideoCall from '../components/RealVideoCall'
 import Avatar from '../components/Avatar'
 import EditTutorProfileModal from '../components/EditTutorProfileModal'
 import { listenToChatList, formatMessageTime, subscribeUnreadStudentMessagesCount, getUnreadStudentsList } from '../services/chatService'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import TutorWallet from '../components/TutorWallet'
+import BankAccountSetup from '../components/BankAccountSetup'
 
 const TutorDashboard = () => {
   const { user } = useSimpleAuth()
@@ -183,10 +184,13 @@ const TutorDashboard = () => {
 
   const handleAcceptSession = async (sessionId) => {
     try {
-      const result = await acceptSessionRequest(sessionId)
+      const result = await acceptSessionRequest(sessionId, user?.id)
       if (result.success) {
         showSuccess('Session accepted successfully!', 4000, 'Success')
         loadSessions() // 重新加载数据
+      } else if (result.needsBankSetup) {
+        // 需要设置银行卡
+        showError('Please set up your bank account first to accept sessions. Scroll down to "Bank Account Setup".', 8000, 'Bank Account Required')
       } else {
         showError(`Failed to accept session: ${result.error}`, 5000, 'Error')
       }
@@ -799,10 +803,11 @@ const TutorDashboard = () => {
           </div>
         </section>
 
-        {/* Tutor Wallet */}
+        {/* Tutor Wallet & Bank Setup */}
         <div className="mb-12 grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             <TutorWallet tutorId={user?.id} />
+            <BankAccountSetup />
           </div>
           <div className={`lg:col-span-2 rounded-[28px] border p-6 backdrop-blur-xl ${
             isDark ? 'border-white/10 bg-white/5' : 'border-white/70 bg-white'

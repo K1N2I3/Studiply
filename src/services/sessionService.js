@@ -314,8 +314,25 @@ export const requestSession = async (studentId, tutorId, subject, scheduledTime,
 }
 
 // 接受会话请求（导师用）
-export const acceptSessionRequest = async (sessionId) => {
+export const acceptSessionRequest = async (sessionId, tutorId) => {
   try {
+    // 首先检查导师是否已绑定银行卡
+    if (tutorId) {
+      const tutorDoc = await getDoc(doc(db, 'users', tutorId))
+      if (tutorDoc.exists()) {
+        const tutorData = tutorDoc.data()
+        // 检查是否有 Stripe Connect 账户且已验证
+        if (!tutorData.stripeConnectAccountId || tutorData.stripeConnectStatus !== 'verified') {
+          console.log('⚠️ Tutor has not set up bank account:', tutorId)
+          return {
+            success: false,
+            error: 'Please set up your bank account before accepting sessions. Go to your dashboard to connect your bank account.',
+            needsBankSetup: true
+          }
+        }
+      }
+    }
+    
     const sessionRef = doc(db, 'sessions', sessionId)
     await updateDoc(sessionRef, {
       status: 'accepted',

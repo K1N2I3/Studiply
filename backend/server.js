@@ -13,6 +13,7 @@ import limitsRoutes from './routes/limits.js'
 import questsRoutes from './routes/quests.js'
 import questRequestRoutes from './routes/questRequests.js'
 import aiQuestsRoutes from './routes/aiQuests.js'
+import stripeConnectRoutes from './routes/stripeConnect.js'
 
 dotenv.config()
 
@@ -792,6 +793,14 @@ try {
   console.log('✅ /api/ai-quests ready')
 } catch (error) {
   console.error('❌ Failed to register AI quest routes:', error)
+}
+
+try {
+  console.log('🔁 Registering Stripe Connect routes...')
+  app.use('/api/stripe-connect', stripeConnectRoutes)
+  console.log('✅ /api/stripe-connect ready')
+} catch (error) {
+  console.error('❌ Failed to register Stripe Connect routes:', error)
 }
 
 app.get('/api/health', (req, res) => {

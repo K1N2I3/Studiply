@@ -1,5 +1,6 @@
 import express from 'express'
 import { createCheckoutSession, verifyPayment, handleWebhook, createInvoiceCheckoutSession, verifyInvoicePayment } from '../services/stripeService.js'
+import { transferToTutor, getAccountStatus } from '../services/stripeConnectService.js'
 import admin from 'firebase-admin'
 
 // Initialize Firebase Admin if not already initialized
@@ -177,6 +178,7 @@ router.post('/stripe/verify-invoice-payment', async (req, res) => {
               const currentStats = tutorStatsDoc.data()
               await tutorStatsRef.update({
                 totalEarnings: (currentStats.totalEarnings || 0) + (invoiceData.tutorEarnings || 0),
+                completedSessions: (currentStats.completedSessions || 0) + 1,
                 updatedAt: new Date().toISOString()
               })
             } else {
@@ -193,6 +195,53 @@ router.post('/stripe/verify-invoice-payment', async (req, res) => {
             }
             
             console.log('✅ Invoice payment processed:', invoiceId)
+            
+            // 自动转账给导师（如果导师已绑定银行卡）
+            try {
+              const tutorRef = db.collection('users').doc(invoiceData.tutorId)
+              const tutorDoc = await tutorRef.get()
+              
+              if (tutorDoc.exists) {
+                const tutorData = tutorDoc.data()
+                
+                if (tutorData.stripeConnectAccountId) {
+                  // 检查导师账户是否已验证
+                  const statusResult = await getAccountStatus(tutorData.stripeConnectAccountId)
+                  
+                  if (statusResult.success && statusResult.isVerified) {
+                    // 转账金额（欧分）
+                    const amountInCents = Math.round((invoiceData.tutorEarnings || 0) * 100)
+                    
+                    if (amountInCents > 0) {
+                      const transferResult = await transferToTutor(
+                        amountInCents,
+                        tutorData.stripeConnectAccountId,
+                        invoiceId
+                      )
+                      
+                      if (transferResult.success) {
+                        // 更新账单记录
+                        await invoiceRef.update({
+                          payoutCompleted: true,
+                          transferId: transferResult.transferId,
+                          payoutAt: new Date().toISOString()
+                        })
+                        console.log('💸 Auto-payout completed:', transferResult.transferId)
+                      } else {
+                        console.error('❌ Auto-payout failed:', transferResult.error)
+                      }
+                    }
+                  } else {
+                    console.log('⚠️ Tutor account not verified, payout pending')
+                  }
+                } else {
+                  console.log('⚠️ Tutor has no Stripe Connect account, payout pending')
+                }
+              }
+            } catch (payoutError) {
+              console.error('❌ Error processing auto-payout:', payoutError)
+              // 不影响支付验证结果
+            }
           }
         } catch (firestoreError) {
           console.error('Error updating Firestore:', firestoreError)
