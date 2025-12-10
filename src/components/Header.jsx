@@ -61,6 +61,7 @@ import VerifyEmailChange from '../pages/VerifyEmailChange'
 import CalendarPage from '../pages/Calendar'
 import FocusTestModal from './FocusTestModal'
 import useFocusTest from '../hooks/useFocusTest'
+import BecomeTutor from '../pages/BecomeTutor'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -873,6 +874,14 @@ const Header = () => {
               element={
                 <ProtectedRoute>
                   <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/become-tutor"
+              element={
+                <ProtectedRoute>
+                  <BecomeTutor />
                 </ProtectedRoute>
               }
             />
