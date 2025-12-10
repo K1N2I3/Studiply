@@ -45,6 +45,7 @@ const RealVideoCall = ({ sessionData, onClose }) => {
   const connectionTimeoutRef = useRef(null)
   const retryTimeoutRef = useRef(null)
   const durationIntervalRef = useRef(null)
+  const endCallCalledRef = useRef(false) // 防止 endCall 被重复调用
   
   // 连接超时时间（30秒）
   const CONNECTION_TIMEOUT = 30000
@@ -913,6 +914,14 @@ const RealVideoCall = ({ sessionData, onClose }) => {
 
   // 结束通话
   const endCall = async () => {
+    // 防止重复调用
+    if (endCallCalledRef.current) {
+      console.log('⚠️ endCall already called, skipping...')
+      return
+    }
+    endCallCalledRef.current = true
+    console.log('📞 endCall started')
+
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current)
       durationIntervalRef.current = null
