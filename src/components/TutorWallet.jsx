@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   Wallet, 
   TrendingUp, 
@@ -11,7 +11,8 @@ import {
   Users,
   Star,
   Coins,
-  BadgeEuro
+  BadgeEuro,
+  RefreshCw
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { getTutorWallet } from '../services/invoiceService'
@@ -27,29 +28,43 @@ const TutorWallet = ({ tutorId }) => {
   })
   const [loading, setLoading] = useState(true)
   const [isAnimating, setIsAnimating] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const loadWallet = useCallback(async (showRefreshState = false) => {
+    if (!tutorId) return
+    
+    if (showRefreshState) {
+      setIsRefreshing(true)
+    } else {
+      setLoading(true)
+    }
+    
+    try {
+      console.log('🔄 Loading wallet for tutor:', tutorId)
+      const result = await getTutorWallet(tutorId)
+      console.log('💰 Wallet result:', result)
+      
+      if (result.success) {
+        setWallet(result.wallet)
+        // Trigger animation when wallet loads
+        setIsAnimating(true)
+        setTimeout(() => setIsAnimating(false), 1000)
+      }
+    } catch (error) {
+      console.error('Error loading wallet:', error)
+    } finally {
+      setLoading(false)
+      setIsRefreshing(false)
+    }
+  }, [tutorId])
 
   useEffect(() => {
-    const loadWallet = async () => {
-      if (!tutorId) return
-      
-      setLoading(true)
-      try {
-        const result = await getTutorWallet(tutorId)
-        if (result.success) {
-          setWallet(result.wallet)
-          // Trigger animation when wallet loads
-          setIsAnimating(true)
-          setTimeout(() => setIsAnimating(false), 1000)
-        }
-      } catch (error) {
-        console.error('Error loading wallet:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadWallet()
-  }, [tutorId])
+  }, [loadWallet])
+
+  const handleRefresh = () => {
+    loadWallet(true)
+  }
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A'
@@ -115,25 +130,42 @@ const TutorWallet = ({ tutorId }) => {
         </div>
 
         {/* Wallet Icon */}
-        <div className="relative flex items-center gap-4 mb-6">
-          <div className={`relative p-4 rounded-2xl shadow-lg ${
-            isDark 
-              ? 'bg-gradient-to-br from-emerald-500 to-teal-600' 
-              : 'bg-gradient-to-br from-emerald-400 to-teal-500'
-          }`}>
-            <Wallet className="w-8 h-8 text-white" />
-            <Sparkles className={`absolute -top-1 -right-1 w-4 h-4 text-yellow-300 ${
-              isAnimating ? 'animate-ping' : ''
-            }`} />
+        <div className="relative flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className={`relative p-4 rounded-2xl shadow-lg ${
+              isDark 
+                ? 'bg-gradient-to-br from-emerald-500 to-teal-600' 
+                : 'bg-gradient-to-br from-emerald-400 to-teal-500'
+            }`}>
+              <Wallet className="w-8 h-8 text-white" />
+              <Sparkles className={`absolute -top-1 -right-1 w-4 h-4 text-yellow-300 ${
+                isAnimating ? 'animate-ping' : ''
+              }`} />
+            </div>
+            <div>
+              <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                My Wallet
+              </h3>
+              <p className={`text-sm ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
+                Your tutoring earnings
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              My Wallet
-            </h3>
-            <p className={`text-sm ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
-              Your tutoring earnings
-            </p>
-          </div>
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`p-2 rounded-xl transition-all ${
+              isRefreshing 
+                ? 'opacity-50 cursor-not-allowed' 
+                : isDark 
+                  ? 'hover:bg-white/10 text-white/60 hover:text-white' 
+                  : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'
+            }`}
+            title="Refresh wallet"
+          >
+            <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
         </div>
 
         {/* Total Earnings */}

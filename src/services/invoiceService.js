@@ -315,6 +315,8 @@ export const forceMarkInvoiceAsPaid = async (invoiceId) => {
  */
 export const getTutorWallet = async (tutorId) => {
   try {
+    console.log('💰 Loading wallet for tutor:', tutorId)
+    
     // 获取统计数据
     const tutorStatsRef = doc(db, 'tutorStats', tutorId)
     const tutorStatsDoc = await getDoc(tutorStatsRef)
@@ -327,52 +329,70 @@ export const getTutorWallet = async (tutorId) => {
     
     if (tutorStatsDoc.exists()) {
       const data = tutorStatsDoc.data()
+      console.log('📊 Tutor stats from DB:', data)
       stats = {
         totalEarnings: data.totalEarnings || 0,
         pendingEarnings: data.pendingEarnings || 0,
         completedSessions: data.completedSessions || 0
       }
+    } else {
+      console.log('📊 No tutor stats found, will calculate from invoices')
     }
     
-    // 获取最近的已支付账单
-    const paidQuery = query(
-      collection(db, 'invoices'),
-      where('tutorId', '==', tutorId),
-      where('status', '==', 'paid'),
-      orderBy('paidAt', 'desc')
-    )
+    // 获取导师的所有账单（不使用复合索引，避免索引问题）
+    let allInvoices = []
+    try {
+      const invoicesQuery = query(
+        collection(db, 'invoices'),
+        where('tutorId', '==', tutorId)
+      )
+      const invoicesSnapshot = await getDocs(invoicesQuery)
+      allInvoices = invoicesSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      console.log('📋 Found', allInvoices.length, 'total invoices for tutor')
+    } catch (queryError) {
+      console.error('Error querying invoices:', queryError)
+    }
     
-    const paidSnapshot = await getDocs(paidQuery)
-    const recentPayments = paidSnapshot.docs.slice(0, 5).map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    // 分离已支付和待支付账单
+    const paidInvoices = allInvoices.filter(inv => inv.status === 'paid')
+    const pendingInvoices = allInvoices.filter(inv => inv.status === 'pending')
     
-    // 获取待支付账单
-    const pendingQuery = query(
-      collection(db, 'invoices'),
-      where('tutorId', '==', tutorId),
-      where('status', '==', 'pending')
-    )
+    console.log('💳 Paid invoices:', paidInvoices.length)
+    console.log('⏳ Pending invoices:', pendingInvoices.length)
     
-    const pendingSnapshot = await getDocs(pendingQuery)
-    const pendingInvoices = pendingSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    // 按 paidAt 排序已支付账单
+    paidInvoices.sort((a, b) => {
+      const aTime = a.paidAt?.toMillis?.() || a.paidAt?.seconds * 1000 || 0
+      const bTime = b.paidAt?.toMillis?.() || b.paidAt?.seconds * 1000 || 0
+      return bTime - aTime
+    })
+    
+    // 计算实际收入（如果 tutorStats 为空，从账单计算）
+    let totalEarnings = stats.totalEarnings
+    if (totalEarnings === 0 && paidInvoices.length > 0) {
+      totalEarnings = paidInvoices.reduce((sum, inv) => sum + (inv.tutorEarnings || 0), 0)
+      console.log('💰 Calculated total earnings from invoices:', totalEarnings)
+    }
     
     // 计算待收金额
     const pendingTotal = pendingInvoices.reduce((sum, inv) => sum + (inv.tutorEarnings || 0), 0)
     
+    const wallet = {
+      totalEarnings: totalEarnings,
+      pendingEarnings: pendingTotal,
+      completedSessions: stats.completedSessions || paidInvoices.length,
+      recentPayments: paidInvoices.slice(0, 5),
+      pendingInvoices: pendingInvoices
+    }
+    
+    console.log('💰 Final wallet data:', wallet)
+    
     return {
       success: true,
-      wallet: {
-        totalEarnings: stats.totalEarnings,
-        pendingEarnings: pendingTotal,
-        completedSessions: stats.completedSessions,
-        recentPayments,
-        pendingInvoices
-      }
+      wallet
     }
   } catch (error) {
     console.error('Error getting tutor wallet:', error)
