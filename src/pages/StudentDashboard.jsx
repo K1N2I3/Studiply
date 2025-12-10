@@ -37,14 +37,17 @@ import { useNotification } from '../contexts/NotificationContext'
 import { listenToChatList, formatMessageTime, getUnreadTutorMessagesCount, subscribeUnreadTutorMessagesCount } from '../services/chatService'
 import { useNavigate } from 'react-router-dom'
 import { checkLimit, incrementUsage } from '../services/limitsService'
-import { hasUnpaidInvoices, getStudentInvoices } from '../services/invoiceService'
+import { hasUnpaidInvoices, getStudentInvoices, markInvoiceAsPaid } from '../services/invoiceService'
+import { verifyInvoicePayment } from '../services/paymentService'
 import InvoiceCard from '../components/InvoiceCard'
+import { useLocation } from 'react-router-dom'
 
 const StudentDashboard = () => {
   const { user } = useSimpleAuth()
   const { theme, isDark } = useTheme()
   const { showSuccess, showError } = useNotification()
   const navigate = useNavigate()
+  const location = useLocation()
   const [sessions, setSessions] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedSession, setSelectedSession] = useState(null)
@@ -60,6 +63,71 @@ const StudentDashboard = () => {
   const [unpaidInvoicesData, setUnpaidInvoicesData] = useState({ hasUnpaid: false, unpaidCount: 0, invoices: [] })
   const [invoices, setInvoices] = useState([])
   const [selectedTab, setSelectedTab] = useState('sessions') // 'sessions' or 'invoices'
+  const [paymentProcessing, setPaymentProcessing] = useState(false)
+
+  // 处理支付成功回调
+  useEffect(() => {
+    const handlePaymentCallback = async () => {
+      const searchParams = new URLSearchParams(location.search)
+      const payment = searchParams.get('payment')
+      const sessionId = searchParams.get('session_id')
+      const invoiceId = searchParams.get('invoice_id')
+      const tab = searchParams.get('tab')
+      
+      // 如果URL中有tab参数，切换到对应标签
+      if (tab === 'invoices') {
+        setSelectedTab('invoices')
+      }
+      
+      // 如果是支付成功回调
+      if (payment === 'success' && sessionId) {
+        console.log('💳 Processing payment callback:', { sessionId, invoiceId })
+        setPaymentProcessing(true)
+        
+        try {
+          // 调用后端验证支付
+          const result = await verifyInvoicePayment(sessionId)
+          console.log('💳 Payment verification result:', result)
+          
+          if (result.success) {
+            showSuccess('Payment successful! Thank you for your payment.', 5000, 'Payment Complete')
+            
+            // 刷新账单列表
+            if (user?.id) {
+              const allInvoices = await getStudentInvoices(user.id)
+              if (allInvoices.success) {
+                setInvoices(allInvoices.invoices)
+              }
+              
+              const unpaidResult = await hasUnpaidInvoices(user.id)
+              if (unpaidResult.success) {
+                setUnpaidInvoicesData({
+                  hasUnpaid: unpaidResult.hasUnpaid,
+                  unpaidCount: unpaidResult.unpaidCount,
+                  invoices: unpaidResult.unpaidInvoices || []
+                })
+              }
+            }
+          } else {
+            console.error('Payment verification failed:', result.error)
+            showError('Payment verification failed. Please contact support if you were charged.', 8000, 'Payment Error')
+          }
+        } catch (error) {
+          console.error('Error processing payment callback:', error)
+          showError('Error processing payment. Please refresh the page.', 5000, 'Error')
+        } finally {
+          setPaymentProcessing(false)
+          // 清除URL参数
+          navigate('/student-dashboard', { replace: true })
+        }
+      } else if (payment === 'canceled') {
+        showError('Payment was canceled.', 3000, 'Payment Canceled')
+        navigate('/student-dashboard', { replace: true })
+      }
+    }
+    
+    handlePaymentCallback()
+  }, [location.search])
 
   // 检查未支付账单
   useEffect(() => {

@@ -162,7 +162,7 @@ export const createInvoiceCheckoutSession = async (invoiceId, amount, studentId,
         }
       ],
       mode: 'payment',
-      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/student-dashboard?tab=invoices&payment=success&invoice_id=${invoiceId}`,
+      success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/student-dashboard?tab=invoices&payment=success&session_id={CHECKOUT_SESSION_ID}&invoice_id=${invoiceId}`,
       cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/student-dashboard?tab=invoices&payment=canceled`,
       customer_email: studentEmail,
       locale: 'en',
