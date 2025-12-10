@@ -33,6 +33,32 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
       return { success: false, error: 'Invalid duration' }
     }
     
+    // 检查是否已存在相同 sessionId 的账单（防止重复创建）
+    try {
+      const existingQuery = query(
+        collection(db, 'invoices'),
+        where('sessionId', '==', sessionId)
+      )
+      const existingSnapshot = await getDocs(existingQuery)
+      
+      if (!existingSnapshot.empty) {
+        const existingInvoice = existingSnapshot.docs[0]
+        console.log('⚠️ Invoice already exists for this session:', existingInvoice.id)
+        return { 
+          success: true, 
+          invoiceId: existingInvoice.id,
+          invoice: {
+            id: existingInvoice.id,
+            ...existingInvoice.data()
+          },
+          alreadyExists: true
+        }
+      }
+    } catch (checkError) {
+      console.warn('⚠️ Could not check for existing invoice:', checkError.message)
+      // 继续创建，即使检查失败
+    }
+    
     // 获取导师的小时费率
     const tutorDoc = await getDoc(doc(db, 'users', tutorId))
     if (!tutorDoc.exists()) {

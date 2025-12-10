@@ -9,22 +9,18 @@ import {
   Timer,
   Euro,
   Loader,
-  AlertCircle,
-  RefreshCw
+  AlertCircle
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { createInvoiceCheckout } from '../services/paymentService'
-import { markInvoiceAsPaid } from '../services/invoiceService'
 import { useNotification } from '../contexts/NotificationContext'
 
 const InvoiceCard = ({ invoice, onPaymentSuccess }) => {
   const { isDark } = useTheme()
   const { user } = useSimpleAuth()
-  const { showError, showSuccess } = useNotification()
+  const { showError } = useNotification()
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isConfirming, setIsConfirming] = useState(false)
-  const [localStatus, setLocalStatus] = useState(invoice.status)
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A'
@@ -71,41 +67,8 @@ const InvoiceCard = ({ invoice, onPaymentSuccess }) => {
     }
   }
 
-  // 手动确认支付 - 用于已在Stripe支付但状态未更新的情况
-  const handleConfirmPayment = async () => {
-    if (isConfirming) return
-    
-    const confirmed = window.confirm(
-      'Have you already paid for this invoice through Stripe? Click OK to confirm and update the status.'
-    )
-    
-    if (!confirmed) return
-    
-    setIsConfirming(true)
-    
-    try {
-      console.log('🔄 Manually confirming payment for invoice:', invoice.id)
-      const result = await markInvoiceAsPaid(invoice.id, 'manual_confirm_' + Date.now())
-      
-      if (result.success) {
-        setLocalStatus('paid')
-        showSuccess('Payment confirmed! Invoice status updated.', 5000, 'Success')
-        if (onPaymentSuccess) {
-          onPaymentSuccess(invoice.id)
-        }
-      } else {
-        showError(result.error || 'Failed to confirm payment', 5000, 'Error')
-      }
-    } catch (error) {
-      console.error('Error confirming payment:', error)
-      showError('An error occurred while confirming payment', 5000, 'Error')
-    } finally {
-      setIsConfirming(false)
-    }
-  }
-
-  const isPending = localStatus === 'pending'
-  const isPaid = localStatus === 'paid'
+  const isPending = invoice.status === 'pending'
+  const isPaid = invoice.status === 'paid'
 
   return (
     <div className={`rounded-2xl border p-6 transition-all ${
@@ -224,56 +187,29 @@ const InvoiceCard = ({ invoice, onPaymentSuccess }) => {
         </div>
       </div>
 
-      {/* Payment Buttons */}
+      {/* Payment Button */}
       {isPending && (
-        <div className="space-y-2">
-          <button
-            onClick={handlePayNow}
-            disabled={isProcessing || isConfirming}
-            className={`w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
-              isProcessing || isConfirming
-                ? 'bg-gray-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 hover:shadow-xl hover:-translate-y-0.5'
-            } text-white`}
-          >
-            {isProcessing ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              <>
-                <CreditCard className="w-5 h-5" />
-                Pay Now
-              </>
-            )}
-          </button>
-          
-          {/* Already Paid? Confirm button */}
-          <button
-            onClick={handleConfirmPayment}
-            disabled={isProcessing || isConfirming}
-            className={`w-full py-2.5 px-4 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 ${
-              isConfirming
-                ? 'bg-gray-300 cursor-not-allowed text-gray-500'
-                : isDark
-                  ? 'bg-white/10 text-white/80 hover:bg-white/20 border border-white/20'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
-            }`}
-          >
-            {isConfirming ? (
-              <>
-                <Loader className="w-4 h-4 animate-spin" />
-                Confirming...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="w-4 h-4" />
-                Already paid? Confirm payment
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={handlePayNow}
+          disabled={isProcessing}
+          className={`w-full py-3 px-6 rounded-xl font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
+            isProcessing
+              ? 'bg-gray-400 cursor-not-allowed'
+              : 'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 hover:shadow-xl hover:-translate-y-0.5'
+          } text-white`}
+        >
+          {isProcessing ? (
+            <>
+              <Loader className="w-5 h-5 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            <>
+              <CreditCard className="w-5 h-5" />
+              Pay Now
+            </>
+          )}
+        </button>
       )}
 
       {/* Paid Info */}
