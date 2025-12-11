@@ -1,8 +1,32 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { isPermissionGranted, requestPermission, sendNotification } from "@tauri-apps/plugin-notification";
-import { open } from "@tauri-apps/plugin-opener";
 import "./App.css";
+
+// Safe notification functions
+let notifyEnabled = false;
+const setupNotifications = async () => {
+  try {
+    const { isPermissionGranted, requestPermission } = await import("@tauri-apps/plugin-notification");
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      const perm = await requestPermission();
+      granted = perm === "granted";
+    }
+    notifyEnabled = granted;
+  } catch (e) {
+    console.log("Notifications not available");
+  }
+};
+
+const notify = async (title, body) => {
+  if (!notifyEnabled) return;
+  try {
+    const { sendNotification } = await import("@tauri-apps/plugin-notification");
+    await sendNotification({ title, body });
+  } catch (e) {
+    console.log("Notification failed:", e);
+  }
+};
 
 // Session types
 const SESSION_TYPES = [
@@ -19,14 +43,20 @@ function LoginPage({ onLogin }) {
   const handleLogin = async () => {
     setIsConnecting(true);
     try {
-      // Open browser to Studiply login with desktop callback
-      const callbackUrl = "studiply://auth";
-      const loginUrl = `https://studiply.it/login?desktop=true&callback=${encodeURIComponent(callbackUrl)}`;
-      await open(loginUrl);
+      // Open browser to Studiply desktop auth page
+      const loginUrl = `https://studiply.it/desktop-auth`;
+      
+      // Try using Tauri opener plugin
+      try {
+        const { open } = await import("@tauri-apps/plugin-opener");
+        await open(loginUrl);
+      } catch (e) {
+        // Fallback to window.open
+        window.open(loginUrl, "_blank");
+      }
     } catch (error) {
       console.error("Failed to open browser:", error);
-      // Fallback: open in default browser
-      window.open(`https://studiply.it/login?desktop=true`, "_blank");
+      window.open(`https://studiply.it/desktop-auth`, "_blank");
     }
     
     // Start polling for auth status
@@ -161,28 +191,9 @@ function MainApp({ user, onLogout }) {
   };
 
   // Setup notifications
-  const setupNotifications = async () => {
-    try {
-      let permissionGranted = await isPermissionGranted();
-      if (!permissionGranted) {
-        const permission = await requestPermission();
-        permissionGranted = permission === "granted";
-      }
-      setNotificationPermission(permissionGranted);
-    } catch (error) {
-      console.error("Notification error:", error);
-    }
-  };
-
-  // Send notification
-  const notify = async (title, body) => {
-    if (notificationPermission) {
-      try {
-        await sendNotification({ title, body });
-      } catch (error) {
-        console.error("Notification error:", error);
-      }
-    }
+  const initNotifications = async () => {
+    await setupNotifications();
+    setNotificationPermission(notifyEnabled);
   };
 
   // Load installed apps
@@ -326,7 +337,7 @@ function MainApp({ user, onLogout }) {
   // Initialize
   useEffect(() => {
     const initialize = async () => {
-      await setupNotifications();
+      await initNotifications();
       await loadInstalledApps();
       
       try {
