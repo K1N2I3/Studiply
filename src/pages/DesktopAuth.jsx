@@ -6,21 +6,30 @@ const DesktopAuth = () => {
   const navigate = useNavigate()
   const { user, loading } = useSimpleAuth()
   const [isConnecting, setIsConnecting] = useState(false)
-  const [connected, setConnected] = useState(false)
+  const [showFallback, setShowFallback] = useState(false)
+  const [loginCode, setLoginCode] = useState('')
+  const [copied, setCopied] = useState(false)
 
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!loading && !user) {
-      // Redirect to login with return URL
       navigate('/login?redirect=/desktop-auth')
     }
   }, [user, loading, navigate])
+
+  // Auto-connect when page loads (user is logged in)
+  useEffect(() => {
+    if (user && !isConnecting && !showFallback) {
+      handleConnect()
+    }
+  }, [user])
 
   // Handle connect - redirect to Mac app via deep link
   const handleConnect = () => {
     if (!user) return
 
     setIsConnecting(true)
+    setShowFallback(false)
 
     const userData = {
       id: user.id,
@@ -30,21 +39,23 @@ const DesktopAuth = () => {
       isTutor: user.isTutor || false,
     }
 
-    try {
-      // Encode user data for deep link
-      const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(userData))))
-      
-      setConnected(true)
-      
-      // Redirect to Mac app via custom URL scheme
-      setTimeout(() => {
-        window.location.href = `studiply://auth?data=${encodedData}`
-      }, 500)
+    const encodedData = btoa(unescape(encodeURIComponent(JSON.stringify(userData))))
+    setLoginCode(encodedData)
 
-    } catch (error) {
-      console.error('Failed to connect:', error)
+    // Try deep link immediately
+    window.location.href = `studiply://auth?data=${encodedData}`
+
+    // If still on page after 2 seconds, show fallback
+    setTimeout(() => {
+      setShowFallback(true)
       setIsConnecting(false)
-    }
+    }, 2000)
+  }
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(loginCode)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
   }
 
   // Show loading while checking auth
@@ -56,7 +67,6 @@ const DesktopAuth = () => {
     )
   }
 
-  // Only show if user is logged in
   if (!user) {
     return null
   }
@@ -74,67 +84,55 @@ const DesktopAuth = () => {
 
         {/* Card */}
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-6">
-          {connected ? (
-            // Success State
+          {isConnecting ? (
+            // Loading State
+            <div className="text-center py-8">
+              <div className="w-12 h-12 border-3 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4"></div>
+              <p className="text-white font-medium">Opening Studiply...</p>
+              <p className="text-[#8b949e] text-sm mt-2">Please wait...</p>
+            </div>
+          ) : showFallback ? (
+            // Fallback - Copy Code
             <div className="text-center py-4">
-              <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-semibold text-white mb-2">Connected!</h2>
-              <p className="text-[#8b949e]">
-                Redirecting to the app...
+              <p className="text-[#8b949e] text-sm mb-4">
+                Could not open app automatically. Copy this code and paste it in the Mac app:
               </p>
-            </div>
-          ) : (
-            <>
-            {/* User Info */}
-            <div className="flex items-center gap-4 p-4 bg-[#0d1117] rounded-lg mb-6">
-              {user.avatar ? (
-                <img 
-                  src={user.avatar} 
-                  alt={user.name} 
-                  className="w-12 h-12 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                </div>
-              )}
-              <div>
-                <p className="text-white font-medium">{user.name || 'User'}</p>
-                <p className="text-[#8b949e] text-sm">{user.email}</p>
+              
+              <div className="bg-[#0d1117] rounded-lg p-3 mb-4">
+                <code className="text-xs text-purple-400 break-all">
+                  {loginCode.substring(0, 40)}...
+                </code>
               </div>
-            </div>
 
-              {/* Info */}
-              <p className="text-[#8b949e] text-sm mb-6 text-center">
-                Click the button below to connect your account to the Studiply macOS app.
-              </p>
-
-              {/* Connect Button */}
               <button
-                onClick={handleConnect}
-                disabled={isConnecting}
-                className="w-full py-3 px-4 bg-[#238636] hover:bg-[#2ea043] text-white font-medium rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                onClick={copyCode}
+                className="w-full py-3 px-4 bg-[#238636] hover:bg-[#2ea043] text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2"
               >
-                {isConnecting ? (
+                {copied ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    Connecting...
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Copied!
                   </>
                 ) : (
                   <>
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                     </svg>
-                    Connect
+                    Copy Code
                   </>
                 )}
               </button>
-            </>
-          )}
+
+              <button
+                onClick={handleConnect}
+                className="w-full py-2 px-4 text-[#8b949e] text-sm hover:text-white transition-colors mt-3"
+              >
+                Try again
+              </button>
+            </div>
+          ) : null}
         </div>
 
         {/* Footer */}

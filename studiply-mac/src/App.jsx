@@ -40,14 +40,14 @@ const SESSION_TYPES = [
 // Login Page Component
 function LoginPage({ onLogin }) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showPaste, setShowPaste] = useState(false);
+  const [error, setError] = useState("");
 
   // Listen for deep link events
   useEffect(() => {
     const unlisten = listen("deep-link://new-url", (event) => {
       try {
         const url = event.payload;
-        console.log("Deep link received in LoginPage:", url);
-        
         const urlObj = new URL(url);
         const encodedData = urlObj.searchParams.get("data");
         
@@ -71,13 +71,42 @@ function LoginPage({ onLogin }) {
 
   const handleLogin = async () => {
     setIsConnecting(true);
+    setShowPaste(false);
+    setError("");
     try {
-      // Open browser to Studiply desktop auth page
       const loginUrl = `https://studiply.it/desktop-auth`;
       await invoke("open_url", { url: loginUrl });
+      
+      // Show paste option after 3 seconds
+      setTimeout(() => {
+        setShowPaste(true);
+        setIsConnecting(false);
+      }, 3000);
     } catch (error) {
       console.error("Failed to open browser:", error);
       window.open(`https://studiply.it/desktop-auth`, "_blank");
+    }
+  };
+
+  const handlePaste = async () => {
+    setError("");
+    try {
+      const code = await navigator.clipboard.readText();
+      if (!code || code.trim().length < 10) {
+        setError("No code found. Copy from website first.");
+        return;
+      }
+      
+      const decoded = decodeURIComponent(escape(atob(code.trim())));
+      const userData = JSON.parse(decoded);
+      
+      if (userData && userData.id && userData.email) {
+        onLogin(userData);
+      } else {
+        setError("Invalid code");
+      }
+    } catch (e) {
+      setError("Invalid code. Please copy again.");
     }
   };
 
@@ -100,7 +129,7 @@ function LoginPage({ onLogin }) {
           {isConnecting ? (
             <>
               <span className="spinner"></span>
-              Waiting for login...
+              Opening browser...
             </>
           ) : (
             <>
@@ -112,8 +141,24 @@ function LoginPage({ onLogin }) {
 
         {isConnecting && (
           <p className="login-hint">
-            Complete login in your browser, then you'll be redirected back automatically.
+            Complete login in your browser...
           </p>
+        )}
+
+        {showPaste && (
+          <>
+            <button 
+              className="login-button paste"
+              onClick={handlePaste}
+            >
+              <span>📋</span>
+              Paste Login Code
+            </button>
+            {error && <p className="paste-error">{error}</p>}
+            <p className="login-hint">
+              Copy the code from website and paste here
+            </p>
+          </>
         )}
 
         {/* Footer */}
