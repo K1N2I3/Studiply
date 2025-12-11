@@ -457,6 +457,15 @@ fn hide_window(app: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    Command::new("open")
+        .arg(&url)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     let quit_i = MenuItem::with_id(app, "quit", "Quit Studiply", true, None::<&str>)?;
     let show_i = MenuItem::with_id(app, "show", "Show Window", true, None::<&str>)?;
@@ -509,9 +518,28 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_deep_link::init())
         .manage(AppState::default())
         .setup(|app| {
             create_tray(&app.handle())?;
+            
+            // Handle deep links
+            let handle = app.handle().clone();
+            tauri_plugin_deep_link::register("studiply", move |url| {
+                // Parse the URL and extract auth data
+                if let Some(data) = url.query_pairs().find(|(key, _)| key == "data") {
+                    let encoded_data = data.1.to_string();
+                    // Emit event to frontend with the auth data
+                    let _ = handle.emit("auth-callback", encoded_data);
+                    
+                    // Show and focus the window
+                    if let Some(window) = handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+            }).ok();
+            
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -529,7 +557,8 @@ pub fn run() {
             show_overlay,
             hide_overlay,
             show_window,
-            hide_window
+            hide_window,
+            open_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

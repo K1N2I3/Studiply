@@ -42,8 +42,23 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.15"
+      "minimumSystemVersion": "10.15",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "Studiply Auth",
+            "CFBundleURLSchemes": ["studiply"]
+          }
+        ]
+      }
     }
   },
-  "plugins": {}
+  "plugins": {
+    "deep-link": {
+      "mobile": [],
+      "desktop": {
+        "schemes": ["studiply"]
+      }
+    }
+  }
 }

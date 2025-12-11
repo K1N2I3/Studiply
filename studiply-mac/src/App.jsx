@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 // Safe notification functions
@@ -39,59 +40,37 @@ const SESSION_TYPES = [
 // Login Page Component
 function LoginPage({ onLogin }) {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [showPasteInput, setShowPasteInput] = useState(false);
-  const [pasteError, setPasteError] = useState("");
+
+  // Listen for auth callback from deep link
+  useEffect(() => {
+    const unlisten = listen("auth-callback", (event) => {
+      try {
+        const encodedData = event.payload;
+        const decoded = decodeURIComponent(escape(atob(encodedData)));
+        const userData = JSON.parse(decoded);
+        
+        if (userData && userData.id && userData.email) {
+          onLogin(userData);
+        }
+      } catch (e) {
+        console.error("Failed to parse auth data:", e);
+      }
+    });
+
+    return () => {
+      unlisten.then(fn => fn());
+    };
+  }, [onLogin]);
 
   const handleLogin = async () => {
     setIsConnecting(true);
     try {
       // Open browser to Studiply desktop auth page
       const loginUrl = `https://studiply.it/desktop-auth`;
-      
-      // Try using Tauri opener plugin
-      try {
-        const { open } = await import("@tauri-apps/plugin-opener");
-        await open(loginUrl);
-      } catch (e) {
-        // Fallback to window.open
-        window.open(loginUrl, "_blank");
-      }
+      await invoke("open_url", { url: loginUrl });
     } catch (error) {
       console.error("Failed to open browser:", error);
       window.open(`https://studiply.it/desktop-auth`, "_blank");
-    }
-    
-    // Show paste option after opening browser
-    setTimeout(() => {
-      setShowPasteInput(true);
-      setIsConnecting(false);
-    }, 1500);
-  };
-
-  // Paste login code from clipboard
-  const handlePasteCode = async () => {
-    try {
-      const code = await navigator.clipboard.readText();
-      if (!code || code.trim().length < 10) {
-        setPasteError("No valid code found. Copy the code from website first.");
-        return;
-      }
-      
-      // Decode the login code
-      try {
-        const decoded = decodeURIComponent(escape(atob(code.trim())));
-        const userData = JSON.parse(decoded);
-        
-        if (userData && userData.id && userData.email) {
-          onLogin(userData);
-        } else {
-          setPasteError("Invalid code format");
-        }
-      } catch (e) {
-        setPasteError("Invalid code. Please copy again from website.");
-      }
-    } catch (error) {
-      setPasteError("Cannot read clipboard. Please allow clipboard access.");
     }
   };
 
@@ -105,77 +84,28 @@ function LoginPage({ onLogin }) {
           <p className="login-tagline">Focus Mode for macOS</p>
         </div>
 
-        {/* Features */}
-        <div className="login-features">
-          <div className="feature-item">
-            <span className="feature-icon">⏱️</span>
-            <span>Pomodoro Timer</span>
-          </div>
-          <div className="feature-item">
-            <span className="feature-icon">🚫</span>
-            <span>Block Distracting Websites</span>
-          </div>
-          <div className="feature-item">
-            <span className="feature-icon">📱</span>
-            <span>Block Distracting Apps</span>
-          </div>
-          <div className="feature-item">
-            <span className="feature-icon">🔥</span>
-            <span>Sync Your Streak</span>
-          </div>
-        </div>
-
         {/* Login Button */}
-        {!showPasteInput ? (
-          <button 
-            className="login-button"
-            onClick={handleLogin}
-            disabled={isConnecting}
-          >
-            {isConnecting ? (
-              <>
-                <span className="spinner"></span>
-                Opening browser...
-              </>
-            ) : (
-              <>
-                <span>🔗</span>
-                Connect with Studiply
-              </>
-            )}
-          </button>
-        ) : (
-          <>
-            <button 
-              className="login-button paste"
-              onClick={handlePasteCode}
-            >
-              <span>📋</span>
-              Paste Login Code
-            </button>
-            
-            {pasteError && (
-              <p className="paste-error">{pasteError}</p>
-            )}
-            
-            <button 
-              className="login-button-secondary"
-              onClick={handleLogin}
-            >
-              Open Website Again
-            </button>
-          </>
-        )}
+        <button 
+          className="login-button"
+          onClick={handleLogin}
+          disabled={isConnecting}
+        >
+          {isConnecting ? (
+            <>
+              <span className="spinner"></span>
+              Waiting for login...
+            </>
+          ) : (
+            <>
+              <span>🔗</span>
+              Connect with Studiply
+            </>
+          )}
+        </button>
 
         {isConnecting && (
           <p className="login-hint">
-            Opening browser...
-          </p>
-        )}
-
-        {showPasteInput && !isConnecting && (
-          <p className="login-hint">
-            After logging in on website, click "Paste Login Code"
+            Complete login in your browser, then you'll be redirected back automatically.
           </p>
         )}
 
@@ -184,9 +114,13 @@ function LoginPage({ onLogin }) {
           <p>Don't have an account?</p>
           <a 
             href="#" 
-            onClick={(e) => {
+            onClick={async (e) => {
               e.preventDefault();
-              window.open("https://studiply.it/register", "_blank");
+              try {
+                await invoke("open_url", { url: "https://studiply.it" });
+              } catch {
+                window.open("https://studiply.it", "_blank");
+              }
             }}
           >
             Create one at studiply.it
@@ -609,7 +543,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing login
+  // Check for existing login and listen for auth callback
   useEffect(() => {
     const checkAuth = () => {
       const userData = localStorage.getItem("studiply_user");
@@ -625,19 +559,25 @@ function App() {
 
     checkAuth();
 
-    // Listen for auth messages from website (via localStorage)
-    const handleStorage = (e) => {
-      if (e.key === "studiply_user" && e.newValue) {
-        try {
-          setUser(JSON.parse(e.newValue));
-        } catch (error) {
-          console.error("Auth error:", error);
+    // Listen for auth callback from deep link
+    const unlisten = listen("auth-callback", (event) => {
+      try {
+        const encodedData = event.payload;
+        const decoded = decodeURIComponent(escape(atob(encodedData)));
+        const userData = JSON.parse(decoded);
+        
+        if (userData && userData.id && userData.email) {
+          setUser(userData);
+          localStorage.setItem("studiply_user", JSON.stringify(userData));
         }
+      } catch (e) {
+        console.error("Failed to parse auth data:", e);
       }
-    };
+    });
 
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    return () => {
+      unlisten.then(fn => fn());
+    };
   }, []);
 
   // Handle login
@@ -648,10 +588,10 @@ function App() {
 
   // Handle logout
   const handleLogout = () => {
-    if (confirm("Are you sure you want to logout?")) {
-      setUser(null);
-      localStorage.removeItem("studiply_user");
-    }
+    // Direct logout without confirm (confirm doesn't work well in Tauri)
+    setUser(null);
+    localStorage.removeItem("studiply_user");
+    localStorage.removeItem("studiply_desktop_auth");
   };
 
   if (isLoading) {
