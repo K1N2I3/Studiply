@@ -62,6 +62,7 @@ import CalendarPage from '../pages/Calendar'
 import FocusTestModal from './FocusTestModal'
 import useFocusTest from '../hooks/useFocusTest'
 import BecomeTutor from '../pages/BecomeTutor'
+import DesktopAuth from '../pages/DesktopAuth'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -884,6 +885,10 @@ const Header = () => {
                   <BecomeTutor />
                 </ProtectedRoute>
               }
+            />
+            <Route
+              path="/desktop-auth"
+              element={<DesktopAuth />}
             />
             <Route
               path="/verify-email-change"
