@@ -39,6 +39,8 @@ const SESSION_TYPES = [
 // Login Page Component
 function LoginPage({ onLogin }) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showPasteInput, setShowPasteInput] = useState(false);
+  const [pasteError, setPasteError] = useState("");
 
   const handleLogin = async () => {
     setIsConnecting(true);
@@ -59,21 +61,38 @@ function LoginPage({ onLogin }) {
       window.open(`https://studiply.it/desktop-auth`, "_blank");
     }
     
-    // Start polling for auth status
-    const checkAuth = setInterval(async () => {
-      const userData = localStorage.getItem("studiply_user");
-      if (userData) {
-        clearInterval(checkAuth);
-        setIsConnecting(false);
-        onLogin(JSON.parse(userData));
-      }
-    }, 1000);
-
-    // Stop polling after 5 minutes
+    // Show paste option after opening browser
     setTimeout(() => {
-      clearInterval(checkAuth);
+      setShowPasteInput(true);
       setIsConnecting(false);
-    }, 300000);
+    }, 1500);
+  };
+
+  // Paste login code from clipboard
+  const handlePasteCode = async () => {
+    try {
+      const code = await navigator.clipboard.readText();
+      if (!code || code.trim().length < 10) {
+        setPasteError("No valid code found. Copy the code from website first.");
+        return;
+      }
+      
+      // Decode the login code
+      try {
+        const decoded = decodeURIComponent(escape(atob(code.trim())));
+        const userData = JSON.parse(decoded);
+        
+        if (userData && userData.id && userData.email) {
+          onLogin(userData);
+        } else {
+          setPasteError("Invalid code format");
+        }
+      } catch (e) {
+        setPasteError("Invalid code. Please copy again from website.");
+      }
+    } catch (error) {
+      setPasteError("Cannot read clipboard. Please allow clipboard access.");
+    }
   };
 
   return (
@@ -107,27 +126,56 @@ function LoginPage({ onLogin }) {
         </div>
 
         {/* Login Button */}
-        <button 
-          className="login-button"
-          onClick={handleLogin}
-          disabled={isConnecting}
-        >
-          {isConnecting ? (
-            <>
-              <span className="spinner"></span>
-              Waiting for login...
-            </>
-          ) : (
-            <>
-              <span>🔗</span>
-              Connect with Studiply
-            </>
-          )}
-        </button>
+        {!showPasteInput ? (
+          <button 
+            className="login-button"
+            onClick={handleLogin}
+            disabled={isConnecting}
+          >
+            {isConnecting ? (
+              <>
+                <span className="spinner"></span>
+                Opening browser...
+              </>
+            ) : (
+              <>
+                <span>🔗</span>
+                Connect with Studiply
+              </>
+            )}
+          </button>
+        ) : (
+          <>
+            <button 
+              className="login-button paste"
+              onClick={handlePasteCode}
+            >
+              <span>📋</span>
+              Paste Login Code
+            </button>
+            
+            {pasteError && (
+              <p className="paste-error">{pasteError}</p>
+            )}
+            
+            <button 
+              className="login-button-secondary"
+              onClick={handleLogin}
+            >
+              Open Website Again
+            </button>
+          </>
+        )}
 
         {isConnecting && (
           <p className="login-hint">
-            Complete login in your browser, then return here
+            Opening browser...
+          </p>
+        )}
+
+        {showPasteInput && !isConnecting && (
+          <p className="login-hint">
+            After logging in on website, click "Paste Login Code"
           </p>
         )}
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { Monitor, CheckCircle, Loader, LogIn } from 'lucide-react'
+import { Monitor, CheckCircle, Loader, LogIn, Copy, Check } from 'lucide-react'
 
 const DesktopAuth = () => {
   const navigate = useNavigate()
@@ -11,8 +11,17 @@ const DesktopAuth = () => {
   const { isDark } = useTheme()
   const [isConnecting, setIsConnecting] = useState(false)
   const [connected, setConnected] = useState(false)
+  const [loginCode, setLoginCode] = useState('')
+  const [copied, setCopied] = useState(false)
 
-  const isDesktopAuth = searchParams.get('desktop') === 'true'
+  // Always treat as desktop auth (remove the check)
+  const isDesktopAuth = true
+
+  // Generate login code from user data
+  const generateLoginCode = (userData) => {
+    const data = JSON.stringify(userData)
+    return btoa(unescape(encodeURIComponent(data)))
+  }
 
   // Handle connect to desktop app
   const handleConnect = () => {
@@ -30,35 +39,17 @@ const DesktopAuth = () => {
       avatar: user.avatar || null,
     }
 
-    // Try to communicate with desktop app via custom protocol
-    // The desktop app should be listening for this
     try {
-      // Method 1: Try postMessage (works if opened from desktop app)
-      if (window.opener) {
-        window.opener.postMessage({
-          type: 'STUDIPLY_AUTH_SUCCESS',
-          user: userData
-        }, '*')
-      }
-
-      // Method 2: Store in localStorage (desktop app polls this)
-      localStorage.setItem('studiply_desktop_auth', JSON.stringify({
-        user: userData,
-        timestamp: Date.now()
-      }))
-
-      // Also update the main user storage that desktop app checks
-      localStorage.setItem('studiply_user', JSON.stringify(userData))
-
+      // Generate a login code
+      const code = generateLoginCode(userData)
+      setLoginCode(code)
       setConnected(true)
-
-      // Show success for 2 seconds then close
-      setTimeout(() => {
-        // Try to close window if opened as popup
-        if (window.opener) {
-          window.close()
-        }
-      }, 2000)
+      
+      // Auto-copy to clipboard
+      navigator.clipboard.writeText(code).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(() => {})
 
     } catch (error) {
       console.error('Failed to connect:', error)
@@ -67,27 +58,24 @@ const DesktopAuth = () => {
     setIsConnecting(false)
   }
 
+  // Copy code to clipboard
+  const copyCode = () => {
+    navigator.clipboard.writeText(loginCode).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   // Auto-connect if user is already logged in
   useEffect(() => {
-    if (user && isDesktopAuth && !connected) {
+    if (user && !connected) {
       // Small delay to show the UI first
       const timer = setTimeout(() => {
         handleConnect()
-      }, 500)
+      }, 300)
       return () => clearTimeout(timer)
     }
-  }, [user, isDesktopAuth, connected])
-
-  // If not a desktop auth request, redirect to home
-  if (!isDesktopAuth) {
-    return (
-      <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-slate-900' : 'bg-gray-50'}`}>
-        <p className={isDark ? 'text-white' : 'text-gray-900'}>
-          Invalid request. Please use the Studiply desktop app.
-        </p>
-      </div>
-    )
-  }
+  }, [user, connected])
 
   return (
     <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-slate-900' : 'bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50'}`}>
@@ -108,16 +96,43 @@ const DesktopAuth = () => {
 
         {/* Status */}
         {connected ? (
-          <div className="text-center py-8">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/20 mb-4">
-              <CheckCircle className="w-10 h-10 text-green-500" />
+          <div className="text-center py-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 mb-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
             <h2 className={`text-xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Connected!
+              Ready to Connect!
             </h2>
-            <p className={`${isDark ? 'text-white/60' : 'text-gray-600'}`}>
-              You can now return to the desktop app
+            <p className={`mb-4 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+              Code copied! Paste it in the Mac app
             </p>
+            
+            {/* Login Code Display */}
+            <div className={`p-4 rounded-xl mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-100'}`}>
+              <p className={`text-xs mb-2 ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                Login Code (auto-copied)
+              </p>
+              <div className="flex items-center gap-2">
+                <code className={`flex-1 text-xs break-all font-mono ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>
+                  {loginCode.substring(0, 30)}...
+                </code>
+                <button
+                  onClick={copyCode}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}
+                >
+                  {copied ? (
+                    <Check className="w-4 h-4 text-green-500" />
+                  ) : (
+                    <Copy className={`w-4 h-4 ${isDark ? 'text-white/60' : 'text-gray-500'}`} />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className={`text-sm ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+              <p className="mb-1">👉 Open the Studiply Mac app</p>
+              <p>👉 Click "Paste Login Code"</p>
+            </div>
           </div>
         ) : user ? (
           <>
