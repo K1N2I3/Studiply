@@ -89,16 +89,24 @@ const DesktopAuth = () => {
             </div>
           ) : (
             <>
-              {/* User Info */}
-              <div className="flex items-center gap-4 p-4 bg-[#0d1117] rounded-lg mb-6">
+            {/* User Info */}
+            <div className="flex items-center gap-4 p-4 bg-[#0d1117] rounded-lg mb-6">
+              {user.avatar ? (
+                <img 
+                  src={user.avatar} 
+                  alt={user.name} 
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+              ) : (
                 <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
                   {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </div>
-                <div>
-                  <p className="text-white font-medium">{user.name || 'User'}</p>
-                  <p className="text-[#8b949e] text-sm">{user.email}</p>
-                </div>
+              )}
+              <div>
+                <p className="text-white font-medium">{user.name || 'User'}</p>
+                <p className="text-[#8b949e] text-sm">{user.email}</p>
               </div>
+            </div>
 
               {/* Info */}
               <p className="text-[#8b949e] text-sm mb-6 text-center">

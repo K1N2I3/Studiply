@@ -41,19 +41,26 @@ const SESSION_TYPES = [
 function LoginPage({ onLogin }) {
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Listen for auth callback from deep link
+  // Listen for deep link events
   useEffect(() => {
-    const unlisten = listen("auth-callback", (event) => {
+    const unlisten = listen("deep-link://new-url", (event) => {
       try {
-        const encodedData = event.payload;
-        const decoded = decodeURIComponent(escape(atob(encodedData)));
-        const userData = JSON.parse(decoded);
+        const url = event.payload;
+        console.log("Deep link received in LoginPage:", url);
         
-        if (userData && userData.id && userData.email) {
-          onLogin(userData);
+        const urlObj = new URL(url);
+        const encodedData = urlObj.searchParams.get("data");
+        
+        if (encodedData) {
+          const decoded = decodeURIComponent(escape(atob(encodedData)));
+          const userData = JSON.parse(decoded);
+          
+          if (userData && userData.id && userData.email) {
+            onLogin(userData);
+          }
         }
       } catch (e) {
-        console.error("Failed to parse auth data:", e);
+        console.error("Failed to parse deep link:", e);
       }
     });
 
@@ -559,19 +566,27 @@ function App() {
 
     checkAuth();
 
-    // Listen for auth callback from deep link
-    const unlisten = listen("auth-callback", (event) => {
+    // Listen for deep link events
+    const unlisten = listen("deep-link://new-url", (event) => {
       try {
-        const encodedData = event.payload;
-        const decoded = decodeURIComponent(escape(atob(encodedData)));
-        const userData = JSON.parse(decoded);
+        const url = event.payload;
+        console.log("Deep link received:", url);
         
-        if (userData && userData.id && userData.email) {
-          setUser(userData);
-          localStorage.setItem("studiply_user", JSON.stringify(userData));
+        // Parse URL to extract data parameter
+        const urlObj = new URL(url);
+        const encodedData = urlObj.searchParams.get("data");
+        
+        if (encodedData) {
+          const decoded = decodeURIComponent(escape(atob(encodedData)));
+          const userData = JSON.parse(decoded);
+          
+          if (userData && userData.id && userData.email) {
+            setUser(userData);
+            localStorage.setItem("studiply_user", JSON.stringify(userData));
+          }
         }
       } catch (e) {
-        console.error("Failed to parse auth data:", e);
+        console.error("Failed to parse deep link:", e);
       }
     });
 

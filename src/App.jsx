@@ -127,6 +127,11 @@ function AppContent() {
     return <MacOSLogin />
   }
 
+  // Desktop Auth 页面 - 不显示任何导航栏，完全独立
+  if (location.pathname === '/desktop-auth') {
+    return <DesktopAuth />
+  }
+
   // 如果用户已登录，Header会处理整个布局
   if (user) {
     return (

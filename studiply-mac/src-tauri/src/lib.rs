@@ -1,7 +1,7 @@
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, Runtime,
+    Manager, Runtime, Emitter,
 };
 use std::sync::Mutex;
 use std::process::Command;
@@ -523,22 +523,8 @@ pub fn run() {
         .setup(|app| {
             create_tray(&app.handle())?;
             
-            // Handle deep links
-            let handle = app.handle().clone();
-            tauri_plugin_deep_link::register("studiply", move |url| {
-                // Parse the URL and extract auth data
-                if let Some(data) = url.query_pairs().find(|(key, _)| key == "data") {
-                    let encoded_data = data.1.to_string();
-                    // Emit event to frontend with the auth data
-                    let _ = handle.emit("auth-callback", encoded_data);
-                    
-                    // Show and focus the window
-                    if let Some(window) = handle.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
-                }
-            }).ok();
+            // Deep links are handled by the plugin automatically
+            // The frontend listens for the deep-link event
             
             Ok(())
         })
