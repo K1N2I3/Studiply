@@ -118,7 +118,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     const answerTime = Date.now() - questionStartTimeRef.current
 
     try {
-      console.log(`📝 Submitting answer: Q${currentQuestionIndex}, answer: ${answerIndex}`)
+      console.log(`📝 Submitting Q${currentQuestionIndex}, answer: ${answerIndex}`)
       
       const result = await submitAnswer({
         matchId,
@@ -136,15 +136,15 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         setPlayer1Score(result.player1Score)
         setPlayer2Score(result.player2Score)
 
-        console.log(`📝 Answer result: correct=${result.correct}, bothAnswered=${result.bothAnswered}`)
+        console.log(`📝 Result: correct=${result.correct}, bothAnswered=${result.bothAnswered}`)
 
         if (result.bothAnswered) {
-          // Both answered, move to next question after showing result
-          setTimeout(() => moveToNextQuestion(), 2000)
+          // Both answered - show result briefly then advance
+          setTimeout(() => moveToNextQuestion(), 1500)
         } else {
-          // Wait for opponent - start polling
+          // Wait for opponent
           setWaitingForOpponent(true)
-          pollForOpponentAnswer()
+          startPolling()
         }
       }
     } catch (err) {
@@ -152,70 +152,95 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     }
   }
 
-  const pollForOpponentAnswer = () => {
+  const pollIntervalRef = useRef(null)
+
+  const startPolling = () => {
+    // Clear any existing poll
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+    }
+
     let pollCount = 0
-    const maxPolls = 30 // 15 seconds max (500ms * 30)
+    const maxPolls = 40 // 20 seconds max (500ms * 40)
     
-    const pollInterval = setInterval(async () => {
+    pollIntervalRef.current = setInterval(async () => {
       pollCount++
       
       try {
-        // Try to advance - server will only advance if both answered
-        const result = await nextQuestion(matchId, userId)
-        
-        console.log(`🔄 Poll ${pollCount}: status=${result.status}`)
+        const result = await nextQuestion(matchId, userId, currentQuestionIndex)
         
         if (result.success) {
+          console.log(`🔄 Poll ${pollCount}: ${result.status}, serverQ: ${result.currentQuestion}`)
+          
           if (result.status === 'completed') {
-            clearInterval(pollInterval)
+            clearInterval(pollIntervalRef.current)
             handleMatchComplete(result)
-          } else if (result.status === 'continue') {
-            // Both answered, move to next question
-            clearInterval(pollInterval)
+          } else if (result.status === 'continue' || result.status === 'sync') {
+            // Advance to next question
+            clearInterval(pollIntervalRef.current)
             setPlayer1Score(result.player1Score)
             setPlayer2Score(result.player2Score)
             handleNextQuestion(result.currentQuestion)
           } else if (result.status === 'waiting') {
-            // Still waiting for opponent
             setPlayer1Score(result.player1Score)
             setPlayer2Score(result.player2Score)
           }
         }
         
-        // Timeout after max polls
         if (pollCount >= maxPolls) {
-          clearInterval(pollInterval)
-          // Force move to next anyway
+          clearInterval(pollIntervalRef.current)
+          // Force advance
           moveToNextQuestion()
         }
       } catch (err) {
         console.error('Poll error:', err)
       }
-    }, 500) // Poll every 500ms for faster response
+    }, 500)
   }
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+      }
+    }
+  }, [])
+
   const handleMatchComplete = (result) => {
+    // Stop any polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+    }
+    
     setMatchComplete(true)
+    const isPlayer1 = match?.playerNum === 1
+    const myPointChange = isPlayer1 ? result.player1PointChange : result.player2PointChange
+    
     setMatchResult({
       winner: result.winner,
-      playerNum: result.playerNum,
+      playerNum: result.playerNum || match?.playerNum,
       player1Score: result.player1Score,
       player2Score: result.player2Score,
       player1PointChange: result.player1PointChange,
       player2PointChange: result.player2PointChange,
-      pointChange: result.pointChange
+      pointChange: myPointChange
     })
+    
+    console.log(`🏁 Match complete! Winner: ${result.winner}, My points: ${myPointChange > 0 ? '+' : ''}${myPointChange}`)
     
     // Notify parent after delay
     setTimeout(() => {
       onComplete({
         ...result,
-        playerNum: match?.playerNum || result.playerNum
+        playerNum: match?.playerNum || result.playerNum,
+        pointChange: myPointChange
       })
     }, 3000)
   }
 
   const handleNextQuestion = async (nextQuestionIndex) => {
+    console.log(`⏭️ Moving to Q${nextQuestionIndex}`)
     setCurrentQuestionIndex(nextQuestionIndex)
     setSelectedAnswer(null)
     setAnswerSubmitted(false)
@@ -228,17 +253,17 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
 
   const moveToNextQuestion = async () => {
     try {
-      const result = await nextQuestion(matchId, userId)
+      const result = await nextQuestion(matchId, userId, currentQuestionIndex)
       
-      console.log(`⏭️ Next question result:`, result)
+      console.log(`⏭️ Next result:`, result.status)
       
       if (result.success) {
         if (result.status === 'completed') {
           handleMatchComplete(result)
-        } else if (result.status === 'continue') {
+        } else if (result.status === 'continue' || result.status === 'sync') {
           handleNextQuestion(result.currentQuestion)
         } else if (result.status === 'waiting') {
-          // Still waiting, keep polling
+          // Still waiting - this shouldn't happen after timeout but handle it
           setPlayer1Score(result.player1Score)
           setPlayer2Score(result.player2Score)
         }
@@ -392,32 +417,35 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         {matchComplete ? (
           // Match Complete Screen
           <div className="text-center py-16">
-            <div className={`text-6xl mb-6 ${
-              matchResult?.winner === 'player1' && isPlayer1 || matchResult?.winner === 'player2' && !isPlayer1
-                ? 'animate-bounce'
-                : ''
-            }`}>
-              {matchResult?.winner === 'player1' && isPlayer1 || matchResult?.winner === 'player2' && !isPlayer1
-                ? '🎉'
-                : matchResult?.winner === 'draw'
-                  ? '🤝'
-                  : '😔'}
-            </div>
-            <h2 className={`text-4xl font-black mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-              {matchResult?.winner === 'player1' && isPlayer1 || matchResult?.winner === 'player2' && !isPlayer1
-                ? 'Victory!'
-                : matchResult?.winner === 'draw'
-                  ? 'Draw!'
-                  : 'Defeat'}
-            </h2>
-            <p className={`text-xl ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
-              Final Score: {player1Score} - {player2Score}
-            </p>
-            <div className={`mt-4 text-lg font-bold ${
-              matchResult?.player1PointChange > 0 ? 'text-green-500' : 'text-red-500'
-            }`}>
-              {matchResult?.player1PointChange > 0 ? '+' : ''}{matchResult?.player1PointChange} points
-            </div>
+            {(() => {
+              const iWon = (matchResult?.winner === 'player1' && isPlayer1) || 
+                           (matchResult?.winner === 'player2' && !isPlayer1)
+              const isDraw = matchResult?.winner === 'draw'
+              const myPointChange = matchResult?.pointChange ?? 
+                (isPlayer1 ? matchResult?.player1PointChange : matchResult?.player2PointChange)
+              
+              return (
+                <>
+                  <div className={`text-6xl mb-6 ${iWon ? 'animate-bounce' : ''}`}>
+                    {iWon ? '🎉' : isDraw ? '🤝' : '😔'}
+                  </div>
+                  <h2 className={`text-4xl font-black mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    {iWon ? 'Victory!' : isDraw ? 'Draw!' : 'Defeat'}
+                  </h2>
+                  <p className={`text-xl ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
+                    Final Score: {isPlayer1 ? player1Score : player2Score} - {isPlayer1 ? player2Score : player1Score}
+                  </p>
+                  <div className={`mt-4 text-2xl font-bold ${
+                    myPointChange > 0 ? 'text-green-500' : myPointChange < 0 ? 'text-red-500' : 'text-yellow-500'
+                  }`}>
+                    {myPointChange > 0 ? '+' : ''}{myPointChange || 0} points
+                  </div>
+                  <p className={`mt-2 text-sm ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
+                    Returning to lobby...
+                  </p>
+                </>
+              )
+            })()}
           </div>
         ) : currentQuestion ? (
           <>

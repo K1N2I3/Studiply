@@ -229,12 +229,12 @@ export const submitAnswer = async ({ matchId, userId, questionIndex, answer, ans
 /**
  * Move to next question
  */
-export const nextQuestion = async (matchId, userId) => {
+export const nextQuestion = async (matchId, userId, clientQuestionIndex) => {
   try {
     const response = await fetch(`${API_BASE_URL}/ranked/match/${matchId}/next`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId })
+      body: JSON.stringify({ userId, clientQuestionIndex })
     })
     const result = await response.json()
     
