@@ -7,10 +7,13 @@ import Match from '../models/Match.js'
 const router = express.Router()
 
 // In-memory matchmaking queue (in production, use Redis)
-const matchmakingQueue = new Map() // key: `${subject}_${tier}_${difficulty}`, value: [{userId, userName, userAvatar, joinedAt}]
+const matchmakingQueue = new Map() // key: `${subject}_${difficulty}`, value: [{userId, userName, userAvatar, tier, joinedAt}]
 
 // Active matches for quick lookup
 const activeMatches = new Map() // key: matchId, value: match document
+
+// Pending matches - when a match is created, store it here so both players can find it
+const pendingMatches = new Map() // key: odice - userId, value: matchId
 
 // Generate unique match ID
 const generateMatchId = () => `match_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`
@@ -224,6 +227,31 @@ router.post('/queue', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' })
     }
 
+    console.log(`🎮 [Ranked] Queue request from ${userName} (${userId}) for ${subject}/${difficulty}`)
+
+    // Check if user already has a pending match
+    if (pendingMatches.has(userId)) {
+      const matchId = pendingMatches.get(userId)
+      const match = activeMatches.get(matchId)
+      if (match) {
+        const isPlayer1 = match.player1.userId === userId
+        const opponent = isPlayer1 ? match.player2 : match.player1
+        console.log(`🎮 [Ranked] User ${userId} already has pending match: ${matchId}`)
+        return res.json({
+          success: true,
+          status: 'matched',
+          matchId,
+          opponent: {
+            userName: opponent.userName,
+            tier: opponent.tier,
+            isBot: opponent.isBot || false
+          }
+        })
+      } else {
+        pendingMatches.delete(userId)
+      }
+    }
+
     // Get user's tier for this subject
     let userRank = await UserRank.findOne({ userId })
     if (!userRank) {
@@ -240,7 +268,8 @@ router.post('/queue', async (req, res) => {
     const subjectRank = userRank.getSubjectRank(subject)
     const tier = subjectRank.tier
 
-    const queueKey = `${subject}_${tier}_${difficulty}`
+    // Use subject + difficulty as queue key (not tier, so different tiers can match)
+    const queueKey = `${subject}_${difficulty}`
     
     // Check if already in queue
     if (!matchmakingQueue.has(queueKey)) {
@@ -248,31 +277,23 @@ router.post('/queue', async (req, res) => {
     }
     
     const queue = matchmakingQueue.get(queueKey)
-    const existingIndex = queue.findIndex(p => p.userId === userId)
     
+    // Remove user from queue if already exists (refresh their position)
+    const existingIndex = queue.findIndex(p => p.userId === userId)
     if (existingIndex !== -1) {
-      return res.json({ success: true, status: 'already_in_queue', queuePosition: existingIndex + 1 })
+      queue.splice(existingIndex, 1)
     }
 
-    // Add to queue
-    queue.push({
-      userId,
-      userName: userName || userRank.userName,
-      userAvatar,
-      tier,
-      points: subjectRank.points,
-      joinedAt: Date.now()
-    })
-
-    console.log(`🎮 [Ranked] ${userName} joined queue: ${queueKey} (${queue.length} in queue)`)
-
-    // Check for match
-    if (queue.length >= 2) {
-      const player1 = queue.shift()
-      const player2 = queue.shift()
+    // Find opponent (anyone else in queue)
+    const opponentIndex = queue.findIndex(p => p.userId !== userId)
+    
+    if (opponentIndex !== -1) {
+      // Found an opponent! Create match immediately
+      const opponent = queue.splice(opponentIndex, 1)[0]
       
-      // Create match
       const matchId = generateMatchId()
+      console.log(`🎮 [Ranked] Generating questions for match ${matchId}...`)
+      
       const questions = await generateBattleQuestions(subject, difficulty, 5)
       
       const match = new Match({
@@ -280,18 +301,18 @@ router.post('/queue', async (req, res) => {
         subject,
         difficulty,
         player1: {
-          userId: player1.userId,
-          userName: player1.userName,
-          userAvatar: player1.userAvatar,
-          tier: player1.tier,
-          points: player1.points
+          userId: opponent.userId,
+          userName: opponent.userName,
+          userAvatar: opponent.userAvatar,
+          tier: opponent.tier,
+          points: opponent.points
         },
         player2: {
-          userId: player2.userId,
-          userName: player2.userName,
-          userAvatar: player2.userAvatar,
-          tier: player2.tier,
-          points: player2.points,
+          userId: userId,
+          userName: userName || userRank.userName,
+          userAvatar: userAvatar,
+          tier: tier,
+          points: subjectRank.points,
           isBot: false
         },
         status: 'pending',
@@ -301,26 +322,43 @@ router.post('/queue', async (req, res) => {
       
       await match.save()
       activeMatches.set(matchId, match)
+      
+      // Store pending match for BOTH players
+      pendingMatches.set(opponent.userId, matchId)
+      pendingMatches.set(userId, matchId)
 
-      console.log(`🎮 [Ranked] Match created: ${matchId} - ${player1.userName} vs ${player2.userName}`)
+      console.log(`🎮 [Ranked] Match created: ${matchId} - ${opponent.userName} vs ${userName}`)
 
       return res.json({
         success: true,
         status: 'matched',
         matchId,
         opponent: {
-          userName: player2.userName,
-          tier: player2.tier,
+          userName: opponent.userName,
+          tier: opponent.tier,
           isBot: false
         }
       })
     }
 
+    // No opponent found, add to queue
+    queue.push({
+      userId,
+      userName: userName || userRank.userName,
+      userAvatar,
+      tier,
+      points: subjectRank.points,
+      joinedAt: Date.now()
+    })
+
+    console.log(`🎮 [Ranked] ${userName} added to queue: ${queueKey} (${queue.length} in queue)`)
+
     res.json({
       success: true,
       status: 'waiting',
       queuePosition: queue.length,
-      queueKey
+      queueKey,
+      tier
     })
   } catch (error) {
     console.error('Error joining queue:', error)
@@ -334,23 +372,57 @@ router.get('/queue/status/:userId', async (req, res) => {
     const { userId } = req.params
     const { subject, difficulty, tier } = req.query
 
-    const queueKey = `${subject}_${tier}_${difficulty}`
+    console.log(`🔍 [Ranked] Checking queue status for ${userId}`)
+
+    // First, check if user has a pending match
+    if (pendingMatches.has(userId)) {
+      const matchId = pendingMatches.get(userId)
+      const match = activeMatches.get(matchId)
+      if (match) {
+        const isPlayer1 = match.player1.userId === userId
+        const opponent = isPlayer1 ? match.player2 : match.player1
+        console.log(`✅ [Ranked] Found pending match for ${userId}: ${matchId}`)
+        return res.json({
+          success: true,
+          status: 'matched',
+          matchId,
+          opponent: {
+            userName: opponent.userName,
+            tier: opponent.tier,
+            isBot: opponent.isBot || false
+          }
+        })
+      } else {
+        // Match no longer exists, clean up
+        pendingMatches.delete(userId)
+      }
+    }
+
+    // Check active matches (fallback)
+    for (const [matchId, match] of activeMatches) {
+      if (match.player1.userId === userId || match.player2.userId === userId) {
+        const isPlayer1 = match.player1.userId === userId
+        const opponent = isPlayer1 ? match.player2 : match.player1
+        console.log(`✅ [Ranked] Found active match for ${userId}: ${matchId}`)
+        return res.json({
+          success: true,
+          status: 'matched',
+          matchId,
+          opponent: {
+            userName: opponent.userName,
+            tier: opponent.tier,
+            isBot: opponent.isBot || false
+          }
+        })
+      }
+    }
+
+    const queueKey = `${subject}_${difficulty}`
     const queue = matchmakingQueue.get(queueKey) || []
     
     const playerInQueue = queue.find(p => p.userId === userId)
     
     if (!playerInQueue) {
-      // Check if there's an active match for this user
-      for (const [matchId, match] of activeMatches) {
-        if (match.player1.userId === userId || match.player2.userId === userId) {
-          return res.json({
-            success: true,
-            status: 'matched',
-            matchId,
-            opponent: match.player1.userId === userId ? match.player2 : match.player1
-          })
-        }
-      }
       return res.json({ success: true, status: 'not_in_queue' })
     }
 
@@ -363,6 +435,8 @@ router.get('/queue/status/:userId', async (req, res) => {
       if (index !== -1) {
         queue.splice(index, 1)
       }
+
+      console.log(`🤖 [Ranked] Creating bot match for ${userId} after timeout`)
 
       // Create bot match
       const matchId = generateMatchId()
@@ -396,6 +470,7 @@ router.get('/queue/status/:userId', async (req, res) => {
       
       await match.save()
       activeMatches.set(matchId, match)
+      pendingMatches.set(userId, matchId)
 
       console.log(`🤖 [Ranked] Bot match created: ${matchId} - ${playerInQueue.userName} vs ${botName}`)
 
@@ -428,7 +503,8 @@ router.post('/queue/leave', async (req, res) => {
   try {
     const { userId, subject, difficulty, tier } = req.body
 
-    const queueKey = `${subject}_${tier}_${difficulty}`
+    // Remove from queue
+    const queueKey = `${subject}_${difficulty}`
     const queue = matchmakingQueue.get(queueKey)
     
     if (queue) {
@@ -438,6 +514,9 @@ router.post('/queue/leave', async (req, res) => {
         console.log(`🎮 [Ranked] ${userId} left queue: ${queueKey}`)
       }
     }
+
+    // Also remove pending match reference
+    pendingMatches.delete(userId)
 
     res.json({ success: true })
   } catch (error) {
@@ -620,7 +699,15 @@ router.post('/match/:matchId/next', async (req, res) => {
       }
 
       await match.save()
-      activeMatches.delete(matchId) // Clean up
+      
+      // Clean up activeMatches and pendingMatches
+      activeMatches.delete(matchId)
+      pendingMatches.delete(match.player1.userId)
+      if (!match.player2.isBot) {
+        pendingMatches.delete(match.player2.userId)
+      }
+
+      console.log(`🏁 [Ranked] Match ${matchId} completed. Winner: ${match.winner}`)
 
       return res.json({
         success: true,
@@ -775,6 +862,47 @@ router.get('/history/:userId', async (req, res) => {
     res.json({ success: true, history })
   } catch (error) {
     console.error('Error getting match history:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Debug endpoint - view queue status
+router.get('/debug/queue', async (req, res) => {
+  try {
+    const queueStatus = {}
+    for (const [key, queue] of matchmakingQueue) {
+      queueStatus[key] = queue.map(p => ({
+        userId: p.userId,
+        userName: p.userName,
+        tier: p.tier,
+        waitTime: Date.now() - p.joinedAt
+      }))
+    }
+
+    const pendingMatchList = {}
+    for (const [userId, matchId] of pendingMatches) {
+      pendingMatchList[userId] = matchId
+    }
+
+    const activeMatchList = []
+    for (const [matchId, match] of activeMatches) {
+      activeMatchList.push({
+        matchId,
+        player1: match.player1.userName,
+        player2: match.player2.userName,
+        status: match.status,
+        currentQuestion: match.currentQuestion
+      })
+    }
+
+    res.json({
+      success: true,
+      queues: queueStatus,
+      pendingMatches: pendingMatchList,
+      activeMatches: activeMatchList
+    })
+  } catch (error) {
+    console.error('Error getting debug info:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })

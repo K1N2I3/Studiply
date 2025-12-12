@@ -185,6 +185,7 @@ const RankedMode = () => {
   }
 
   const startPolling = (tier) => {
+    // Poll every 1 second for faster match detection
     pollIntervalRef.current = setInterval(async () => {
       try {
         const result = await checkQueueStatus({
@@ -194,9 +195,12 @@ const RankedMode = () => {
           tier
         })
 
+        console.log('🔍 Queue status:', result)
+
         if (result.success) {
           if (result.status === 'matched') {
             clearInterval(pollIntervalRef.current)
+            console.log('✅ Match found!', result.matchId, result.opponent)
             setMatchId(result.matchId)
             setOpponent(result.opponent)
             setIsSearching(false)
@@ -211,7 +215,7 @@ const RankedMode = () => {
       } catch (error) {
         console.error('Polling error:', error)
       }
-    }, 2000)
+    }, 1000) // Poll every 1 second
   }
 
   const handleCancelSearch = async () => {
