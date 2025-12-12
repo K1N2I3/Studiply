@@ -24,6 +24,7 @@ import {
   Calendar,
   GraduationCap,
   Sword,
+  Swords,
   Shield,
   Crown,
   Sparkles,
@@ -373,6 +374,7 @@ const Header = () => {
         },
         { name: 'Calendar', href: '/calendar', icon: Calendar },
         { name: 'Quest Academy', href: '/quest-academy', icon: Sword },
+        { name: 'Ranked Mode', href: '/ranked', icon: Swords },
         { 
           name: 'Friends', 
           href: '/friends', 
