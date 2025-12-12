@@ -118,6 +118,8 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     const answerTime = Date.now() - questionStartTimeRef.current
 
     try {
+      console.log(`📝 Submitting answer: Q${currentQuestionIndex}, answer: ${answerIndex}`)
+      
       const result = await submitAnswer({
         matchId,
         userId,
@@ -134,11 +136,13 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         setPlayer1Score(result.player1Score)
         setPlayer2Score(result.player2Score)
 
+        console.log(`📝 Answer result: correct=${result.correct}, bothAnswered=${result.bothAnswered}`)
+
         if (result.bothAnswered) {
-          // Move to next question after delay
+          // Both answered, move to next question after showing result
           setTimeout(() => moveToNextQuestion(), 2000)
         } else {
-          // Wait for opponent
+          // Wait for opponent - start polling
           setWaitingForOpponent(true)
           pollForOpponentAnswer()
         }
@@ -149,71 +153,94 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
   }
 
   const pollForOpponentAnswer = () => {
+    let pollCount = 0
+    const maxPolls = 30 // 15 seconds max (500ms * 30)
+    
     const pollInterval = setInterval(async () => {
+      pollCount++
+      
       try {
-        const result = await getMatch(matchId, userId)
+        // Try to advance - server will only advance if both answered
+        const result = await nextQuestion(matchId, userId)
+        
+        console.log(`🔄 Poll ${pollCount}: status=${result.status}`)
+        
         if (result.success) {
-          const question = result.match.questions[currentQuestionIndex]
-          const playerNum = result.match.playerNum
-          
-          // Check if opponent answered
-          const opponentAnswered = playerNum === 1 
-            ? question.player2Answer !== undefined && question.player2Answer !== -1
-            : question.player1Answer !== undefined && question.player1Answer !== -1
-
-          if (opponentAnswered || question.player1Answer !== -1 && question.player2Answer !== -1) {
+          if (result.status === 'completed') {
             clearInterval(pollInterval)
-            setPlayer1Score(result.match.player1Score)
-            setPlayer2Score(result.match.player2Score)
-            setTimeout(() => moveToNextQuestion(), 1500)
+            handleMatchComplete(result)
+          } else if (result.status === 'continue') {
+            // Both answered, move to next question
+            clearInterval(pollInterval)
+            setPlayer1Score(result.player1Score)
+            setPlayer2Score(result.player2Score)
+            handleNextQuestion(result.currentQuestion)
+          } else if (result.status === 'waiting') {
+            // Still waiting for opponent
+            setPlayer1Score(result.player1Score)
+            setPlayer2Score(result.player2Score)
           }
+        }
+        
+        // Timeout after max polls
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval)
+          // Force move to next anyway
+          moveToNextQuestion()
         }
       } catch (err) {
         console.error('Poll error:', err)
       }
-    }, 1000)
+    }, 500) // Poll every 500ms for faster response
+  }
 
-    // Clear after 20 seconds max
+  const handleMatchComplete = (result) => {
+    setMatchComplete(true)
+    setMatchResult({
+      winner: result.winner,
+      playerNum: result.playerNum,
+      player1Score: result.player1Score,
+      player2Score: result.player2Score,
+      player1PointChange: result.player1PointChange,
+      player2PointChange: result.player2PointChange,
+      pointChange: result.pointChange
+    })
+    
+    // Notify parent after delay
     setTimeout(() => {
-      clearInterval(pollInterval)
-      moveToNextQuestion()
-    }, 20000)
+      onComplete({
+        ...result,
+        playerNum: match?.playerNum || result.playerNum
+      })
+    }, 3000)
+  }
+
+  const handleNextQuestion = async (nextQuestionIndex) => {
+    setCurrentQuestionIndex(nextQuestionIndex)
+    setSelectedAnswer(null)
+    setAnswerSubmitted(false)
+    setAnswerResult(null)
+    setWaitingForOpponent(false)
+    
+    // Reload match to get new question
+    await loadMatch()
   }
 
   const moveToNextQuestion = async () => {
     try {
-      const result = await nextQuestion(matchId)
+      const result = await nextQuestion(matchId, userId)
+      
+      console.log(`⏭️ Next question result:`, result)
       
       if (result.success) {
         if (result.status === 'completed') {
-          // Match is over
-          setMatchComplete(true)
-          setMatchResult({
-            winner: result.winner,
-            player1Score: result.player1Score,
-            player2Score: result.player2Score,
-            player1PointChange: result.player1PointChange,
-            player2PointChange: result.player2PointChange,
-            newRank: result.player1NewRank
-          })
-          
-          // Notify parent
-          setTimeout(() => {
-            onComplete({
-              ...result,
-              playerNum: match.playerNum
-            })
-          }, 3000)
-        } else {
-          // Next question
-          setCurrentQuestionIndex(result.currentQuestion)
-          setSelectedAnswer(null)
-          setAnswerSubmitted(false)
-          setAnswerResult(null)
-          setWaitingForOpponent(false)
-          
-          // Reload match to get new question
-          await loadMatch()
+          handleMatchComplete(result)
+        } else if (result.status === 'continue') {
+          handleNextQuestion(result.currentQuestion)
+        } else if (result.status === 'waiting') {
+          // Still waiting, keep polling
+          setPlayer1Score(result.player1Score)
+          setPlayer2Score(result.player2Score)
         }
       }
     } catch (err) {

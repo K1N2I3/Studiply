@@ -133,11 +133,22 @@ UserRankSchema.methods.getSubjectRank = function(subject) {
 }
 
 // Update rank after match
-UserRankSchema.methods.updateAfterMatch = function(subject, difficulty, won) {
+UserRankSchema.methods.updateAfterMatch = function(subject, difficulty, won, isDraw = false) {
   const subjectRank = this.getSubjectRank(subject)
-  const pointChange = won ? POINT_RULES[difficulty].win : POINT_RULES[difficulty].lose
+  
+  // Calculate point change
+  let pointChange
+  if (isDraw) {
+    // In draw, both players get small points (half of win)
+    pointChange = Math.floor(POINT_RULES[difficulty].win / 2)
+  } else if (won) {
+    pointChange = POINT_RULES[difficulty].win
+  } else {
+    pointChange = POINT_RULES[difficulty].lose
+  }
   
   // Update points (minimum 0)
+  const oldPoints = subjectRank.points
   subjectRank.points = Math.max(0, subjectRank.points + pointChange)
   
   // Update tier
@@ -146,7 +157,10 @@ UserRankSchema.methods.updateAfterMatch = function(subject, difficulty, won) {
   subjectRank.tier = newTier
   
   // Update win/loss stats
-  if (won) {
+  if (isDraw) {
+    // Draw doesn't count as win or loss, but resets streak
+    subjectRank.winStreak = 0
+  } else if (won) {
     subjectRank.wins++
     subjectRank.winStreak++
     if (subjectRank.winStreak > subjectRank.bestWinStreak) {
@@ -168,8 +182,11 @@ UserRankSchema.methods.updateAfterMatch = function(subject, difficulty, won) {
     this.seasonHighestTier = newTier
   }
   
+  console.log(`📊 [UserRank] ${this.userName} - ${subject}: ${oldPoints} + ${pointChange} = ${subjectRank.points} (${oldTier} -> ${newTier})`)
+  
   return {
     pointChange,
+    oldPoints,
     newPoints: subjectRank.points,
     oldTier,
     newTier,

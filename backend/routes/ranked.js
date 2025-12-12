@@ -615,6 +615,8 @@ router.post('/match/:matchId/answer', async (req, res) => {
     const { matchId } = req.params
     const { userId, questionIndex, answer, answerTime } = req.body
 
+    console.log(`📝 [Ranked] Answer submitted: ${matchId}, user ${userId}, Q${questionIndex}, answer ${answer}`)
+
     let match = activeMatches.get(matchId) || await Match.findOne({ matchId })
     if (!match) {
       return res.status(404).json({ success: false, error: 'Match not found' })
@@ -627,21 +629,19 @@ router.post('/match/:matchId/answer', async (req, res) => {
       return res.status(400).json({ success: false, error: result.error })
     }
 
-    // If playing against bot, simulate bot answer
+    // If playing against bot, simulate bot answer immediately
     if (match.player2.isBot && playerNum === 1) {
       const question = match.questions[questionIndex]
       const botResponse = simulateBotAnswer(match.difficulty, question.correctAnswer)
-      
-      // Delay bot answer slightly
-      setTimeout(async () => {
-        match.recordAnswer(2, questionIndex, botResponse.answer, botResponse.time)
-        await match.save()
-        activeMatches.set(matchId, match)
-      }, botResponse.time)
+      match.recordAnswer(2, questionIndex, botResponse.answer, botResponse.time)
+      console.log(`🤖 [Ranked] Bot answered Q${questionIndex}: ${botResponse.answer}`)
     }
 
     await match.save()
     activeMatches.set(matchId, match)
+
+    const bothAnswered = match.bothAnswered(questionIndex)
+    console.log(`📝 [Ranked] Q${questionIndex} - P1: ${match.questions[questionIndex].player1Answer}, P2: ${match.questions[questionIndex].player2Answer}, bothAnswered: ${bothAnswered}`)
 
     res.json({
       success: true,
@@ -649,7 +649,8 @@ router.post('/match/:matchId/answer', async (req, res) => {
       correctAnswer: result.correctAnswer,
       player1Score: match.player1Score,
       player2Score: match.player2Score,
-      bothAnswered: match.bothAnswered(questionIndex)
+      bothAnswered,
+      currentQuestion: match.currentQuestion
     })
   } catch (error) {
     console.error('Error submitting answer:', error)
@@ -657,67 +658,104 @@ router.post('/match/:matchId/answer', async (req, res) => {
   }
 })
 
-// Next question
+// Next question - only advances if both players answered current question
 router.post('/match/:matchId/next', async (req, res) => {
   try {
     const { matchId } = req.params
+    const { userId } = req.body
 
     let match = activeMatches.get(matchId) || await Match.findOne({ matchId })
     if (!match) {
       return res.status(404).json({ success: false, error: 'Match not found' })
     }
 
-    match.currentQuestion++
-    match.questionStartedAt = new Date()
+    const currentQ = match.currentQuestion
+    console.log(`⏭️ [Ranked] Next request from ${userId}, currentQ: ${currentQ}, total: ${match.totalQuestions}`)
+
+    // Check if both players have answered the current question
+    if (!match.bothAnswered(currentQ)) {
+      console.log(`⏳ [Ranked] Waiting for both players to answer Q${currentQ}`)
+      return res.json({
+        success: true,
+        status: 'waiting',
+        currentQuestion: currentQ,
+        player1Score: match.player1Score,
+        player2Score: match.player2Score
+      })
+    }
+
+    // Only increment if we're still on the same question
+    // This prevents race condition where both players try to advance
+    if (match.currentQuestion === currentQ) {
+      match.currentQuestion++
+      match.questionStartedAt = new Date()
+      console.log(`⏭️ [Ranked] Advanced to Q${match.currentQuestion}`)
+    }
 
     // Check if match is over
     if (match.currentQuestion >= match.totalQuestions) {
-      match.finalize()
-      
-      // Update player ranks
-      const player1Won = match.winner === 'player1'
-      const player2Won = match.winner === 'player2'
-      
-      // Update player 1 rank
-      let player1Rank = await UserRank.findOne({ userId: match.player1.userId })
-      if (!player1Rank) {
-        player1Rank = new UserRank({ userId: match.player1.userId, userName: match.player1.userName })
-      }
-      const p1Result = player1Rank.updateAfterMatch(match.subject, match.difficulty, player1Won || match.winner === 'draw')
-      await player1Rank.save()
-      match.player1PointChange = p1Result.pointChange
-
-      // Update player 2 rank (if not bot)
-      if (!match.player2.isBot) {
-        let player2Rank = await UserRank.findOne({ userId: match.player2.userId })
-        if (!player2Rank) {
-          player2Rank = new UserRank({ userId: match.player2.userId, userName: match.player2.userName })
+      // Only finalize once
+      if (match.status !== 'completed') {
+        match.finalize()
+        
+        // Update player ranks
+        const player1Won = match.winner === 'player1'
+        const player2Won = match.winner === 'player2'
+        const isDraw = match.winner === 'draw'
+        
+        console.log(`🏆 [Ranked] Match result - P1 Score: ${match.player1Score}, P2 Score: ${match.player2Score}, Winner: ${match.winner}`)
+        
+        // Update player 1 rank
+        let player1Rank = await UserRank.findOne({ userId: match.player1.userId })
+        if (!player1Rank) {
+          player1Rank = new UserRank({ userId: match.player1.userId, userName: match.player1.userName })
         }
-        const p2Result = player2Rank.updateAfterMatch(match.subject, match.difficulty, player2Won || match.winner === 'draw')
-        await player2Rank.save()
-        match.player2PointChange = p2Result.pointChange
+        const p1Won = player1Won || isDraw
+        const p1Result = player1Rank.updateAfterMatch(match.subject, match.difficulty, p1Won, isDraw)
+        await player1Rank.save()
+        match.player1PointChange = p1Result.pointChange
+        console.log(`📊 [Ranked] P1 rank update: ${p1Won ? 'WIN' : 'LOSS'}, change: ${p1Result.pointChange}`)
+
+        // Update player 2 rank (if not bot)
+        let p2Result = null
+        if (!match.player2.isBot) {
+          let player2Rank = await UserRank.findOne({ userId: match.player2.userId })
+          if (!player2Rank) {
+            player2Rank = new UserRank({ userId: match.player2.userId, userName: match.player2.userName })
+          }
+          const p2Won = player2Won || isDraw
+          p2Result = player2Rank.updateAfterMatch(match.subject, match.difficulty, p2Won, isDraw)
+          await player2Rank.save()
+          match.player2PointChange = p2Result.pointChange
+          console.log(`📊 [Ranked] P2 rank update: ${p2Won ? 'WIN' : 'LOSS'}, change: ${p2Result.pointChange}`)
+        }
+
+        await match.save()
+        
+        // Clean up activeMatches and pendingMatches
+        activeMatches.delete(matchId)
+        pendingMatches.delete(match.player1.userId)
+        if (!match.player2.isBot) {
+          pendingMatches.delete(match.player2.userId)
+        }
+
+        console.log(`🏁 [Ranked] Match ${matchId} completed. Winner: ${match.winner}`)
       }
 
-      await match.save()
-      
-      // Clean up activeMatches and pendingMatches
-      activeMatches.delete(matchId)
-      pendingMatches.delete(match.player1.userId)
-      if (!match.player2.isBot) {
-        pendingMatches.delete(match.player2.userId)
-      }
-
-      console.log(`🏁 [Ranked] Match ${matchId} completed. Winner: ${match.winner}`)
+      // Determine which player is requesting
+      const playerNum = match.player1.userId === userId ? 1 : 2
+      const pointChange = playerNum === 1 ? match.player1PointChange : match.player2PointChange
 
       return res.json({
         success: true,
         status: 'completed',
         winner: match.winner,
+        playerNum,
         player1Score: match.player1Score,
         player2Score: match.player2Score,
         player1PointChange: match.player1PointChange,
         player2PointChange: match.player2PointChange,
-        player1NewRank: p1Result
+        pointChange
       })
     }
 
@@ -727,7 +765,9 @@ router.post('/match/:matchId/next', async (req, res) => {
     res.json({
       success: true,
       status: 'continue',
-      currentQuestion: match.currentQuestion
+      currentQuestion: match.currentQuestion,
+      player1Score: match.player1Score,
+      player2Score: match.player2Score
     })
   } catch (error) {
     console.error('Error moving to next question:', error)
