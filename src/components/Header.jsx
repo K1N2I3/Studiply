@@ -64,6 +64,8 @@ import useFocusTest from '../hooks/useFocusTest'
 import BecomeTutor from '../pages/BecomeTutor'
 import DesktopAuth from '../pages/DesktopAuth'
 import HomeworkHelper from '../pages/HomeworkHelper'
+import RankedMode from '../pages/RankedMode'
+import RankedLeaderboard from '../pages/RankedLeaderboard'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -788,6 +790,22 @@ const Header = () => {
               element={
                 <ProtectedRoute>
                   <HomeworkHelper />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ranked"
+              element={
+                <ProtectedRoute>
+                  <RankedMode />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ranked/leaderboard"
+              element={
+                <ProtectedRoute>
+                  <RankedLeaderboard />
                 </ProtectedRoute>
               }
             />

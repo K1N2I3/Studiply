@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
-import { Sparkles, Map, Compass, Layers, ArrowUpRight, BookMarked, Brain, Camera } from 'lucide-react'
+import { Sparkles, Map, Compass, Layers, ArrowUpRight, BookMarked, Brain, Camera, Swords, Trophy } from 'lucide-react'
 
 const SUBJECTS = [
   {
@@ -253,6 +253,51 @@ const QuestAcademy = () => {
                   <span className="text-[10px]">Take Photo</span>
                 </div>
                 <ArrowUpRight className={`h-5 w-5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
+              </div>
+            </div>
+          </div>
+
+          {/* Ranked Mode Feature Card */}
+          <div 
+            onClick={() => navigate('/ranked')}
+            className={`mt-6 cursor-pointer rounded-3xl border px-6 py-6 transition-all hover:scale-[1.01] hover:shadow-xl ${
+              isDark 
+                ? 'border-purple-500/30 bg-gradient-to-br from-purple-500/15 via-pink-500/10 to-transparent hover:border-purple-400/50' 
+                : 'border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 hover:border-purple-300'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2.5 rounded-xl ${
+                    isDark ? 'bg-purple-500/20' : 'bg-purple-100'
+                  }`}>
+                    <Swords className={`h-5 w-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Ranked Mode
+                    </h3>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600'
+                    }`}>
+                      <Trophy className="inline h-3 w-3 mr-1" />
+                      Competitive 1v1 Battles
+                    </span>
+                  </div>
+                </div>
+                <p className={`text-sm leading-relaxed ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                  Challenge other students in real-time quiz battles! Climb the ranks from 
+                  <span className={`font-semibold ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}> Bronze to Master</span>, 
+                  earn points, and prove your knowledge.
+                </p>
+              </div>
+              <div className={`flex-shrink-0 flex items-center gap-3 ${isDark ? 'text-white/50' : 'text-slate-400'}`}>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <Trophy className={`h-6 w-6 ${isDark ? 'text-yellow-400' : 'text-yellow-500'}`} />
+                  <span className="text-[10px]">Climb Ranks</span>
+                </div>
+                <ArrowUpRight className={`h-5 w-5 ${isDark ? 'text-purple-400' : 'text-purple-500'}`} />
               </div>
             </div>
           </div>

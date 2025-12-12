@@ -15,6 +15,7 @@ import questRequestRoutes from './routes/questRequests.js'
 import aiQuestsRoutes from './routes/aiQuests.js'
 import stripeConnectRoutes from './routes/stripeConnect.js'
 import homeworkRoutes from './routes/homework.js'
+import rankedRoutes from './routes/ranked.js'
 
 dotenv.config()
 
@@ -810,6 +811,14 @@ try {
   console.log('✅ /api/homework ready')
 } catch (error) {
   console.error('❌ Failed to register Homework Helper routes:', error)
+}
+
+try {
+  console.log('🔁 Registering Ranked Mode routes...')
+  app.use('/api/ranked', rankedRoutes)
+  console.log('✅ /api/ranked ready')
+} catch (error) {
+  console.error('❌ Failed to register Ranked Mode routes:', error)
 }
 
 app.get('/api/health', (req, res) => {
