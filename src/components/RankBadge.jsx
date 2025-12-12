@@ -1,14 +1,26 @@
 import React from 'react'
+import { Shield, Medal, Trophy, Gem, Diamond, Crown } from 'lucide-react'
 import { RANK_TIERS } from '../services/rankedService'
+
+// Map icon names to components
+const TIER_ICONS = {
+  Shield,
+  Medal,
+  Trophy,
+  Gem,
+  Diamond,
+  Crown
+}
 
 const RankBadge = ({ tier, points, size = 'md', showPoints = true, showName = true, className = '' }) => {
   const tierInfo = RANK_TIERS[tier] || RANK_TIERS.BRONZE
+  const IconComponent = TIER_ICONS[tierInfo.iconName] || Shield
   
   const sizes = {
-    sm: { icon: 'text-xl', text: 'text-xs', container: 'px-2 py-1' },
-    md: { icon: 'text-3xl', text: 'text-sm', container: 'px-3 py-2' },
-    lg: { icon: 'text-5xl', text: 'text-base', container: 'px-4 py-3' },
-    xl: { icon: 'text-7xl', text: 'text-lg', container: 'px-6 py-4' }
+    sm: { icon: 'h-5 w-5', text: 'text-xs', container: 'px-2 py-1' },
+    md: { icon: 'h-8 w-8', text: 'text-sm', container: 'px-3 py-2' },
+    lg: { icon: 'h-12 w-12', text: 'text-base', container: 'px-4 py-3' },
+    xl: { icon: 'h-16 w-16', text: 'text-lg', container: 'px-6 py-4' }
   }
   
   const sizeConfig = sizes[size] || sizes.md
@@ -21,6 +33,16 @@ const RankBadge = ({ tier, points, size = 'md', showPoints = true, showName = tr
     PLATINUM: 'shadow-cyan-400/50',
     DIAMOND: 'shadow-blue-400/60',
     MASTER: 'shadow-purple-500/70'
+  }
+  
+  // Icon colors based on tier
+  const iconColors = {
+    BRONZE: 'text-orange-400',
+    SILVER: 'text-gray-300',
+    GOLD: 'text-yellow-400',
+    PLATINUM: 'text-cyan-300',
+    DIAMOND: 'text-blue-300',
+    MASTER: 'text-purple-300'
   }
   
   const bgColors = {
@@ -37,9 +59,7 @@ const RankBadge = ({ tier, points, size = 'md', showPoints = true, showName = tr
       className={`inline-flex flex-col items-center rounded-xl bg-gradient-to-br ${bgColors[tier]} 
         shadow-lg ${glowColors[tier]} ${sizeConfig.container} ${className}`}
     >
-      <span className={`${sizeConfig.icon} drop-shadow-lg`} role="img" aria-label={tierInfo.name}>
-        {tierInfo.icon}
-      </span>
+      <IconComponent className={`${sizeConfig.icon} ${iconColors[tier]} drop-shadow-lg`} />
       {showName && (
         <span className={`${sizeConfig.text} font-bold text-white mt-1`}>
           {tierInfo.name}

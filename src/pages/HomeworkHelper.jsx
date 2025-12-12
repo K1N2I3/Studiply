@@ -18,7 +18,16 @@ import {
   Brain,
   Target,
   MessageCircle,
-  RefreshCw
+  RefreshCw,
+  Calculator,
+  Atom,
+  FlaskConical,
+  Dna,
+  Languages,
+  Landmark,
+  Globe2,
+  Code2,
+  Library
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
@@ -26,18 +35,18 @@ import { useNotification } from '../contexts/NotificationContext'
 import { analyzeHomework, getNextHint, checkStudentAnswer, startNewProblem } from '../services/homeworkHelperService'
 
 const SUBJECTS = [
-  { id: 'mathematics', name: 'Mathematics', icon: '📐' },
-  { id: 'physics', name: 'Physics', icon: '⚡' },
-  { id: 'chemistry', name: 'Chemistry', icon: '🧪' },
-  { id: 'biology', name: 'Biology', icon: '🧬' },
-  { id: 'english', name: 'English', icon: '📝' },
-  { id: 'italian', name: 'Italian', icon: '🇮🇹' },
-  { id: 'spanish', name: 'Spanish', icon: '🇪🇸' },
-  { id: 'french', name: 'French', icon: '🇫🇷' },
-  { id: 'history', name: 'History', icon: '📜' },
-  { id: 'geography', name: 'Geography', icon: '🌍' },
-  { id: 'computerScience', name: 'Computer Science', icon: '💻' },
-  { id: 'other', name: 'Other', icon: '📚' }
+  { id: 'mathematics', name: 'Mathematics', Icon: Calculator },
+  { id: 'physics', name: 'Physics', Icon: Atom },
+  { id: 'chemistry', name: 'Chemistry', Icon: FlaskConical },
+  { id: 'biology', name: 'Biology', Icon: Dna },
+  { id: 'english', name: 'English', Icon: BookOpen },
+  { id: 'italian', name: 'Italian', Icon: Languages },
+  { id: 'spanish', name: 'Spanish', Icon: Languages },
+  { id: 'french', name: 'French', Icon: Languages },
+  { id: 'history', name: 'History', Icon: Landmark },
+  { id: 'geography', name: 'Geography', Icon: Globe2 },
+  { id: 'computerScience', name: 'Computer Science', Icon: Code2 },
+  { id: 'other', name: 'Other', Icon: Library }
 ]
 
 const HomeworkHelper = () => {
@@ -444,7 +453,7 @@ const HomeworkHelper = () => {
                           : 'bg-orange-50 text-slate-700 hover:bg-orange-100'
                     }`}
                   >
-                    <span className="mr-2">{subject.icon}</span>
+                    <subject.Icon className="h-4 w-4 mr-2" />
                     {subject.name}
                   </button>
                 ))}

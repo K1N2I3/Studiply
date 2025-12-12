@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Swords, Clock, CheckCircle, XCircle, Zap, User, Bot } from 'lucide-react'
+import { Swords, Clock, CheckCircle, XCircle, Zap, User, Bot, Shield, Medal, Trophy, Gem, Diamond, Crown } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import RankBadge from './RankBadge'
 import {
@@ -9,6 +9,16 @@ import {
   nextQuestion,
   RANK_TIERS
 } from '../services/rankedService'
+
+// Map tier to icon component
+const TIER_ICONS = {
+  BRONZE: Shield,
+  SILVER: Medal,
+  GOLD: Trophy,
+  PLATINUM: Gem,
+  DIAMOND: Diamond,
+  MASTER: Crown
+}
 
 const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComplete, onExit }) => {
   const { isDark } = useTheme()
@@ -264,8 +274,12 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
               <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 You
               </p>
-              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
-                {RANK_TIERS[match?.player1?.tier]?.icon} {match?.player1?.tier}
+              <p className={`text-xs flex items-center gap-1 ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
+                {(() => {
+                  const TierIcon = TIER_ICONS[match?.player1?.tier] || Shield
+                  return <TierIcon className="h-3 w-3" />
+                })()}
+                {match?.player1?.tier}
               </p>
             </div>
             <div className={`text-4xl font-black ${
@@ -299,8 +313,18 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
               <p className={`font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                 {opponent?.userName || 'Opponent'}
               </p>
-              <p className={`text-xs ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
-                {opponent?.isBot ? '🤖 Bot' : `${RANK_TIERS[opponent?.tier]?.icon || ''} ${opponent?.tier || 'BRONZE'}`}
+              <p className={`text-xs flex items-center gap-1 ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
+                {opponent?.isBot ? (
+                  <><Bot className="h-3 w-3" /> Bot</>
+                ) : (
+                  <>
+                    {(() => {
+                      const TierIcon = TIER_ICONS[opponent?.tier] || Shield
+                      return <TierIcon className="h-3 w-3" />
+                    })()}
+                    {opponent?.tier || 'BRONZE'}
+                  </>
+                )}
               </p>
             </div>
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${

@@ -7,12 +7,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003
 
 // Rank tier configuration (must match backend)
 export const RANK_TIERS = {
-  BRONZE: { name: 'Bronze', minPoints: 0, maxPoints: 499, color: '#CD7F32', icon: '🥉' },
-  SILVER: { name: 'Silver', minPoints: 500, maxPoints: 999, color: '#C0C0C0', icon: '🥈' },
-  GOLD: { name: 'Gold', minPoints: 1000, maxPoints: 1499, color: '#FFD700', icon: '🥇' },
-  PLATINUM: { name: 'Platinum', minPoints: 1500, maxPoints: 1999, color: '#40E0D0', icon: '💎' },
-  DIAMOND: { name: 'Diamond', minPoints: 2000, maxPoints: 2499, color: '#B9F2FF', icon: '💠' },
-  MASTER: { name: 'Master', minPoints: 2500, maxPoints: Infinity, color: '#FFD700', icon: '👑' }
+  BRONZE: { name: 'Bronze', minPoints: 0, maxPoints: 499, color: '#CD7F32', iconName: 'Shield' },
+  SILVER: { name: 'Silver', minPoints: 500, maxPoints: 999, color: '#C0C0C0', iconName: 'Medal' },
+  GOLD: { name: 'Gold', minPoints: 1000, maxPoints: 1499, color: '#FFD700', iconName: 'Trophy' },
+  PLATINUM: { name: 'Platinum', minPoints: 1500, maxPoints: 1999, color: '#40E0D0', iconName: 'Gem' },
+  DIAMOND: { name: 'Diamond', minPoints: 2000, maxPoints: 2499, color: '#B9F2FF', iconName: 'Diamond' },
+  MASTER: { name: 'Master', minPoints: 2500, maxPoints: Infinity, color: '#FFD700', iconName: 'Crown' }
 }
 
 // Point rules

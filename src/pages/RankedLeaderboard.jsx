@@ -7,7 +7,16 @@ import {
   Crown,
   TrendingUp,
   Users,
-  Star
+  Star,
+  Calculator,
+  Atom,
+  FlaskConical,
+  Dna,
+  BookOpen,
+  Languages,
+  Landmark,
+  Globe2,
+  Code2
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
@@ -15,15 +24,15 @@ import RankBadge from '../components/RankBadge'
 import { getLeaderboard, RANK_TIERS } from '../services/rankedService'
 
 const SUBJECTS = [
-  { id: 'mathematics', name: 'Mathematics', icon: '📐' },
-  { id: 'physics', name: 'Physics', icon: '⚡' },
-  { id: 'chemistry', name: 'Chemistry', icon: '🧪' },
-  { id: 'biology', name: 'Biology', icon: '🧬' },
-  { id: 'english', name: 'English', icon: '📝' },
-  { id: 'italian', name: 'Italian', icon: '🇮🇹' },
-  { id: 'history', name: 'History', icon: '📜' },
-  { id: 'geography', name: 'Geography', icon: '🌍' },
-  { id: 'computerScience', name: 'Computer Science', icon: '💻' }
+  { id: 'mathematics', name: 'Mathematics', Icon: Calculator },
+  { id: 'physics', name: 'Physics', Icon: Atom },
+  { id: 'chemistry', name: 'Chemistry', Icon: FlaskConical },
+  { id: 'biology', name: 'Biology', Icon: Dna },
+  { id: 'english', name: 'English', Icon: BookOpen },
+  { id: 'italian', name: 'Italian', Icon: Languages },
+  { id: 'history', name: 'History', Icon: Landmark },
+  { id: 'geography', name: 'Geography', Icon: Globe2 },
+  { id: 'computerScience', name: 'Computer Science', Icon: Code2 }
 ]
 
 const RankedLeaderboard = () => {
@@ -147,7 +156,7 @@ const RankedLeaderboard = () => {
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
-                <span className="mr-2">{subject.icon}</span>
+                <subject.Icon className="h-4 w-4 mr-2" />
                 {subject.name}
               </button>
             ))}
