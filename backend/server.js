@@ -14,6 +14,7 @@ import questsRoutes from './routes/quests.js'
 import questRequestRoutes from './routes/questRequests.js'
 import aiQuestsRoutes from './routes/aiQuests.js'
 import stripeConnectRoutes from './routes/stripeConnect.js'
+import homeworkRoutes from './routes/homework.js'
 
 dotenv.config()
 
@@ -801,6 +802,14 @@ try {
   console.log('✅ /api/stripe-connect ready')
 } catch (error) {
   console.error('❌ Failed to register Stripe Connect routes:', error)
+}
+
+try {
+  console.log('🔁 Registering Homework Helper routes...')
+  app.use('/api/homework', homeworkRoutes)
+  console.log('✅ /api/homework ready')
+} catch (error) {
+  console.error('❌ Failed to register Homework Helper routes:', error)
 }
 
 app.get('/api/health', (req, res) => {

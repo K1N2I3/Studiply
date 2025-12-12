@@ -173,6 +173,49 @@ export const startNewProblem = async ({ sessionId }) => {
   return { success: true }
 }
 
+/**
+ * Free-form chat with the AI tutor
+ */
+export const chatWithTutor = async ({ sessionId, userId, message }) => {
+  try {
+    // Try API first
+    try {
+      const response = await fetch(`${API_BASE_URL}/homework/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, userId, message })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        return { success: true, response: result.response }
+      }
+    } catch (apiError) {
+      console.log('⚠️ [Homework Helper] Using local chat fallback')
+    }
+
+    // Local fallback
+    return {
+      success: true,
+      response: "I'm here to help! Let me think about your question... " + getEncouragingResponse(message)
+    }
+  } catch (error) {
+    console.error('❌ [Homework Helper] Error in chat:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+function getEncouragingResponse(message) {
+  const responses = [
+    "That's a great question! Let's think about it step by step.",
+    "I can see you're really thinking about this. What do you already know about this topic?",
+    "Good thinking! Have you tried breaking the problem into smaller parts?",
+    "You're on the right track. What would happen if you tried a different approach?",
+    "Let's explore this together. What's the first thing that comes to mind?"
+  ]
+  return responses[Math.floor(Math.random() * responses.length)]
+}
+
 // ============ Helper Functions ============
 
 function getInitialMessage(subject, problemText) {

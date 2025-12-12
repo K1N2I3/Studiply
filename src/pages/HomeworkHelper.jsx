@@ -591,11 +591,41 @@ const HomeworkHelper = () => {
           /* Learning Session */
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Progress Sidebar */}
-            <div className={`lg:col-span-1 rounded-3xl border p-5 h-fit ${
-              isDark 
-                ? 'border-white/10 bg-gradient-to-br from-white/8 via-white/5 to-transparent' 
-                : 'border-orange-200/50 bg-white shadow-lg'
-            }`}>
+            <div className={`lg:col-span-1 space-y-4`}>
+              {/* Uploaded Image Display */}
+              {imagePreview && (
+                <div className={`rounded-3xl border p-4 ${
+                  isDark 
+                    ? 'border-white/10 bg-gradient-to-br from-white/8 via-white/5 to-transparent' 
+                    : 'border-orange-200/50 bg-white shadow-lg'
+                }`}>
+                  <h3 className={`text-sm font-bold mb-3 flex items-center gap-2 ${
+                    isDark ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    <Camera className="h-4 w-4 text-orange-500" />
+                    Your Homework
+                  </h3>
+                  <img
+                    src={imagePreview}
+                    alt="Homework"
+                    className={`w-full rounded-xl object-contain max-h-48 cursor-pointer hover:opacity-90 transition ${
+                      isDark ? 'border border-white/10' : 'border border-orange-200'
+                    }`}
+                    onClick={() => window.open(imagePreview, '_blank')}
+                    title="Click to view full size"
+                  />
+                  <p className={`text-xs mt-2 text-center ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
+                    Click to enlarge
+                  </p>
+                </div>
+              )}
+
+              {/* Progress Panel */}
+              <div className={`rounded-3xl border p-5 ${
+                isDark 
+                  ? 'border-white/10 bg-gradient-to-br from-white/8 via-white/5 to-transparent' 
+                  : 'border-orange-200/50 bg-white shadow-lg'
+              }`}>
               <h3 className={`text-sm font-bold mb-4 flex items-center gap-2 ${
                 isDark ? 'text-white' : 'text-slate-900'
               }`}>
@@ -677,6 +707,7 @@ const HomeworkHelper = () => {
                   Get a Hint
                 </button>
               )}
+              </div>
             </div>
 
             {/* Chat Section */}
