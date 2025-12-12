@@ -55,6 +55,7 @@ const HomeworkHelper = () => {
   const [problemText, setProblemText] = useState('')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisComplete, setAnalysisComplete] = useState(false)
+  const [savedImagePreview, setSavedImagePreview] = useState(null) // Keep image after analysis
   
   // Learning session state
   const [sessionActive, setSessionActive] = useState(false)
@@ -67,6 +68,8 @@ const HomeworkHelper = () => {
   const [sessionId, setSessionId] = useState(null)
   const [problemSolved, setProblemSolved] = useState(false)
   const [hintsUsed, setHintsUsed] = useState(0)
+  const [showImageInSession, setShowImageInSession] = useState(false)
+  const [problemSummary, setProblemSummary] = useState('')
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
@@ -141,6 +144,11 @@ const HomeworkHelper = () => {
       return
     }
 
+    // Save the image preview for display during session
+    if (imagePreview) {
+      setSavedImagePreview(imagePreview)
+    }
+
     setIsAnalyzing(true)
     setMessages([])
 
@@ -160,23 +168,45 @@ const HomeworkHelper = () => {
         setCurrentStep(0)
         setSessionActive(true)
         setAnalysisComplete(true)
+        setProblemSummary(result.problemSummary || '')
+        setShowImageInSession(!!imagePreview)
         
         // Add initial message from tutor
-        setMessages([{
+        const initialMessages = [{
           type: 'tutor',
           content: result.initialMessage || "I've analyzed your homework problem! Let's work through it together step by step. I won't give you the answer directly - instead, I'll guide you to understand the concepts and find the solution yourself. Ready to begin?",
           timestamp: new Date()
-        }])
+        }]
+
+        // Add encouragement if available
+        if (result.encouragement) {
+          initialMessages.push({
+            type: 'tutor',
+            content: `💪 ${result.encouragement}`,
+            timestamp: new Date()
+          })
+        }
+
+        // Add problem summary
+        if (result.problemSummary) {
+          initialMessages.push({
+            type: 'tutor',
+            content: `📋 **Problem:** ${result.problemSummary}`,
+            timestamp: new Date()
+          })
+        }
+
+        setMessages(initialMessages)
 
         // Add the first step guidance if available
         if (result.steps && result.steps.length > 0) {
           setTimeout(() => {
             setMessages(prev => [...prev, {
               type: 'tutor',
-              content: `**Step 1: ${result.steps[0].title}**\n\n${result.steps[0].guidance}`,
+              content: `**Step 1: ${result.steps[0].title}**\n\n${result.steps[0].guidance}${result.steps[0].concept ? `\n\n💡 **Key concept:** ${result.steps[0].concept}` : ''}`,
               timestamp: new Date()
             }])
-          }, 1000)
+          }, 1500)
         }
 
         showSuccess('Problem analyzed! Let\'s learn together.', 'Analysis Complete')
@@ -302,6 +332,7 @@ const HomeworkHelper = () => {
     setAnalysisComplete(false)
     setUploadedImage(null)
     setImagePreview(null)
+    setSavedImagePreview(null)
     setProblemText('')
     setSelectedSubject('')
     setMessages([])
@@ -311,6 +342,8 @@ const HomeworkHelper = () => {
     setSessionId(null)
     setProblemSolved(false)
     setHintsUsed(0)
+    setShowImageInSession(false)
+    setProblemSummary('')
   }
 
   return (
@@ -593,7 +626,7 @@ const HomeworkHelper = () => {
             {/* Progress Sidebar */}
             <div className={`lg:col-span-1 space-y-4`}>
               {/* Uploaded Image Display */}
-              {imagePreview && (
+              {(savedImagePreview || imagePreview) && (
                 <div className={`rounded-3xl border p-4 ${
                   isDark 
                     ? 'border-white/10 bg-gradient-to-br from-white/8 via-white/5 to-transparent' 
@@ -606,12 +639,12 @@ const HomeworkHelper = () => {
                     Your Homework
                   </h3>
                   <img
-                    src={imagePreview}
+                    src={savedImagePreview || imagePreview}
                     alt="Homework"
                     className={`w-full rounded-xl object-contain max-h-48 cursor-pointer hover:opacity-90 transition ${
                       isDark ? 'border border-white/10' : 'border border-orange-200'
                     }`}
-                    onClick={() => window.open(imagePreview, '_blank')}
+                    onClick={() => window.open(savedImagePreview || imagePreview, '_blank')}
                     title="Click to view full size"
                   />
                   <p className={`text-xs mt-2 text-center ${isDark ? 'text-white/50' : 'text-slate-500'}`}>
