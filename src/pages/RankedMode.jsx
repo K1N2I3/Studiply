@@ -12,7 +12,19 @@ import {
   Target,
   Star,
   TrendingUp,
-  Award
+  Award,
+  Calculator,
+  Atom,
+  FlaskConical,
+  Dna,
+  BookOpen,
+  Languages,
+  Landmark,
+  Globe2,
+  Code2,
+  Leaf,
+  Flame,
+  Shield
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
@@ -34,21 +46,21 @@ import {
 } from '../services/rankedService'
 
 const SUBJECTS = [
-  { id: 'mathematics', name: 'Mathematics', icon: '📐', color: 'from-blue-500 to-indigo-600' },
-  { id: 'physics', name: 'Physics', icon: '⚡', color: 'from-yellow-500 to-orange-600' },
-  { id: 'chemistry', name: 'Chemistry', icon: '🧪', color: 'from-green-500 to-emerald-600' },
-  { id: 'biology', name: 'Biology', icon: '🧬', color: 'from-pink-500 to-rose-600' },
-  { id: 'english', name: 'English', icon: '📝', color: 'from-purple-500 to-violet-600' },
-  { id: 'italian', name: 'Italian', icon: '🇮🇹', color: 'from-green-600 to-red-500' },
-  { id: 'history', name: 'History', icon: '📜', color: 'from-amber-600 to-yellow-700' },
-  { id: 'geography', name: 'Geography', icon: '🌍', color: 'from-teal-500 to-cyan-600' },
-  { id: 'computerScience', name: 'Computer Science', icon: '💻', color: 'from-gray-600 to-slate-700' }
+  { id: 'mathematics', name: 'Mathematics', Icon: Calculator, color: 'from-blue-500 to-indigo-600' },
+  { id: 'physics', name: 'Physics', Icon: Atom, color: 'from-yellow-500 to-orange-600' },
+  { id: 'chemistry', name: 'Chemistry', Icon: FlaskConical, color: 'from-green-500 to-emerald-600' },
+  { id: 'biology', name: 'Biology', Icon: Dna, color: 'from-pink-500 to-rose-600' },
+  { id: 'english', name: 'English', Icon: BookOpen, color: 'from-purple-500 to-violet-600' },
+  { id: 'italian', name: 'Italian', Icon: Languages, color: 'from-green-600 to-red-500' },
+  { id: 'history', name: 'History', Icon: Landmark, color: 'from-amber-600 to-yellow-700' },
+  { id: 'geography', name: 'Geography', Icon: Globe2, color: 'from-teal-500 to-cyan-600' },
+  { id: 'computerScience', name: 'Computer Science', Icon: Code2, color: 'from-gray-600 to-slate-700' }
 ]
 
 const DIFFICULTIES = [
-  { id: 'easy', name: 'Easy', icon: '🌱', description: 'Win +15 / Lose -25', color: 'from-green-500 to-emerald-600' },
-  { id: 'medium', name: 'Medium', icon: '⚔️', description: 'Win +20 / Lose -20', color: 'from-yellow-500 to-amber-600' },
-  { id: 'hard', name: 'Hard', icon: '🔥', description: 'Win +30 / Lose -10', color: 'from-red-500 to-rose-600' }
+  { id: 'easy', name: 'Easy', Icon: Leaf, description: 'Win +15 / Lose -25', color: 'from-green-500 to-emerald-600' },
+  { id: 'medium', name: 'Medium', Icon: Shield, description: 'Win +20 / Lose -20', color: 'from-yellow-500 to-amber-600' },
+  { id: 'hard', name: 'Hard', Icon: Flame, description: 'Win +30 / Lose -10', color: 'from-red-500 to-rose-600' }
 ]
 
 const RankedMode = () => {
@@ -421,7 +433,7 @@ const RankedMode = () => {
                           : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    <span className="text-2xl block mb-1">{subject.icon}</span>
+                    <subject.Icon className="h-6 w-6 mb-1" />
                     <span className="text-xs font-semibold">{subject.name}</span>
                   </button>
                 ))}
@@ -454,7 +466,7 @@ const RankedMode = () => {
                           : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    <span className="text-3xl block mb-2">{diff.icon}</span>
+                    <diff.Icon className="h-8 w-8 mb-2" />
                     <span className="text-lg font-bold block">{diff.name}</span>
                     <span className={`text-xs ${
                       selectedDifficulty === diff.id ? 'text-white/80' : isDark ? 'text-white/50' : 'text-slate-500'
@@ -616,9 +628,10 @@ const RankedMode = () => {
                           </p>
                         </div>
                       </div>
-                      <span className="text-xl">
-                        {SUBJECTS.find(s => s.id === match.subject)?.icon}
-                      </span>
+                      {(() => {
+                        const SubjectIcon = SUBJECTS.find(s => s.id === match.subject)?.Icon
+                        return SubjectIcon ? <SubjectIcon className="h-5 w-5 text-white/60" /> : null
+                      })()}
                     </div>
                   ))}
                 </div>
