@@ -1,0 +1,16 @@
+# Large files
+large-files/
+ASSET/Screen Recording*.mov
+*.mov
+*.mp4
+*.avi
+
+# Development files
+node_modules/
+.git/
+.DS_Store
+*.log
+
+# Build artifacts
+dist/
+build/
