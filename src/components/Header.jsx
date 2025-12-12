@@ -63,6 +63,7 @@ import FocusTestModal from './FocusTestModal'
 import useFocusTest from '../hooks/useFocusTest'
 import BecomeTutor from '../pages/BecomeTutor'
 import DesktopAuth from '../pages/DesktopAuth'
+import HomeworkHelper from '../pages/HomeworkHelper'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -779,6 +780,14 @@ const Header = () => {
               element={
                 <ProtectedRoute>
                   <CreateQuest />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/homework-helper"
+              element={
+                <ProtectedRoute>
+                  <HomeworkHelper />
                 </ProtectedRoute>
               }
             />

@@ -16,7 +16,7 @@ import { useNotification } from '../contexts/NotificationContext'
 import { getApprovedQuests } from '../services/questRequestService'
 import { getUserAIQuests } from '../services/aiQuestService'
 import AIGenerateQuestModal from '../components/AIGenerateQuestModal'
-import { Sparkles, Trash2 } from 'lucide-react'
+import { Sparkles, Trash2, BookMarked } from 'lucide-react'
 import { deleteAIQuest } from '../services/aiQuestService'
 
 const SUBJECTS = [
@@ -229,6 +229,17 @@ const QuestList = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/homework-helper')}
+              className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition shadow-lg ${
+                isDark
+                  ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600'
+                  : 'bg-gradient-to-r from-orange-500 to-rose-500 text-white hover:from-orange-600 hover:to-rose-600'
+              }`}
+            >
+              <BookMarked className="h-5 w-5" />
+              Homework Helper
+            </button>
             <button
               onClick={() => setShowAIModal(true)}
               className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition shadow-lg ${

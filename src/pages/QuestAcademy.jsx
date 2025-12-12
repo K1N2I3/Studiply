@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
-import { Sparkles, Map, Compass, Layers, ArrowUpRight } from 'lucide-react'
+import { Sparkles, Map, Compass, Layers, ArrowUpRight, BookMarked, Brain, Camera } from 'lucide-react'
 
 const SUBJECTS = [
   {
@@ -210,6 +210,50 @@ const QuestAcademy = () => {
                 Start curated plan
                 <ArrowUpRight className="h-4 w-4" />
               </button>
+            </div>
+          </div>
+
+          {/* Homework Helper Feature Card */}
+          <div 
+            onClick={() => navigate('/homework-helper')}
+            className={`mt-6 cursor-pointer rounded-3xl border px-6 py-6 transition-all hover:scale-[1.01] hover:shadow-xl ${
+              isDark 
+                ? 'border-orange-500/30 bg-gradient-to-br from-orange-500/15 via-rose-500/10 to-transparent hover:border-orange-400/50' 
+                : 'border-orange-200 bg-gradient-to-br from-orange-50 to-rose-50 hover:border-orange-300'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`p-2.5 rounded-xl ${
+                    isDark ? 'bg-orange-500/20' : 'bg-orange-100'
+                  }`}>
+                    <BookMarked className={`h-5 w-5 ${isDark ? 'text-orange-400' : 'text-orange-600'}`} />
+                  </div>
+                  <div>
+                    <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Homework Helper
+                    </h3>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      isDark ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-100 text-orange-600'
+                    }`}>
+                      <Brain className="inline h-3 w-3 mr-1" />
+                      AI Learning Companion
+                    </span>
+                  </div>
+                </div>
+                <p className={`text-sm leading-relaxed ${isDark ? 'text-white/70' : 'text-slate-600'}`}>
+                  Stuck on homework? Upload a photo or describe your problem, and I'll guide you step-by-step to understand and solve it yourself. 
+                  <span className={`font-semibold ${isDark ? 'text-orange-400' : 'text-orange-600'}`}> No direct answers</span> — just real learning!
+                </p>
+              </div>
+              <div className={`flex-shrink-0 flex items-center gap-3 ${isDark ? 'text-white/50' : 'text-slate-400'}`}>
+                <div className="flex flex-col items-center gap-1 text-center">
+                  <Camera className={`h-6 w-6 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
+                  <span className="text-[10px]">Take Photo</span>
+                </div>
+                <ArrowUpRight className={`h-5 w-5 ${isDark ? 'text-orange-400' : 'text-orange-500'}`} />
+              </div>
             </div>
           </div>
         </section>
