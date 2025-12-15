@@ -42,6 +42,7 @@ import {
   joinQueue,
   checkQueueStatus,
   leaveQueue,
+  getQueueCount,
   getMatchHistory
 } from '../services/rankedService'
 
@@ -82,6 +83,7 @@ const RankedMode = () => {
   const [isSearching, setIsSearching] = useState(false)
   const [searchTime, setSearchTime] = useState(0)
   const [queuePosition, setQueuePosition] = useState(0)
+  const [playersInQueue, setPlayersInQueue] = useState(0)
   
   // Battle state
   const [inBattle, setInBattle] = useState(false)
@@ -107,16 +109,34 @@ const RankedMode = () => {
     }
   }, [user, selectedSubject])
 
-  // Search timer
+  // Search timer and queue count polling
   useEffect(() => {
     let timer
+    let queuePoll
+    
     if (isSearching) {
       timer = setInterval(() => {
         setSearchTime(prev => prev + 1)
       }, 1000)
+      
+      // Poll queue count every 2 seconds
+      const pollQueueCount = async () => {
+        if (selectedSubject && selectedDifficulty) {
+          const result = await getQueueCount(selectedSubject, selectedDifficulty)
+          if (result.success) {
+            setPlayersInQueue(result.totalForSubject || result.count)
+          }
+        }
+      }
+      pollQueueCount()
+      queuePoll = setInterval(pollQueueCount, 2000)
     }
-    return () => clearInterval(timer)
-  }, [isSearching])
+    
+    return () => {
+      clearInterval(timer)
+      clearInterval(queuePoll)
+    }
+  }, [isSearching, selectedSubject, selectedDifficulty])
 
   const loadUserRank = async () => {
     setLoading(true)
@@ -383,11 +403,17 @@ const RankedMode = () => {
                 {Math.floor(searchTime / 60)}:{(searchTime % 60).toString().padStart(2, '0')}
               </div>
               
-              <p className={`text-sm mb-6 ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
-                {searchTime < 30 
-                  ? `Queue position: #${queuePosition}` 
-                  : 'Creating AI opponent...'}
-              </p>
+              <div className={`text-sm mb-6 space-y-1 ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
+                <p className="flex items-center justify-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>{playersInQueue} player{playersInQueue !== 1 ? 's' : ''} searching</span>
+                </p>
+                <p>
+                  {searchTime < 30 
+                    ? `Your position: #${queuePosition}` 
+                    : 'Creating AI opponent...'}
+                </p>
+              </div>
               
               <button
                 onClick={handleCancelSearch}

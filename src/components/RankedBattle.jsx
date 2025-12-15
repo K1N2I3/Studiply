@@ -24,6 +24,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
   const { isDark } = useTheme()
   const timerRef = useRef(null)
   const questionStartTimeRef = useRef(null)
+  const pendingAnswerRef = useRef(null)  // Store answer result until opponent answers
 
   // Match state
   const [match, setMatch] = useState(null)
@@ -129,21 +130,26 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
       })
 
       if (result.success) {
-        setAnswerResult({
+        // Store the result but DON'T show it yet if opponent hasn't answered
+        const answerData = {
           correct: result.correct,
           correctAnswer: result.correctAnswer
-        })
+        }
+        
         setPlayer1Score(result.player1Score)
         setPlayer2Score(result.player2Score)
 
         console.log(`📝 Result: correct=${result.correct}, bothAnswered=${result.bothAnswered}`)
 
         if (result.bothAnswered) {
-          // Both answered - show result briefly then advance
+          // Both answered - NOW show the result
+          setAnswerResult(answerData)
           setTimeout(() => moveToNextQuestion(), 1500)
         } else {
-          // Wait for opponent
+          // Wait for opponent - don't show result yet
           setWaitingForOpponent(true)
+          // Store pending result to show later
+          pendingAnswerRef.current = answerData
           startPolling()
         }
       }
@@ -174,13 +180,28 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           
           if (result.status === 'completed') {
             clearInterval(pollIntervalRef.current)
-            handleMatchComplete(result)
+            // Show pending answer result before match complete
+            if (pendingAnswerRef.current) {
+              setAnswerResult(pendingAnswerRef.current)
+              pendingAnswerRef.current = null
+            }
+            setTimeout(() => handleMatchComplete(result), 1000)
           } else if (result.status === 'continue' || result.status === 'sync') {
-            // Advance to next question
+            // Both answered - show result first, then advance
             clearInterval(pollIntervalRef.current)
             setPlayer1Score(result.player1Score)
             setPlayer2Score(result.player2Score)
-            handleNextQuestion(result.currentQuestion)
+            
+            // Show the pending answer result
+            if (pendingAnswerRef.current) {
+              setAnswerResult(pendingAnswerRef.current)
+              setWaitingForOpponent(false)
+              pendingAnswerRef.current = null
+              // Wait to show result, then advance
+              setTimeout(() => handleNextQuestion(result.currentQuestion), 1500)
+            } else {
+              handleNextQuestion(result.currentQuestion)
+            }
           } else if (result.status === 'waiting') {
             setPlayer1Score(result.player1Score)
             setPlayer2Score(result.player2Score)
@@ -246,6 +267,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     setAnswerSubmitted(false)
     setAnswerResult(null)
     setWaitingForOpponent(false)
+    pendingAnswerRef.current = null
     
     // Reload match to get new question
     await loadMatch()
@@ -466,8 +488,10 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
             <div className="grid md:grid-cols-2 gap-4">
               {currentQuestion.options?.map((option, index) => {
                 const isSelected = selectedAnswer === index
-                const isCorrect = answerResult?.correctAnswer === index
-                const isWrong = answerSubmitted && isSelected && !isCorrect
+                // Only show correct/wrong after answerResult is set (both players answered)
+                const showResult = answerResult !== null
+                const isCorrect = showResult && answerResult?.correctAnswer === index
+                const isWrong = showResult && isSelected && answerResult?.correctAnswer !== index
                 
                 return (
                   <button
@@ -475,7 +499,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
                     onClick={() => handleSelectAnswer(index)}
                     disabled={answerSubmitted}
                     className={`p-5 rounded-2xl text-left transition-all ${
-                      answerSubmitted
+                      showResult
                         ? isCorrect
                           ? 'bg-green-500 text-white ring-4 ring-green-500/30'
                           : isWrong
@@ -483,29 +507,35 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
                             : isDark
                               ? 'bg-white/5 text-white/50'
                               : 'bg-slate-100 text-slate-400'
-                        : isSelected
-                          ? 'bg-purple-500 text-white ring-4 ring-purple-500/30 scale-[1.02]'
-                          : isDark
-                            ? 'bg-white/5 text-white hover:bg-white/10'
-                            : 'bg-white text-slate-900 hover:bg-slate-50 shadow-lg'
+                        : answerSubmitted && isSelected
+                          ? 'bg-yellow-500 text-white ring-4 ring-yellow-500/30'  // Submitted but waiting
+                          : isSelected
+                            ? 'bg-purple-500 text-white ring-4 ring-purple-500/30 scale-[1.02]'
+                            : isDark
+                              ? 'bg-white/5 text-white hover:bg-white/10'
+                              : 'bg-white text-slate-900 hover:bg-slate-50 shadow-lg'
                     }`}
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                        answerSubmitted
+                        showResult
                           ? isCorrect
                             ? 'bg-white/20'
                             : isWrong
                               ? 'bg-white/20'
                               : isDark ? 'bg-white/10' : 'bg-slate-200'
-                          : isSelected
+                          : answerSubmitted && isSelected
                             ? 'bg-white/20'
-                            : isDark ? 'bg-white/10' : 'bg-purple-100 text-purple-600'
+                            : isSelected
+                              ? 'bg-white/20'
+                              : isDark ? 'bg-white/10' : 'bg-purple-100 text-purple-600'
                       }`}>
-                        {answerSubmitted && isCorrect ? (
+                        {showResult && isCorrect ? (
                           <CheckCircle className="h-6 w-6" />
-                        ) : answerSubmitted && isWrong ? (
+                        ) : showResult && isWrong ? (
                           <XCircle className="h-6 w-6" />
+                        ) : answerSubmitted && isSelected ? (
+                          <Clock className="h-5 w-5 animate-pulse" />
                         ) : (
                           String.fromCharCode(65 + index)
                         )}
@@ -528,18 +558,20 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
               </button>
             )}
 
-            {/* Waiting for opponent */}
-            {waitingForOpponent && (
+            {/* Status Messages */}
+            {answerSubmitted && !answerResult && (
               <div className={`mt-6 p-4 rounded-xl text-center ${
                 isDark ? 'bg-yellow-500/10 text-yellow-400' : 'bg-yellow-100 text-yellow-700'
               }`}>
-                <div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                Waiting for opponent...
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  <span>Answer submitted! Waiting for opponent...</span>
+                </div>
               </div>
             )}
 
-            {/* Answer Result Feedback */}
-            {answerSubmitted && answerResult && !waitingForOpponent && (
+            {/* Answer Result Feedback - only shows after both answered */}
+            {answerResult && (
               <div className={`mt-6 p-4 rounded-xl text-center ${
                 answerResult.correct
                   ? isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-700'

@@ -163,6 +163,28 @@ export const leaveQueue = async ({ userId, subject, difficulty, tier }) => {
 }
 
 /**
+ * Get queue count for a subject/difficulty
+ */
+export const getQueueCount = async (subject, difficulty) => {
+  try {
+    const params = new URLSearchParams({ subject, difficulty })
+    const response = await fetch(`${API_BASE_URL}/ranked/queue/count?${params}`)
+    const result = await response.json()
+    
+    if (response.ok && result.success) {
+      return {
+        success: true,
+        count: result.count,
+        totalForSubject: result.totalForSubject
+      }
+    }
+    return { success: false, count: 0, totalForSubject: 0 }
+  } catch (error) {
+    return { success: false, count: 0, totalForSubject: 0 }
+  }
+}
+
+/**
  * Get match state
  */
 export const getMatch = async (matchId, userId) => {
@@ -328,6 +350,7 @@ export default {
   joinQueue,
   checkQueueStatus,
   leaveQueue,
+  getQueueCount,
   getMatch,
   startMatch,
   submitAnswer,

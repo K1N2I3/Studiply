@@ -525,6 +525,32 @@ router.post('/queue/leave', async (req, res) => {
   }
 })
 
+// Get queue count for a subject/difficulty
+router.get('/queue/count', async (req, res) => {
+  try {
+    const { subject, difficulty } = req.query
+    const queueKey = `${subject}_${difficulty}`
+    const queue = matchmakingQueue.get(queueKey) || []
+    
+    // Also count all players across all difficulties for this subject
+    let totalForSubject = 0
+    for (const [key, q] of matchmakingQueue) {
+      if (key.startsWith(subject + '_')) {
+        totalForSubject += q.length
+      }
+    }
+    
+    res.json({ 
+      success: true, 
+      count: queue.length,
+      totalForSubject,
+      queueKey
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Get match state
 router.get('/match/:matchId', async (req, res) => {
   try {
