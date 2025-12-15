@@ -147,6 +147,20 @@ export const checkQueueStatus = async ({ userId, subject, difficulty, tier }) =>
 /**
  * Leave matchmaking queue
  */
+export const getQueueStats = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ranked/queue/stats`)
+    const result = await response.json()
+    
+    if (response.ok && result.success) {
+      return { success: true, totalInQueue: result.totalInQueue, queues: result.queues }
+    }
+    return { success: false, error: result.error }
+  } catch (error) {
+    return { success: false, error: error.message }
+  }
+}
+
 export const leaveQueue = async ({ userId, subject, difficulty, tier }) => {
   try {
     const response = await fetch(`${API_BASE_URL}/ranked/queue/leave`, {

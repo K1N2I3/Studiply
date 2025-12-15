@@ -641,9 +641,13 @@ router.post('/match/:matchId/answer', async (req, res) => {
     const { matchId } = req.params
     const { userId, questionIndex, answer, answerTime } = req.body
 
-    console.log(`📝 [Ranked] Answer submitted: ${matchId}, user ${userId}, Q${questionIndex}, answer ${answer}`)
-
-    let match = activeMatches.get(matchId) || await Match.findOne({ matchId })
+    // Use in-memory cache for speed
+    let match = activeMatches.get(matchId)
+    if (!match) {
+      match = await Match.findOne({ matchId })
+      if (match) activeMatches.set(matchId, match)
+    }
+    
     if (!match) {
       return res.status(404).json({ success: false, error: 'Match not found' })
     }
@@ -660,19 +664,20 @@ router.post('/match/:matchId/answer', async (req, res) => {
       const question = match.questions[questionIndex]
       const botResponse = simulateBotAnswer(match.difficulty, question.correctAnswer)
       match.recordAnswer(2, questionIndex, botResponse.answer, botResponse.time)
-      console.log(`🤖 [Ranked] Bot answered Q${questionIndex}: ${botResponse.answer}`)
     }
 
-    await match.save()
+    // Update in-memory cache (don't save to DB yet for speed)
     activeMatches.set(matchId, match)
 
     const bothAnswered = match.bothAnswered(questionIndex)
-    console.log(`📝 [Ranked] Q${questionIndex} - P1: ${match.questions[questionIndex].player1Answer}, P2: ${match.questions[questionIndex].player2Answer}, bothAnswered: ${bothAnswered}`)
-
+    
+    // Only reveal correct answer if both have answered
     res.json({
       success: true,
-      correct: result.correct,
-      correctAnswer: result.correctAnswer,
+      answered: true,
+      // Only show if answer is correct AFTER both answered
+      correct: bothAnswered ? result.correct : null,
+      correctAnswer: bothAnswered ? result.correctAnswer : null,
       player1Score: match.player1Score,
       player2Score: match.player2Score,
       bothAnswered,
@@ -687,24 +692,47 @@ router.post('/match/:matchId/answer', async (req, res) => {
 // Match finalization lock to prevent race conditions
 const finalizingMatches = new Set()
 
+// Get queue stats
+router.get('/queue/stats', async (req, res) => {
+  try {
+    const stats = {}
+    let totalInQueue = 0
+    
+    for (const [key, queue] of matchmakingQueue) {
+      stats[key] = queue.length
+      totalInQueue += queue.length
+    }
+    
+    res.json({
+      success: true,
+      totalInQueue,
+      queues: stats
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Next question - sync state and advance if ready
 router.post('/match/:matchId/next', async (req, res) => {
   try {
     const { matchId } = req.params
     const { userId, clientQuestionIndex } = req.body
 
-    // Always get fresh from database to avoid stale cache issues
-    let match = await Match.findOne({ matchId })
+    // Use in-memory cache first for speed
+    let match = activeMatches.get(matchId)
+    
+    // Only fall back to database if not in cache
     if (!match) {
-      // Try cache as fallback
-      match = activeMatches.get(matchId)
-      if (!match) {
-        return res.status(404).json({ success: false, error: 'Match not found' })
+      match = await Match.findOne({ matchId })
+      if (match) {
+        activeMatches.set(matchId, match)
       }
     }
     
-    // Update cache
-    activeMatches.set(matchId, match)
+    if (!match) {
+      return res.status(404).json({ success: false, error: 'Match not found' })
+    }
 
     const playerNum = match.player1.userId === userId ? 1 : 2
     const serverQ = match.currentQuestion

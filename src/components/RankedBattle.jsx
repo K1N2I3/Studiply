@@ -488,10 +488,10 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
             <div className="grid md:grid-cols-2 gap-4">
               {currentQuestion.options?.map((option, index) => {
                 const isSelected = selectedAnswer === index
-                // Only show correct/wrong after answerResult is set (both players answered)
-                const showResult = answerResult !== null
-                const isCorrect = showResult && answerResult?.correctAnswer === index
-                const isWrong = showResult && isSelected && answerResult?.correctAnswer !== index
+                // Only show correct/wrong AFTER correctAnswer is known (both players answered)
+                const hasResult = answerResult !== null && answerResult?.correctAnswer !== undefined && answerResult?.correctAnswer !== null
+                const isCorrect = hasResult && answerResult.correctAnswer === index
+                const isWrong = hasResult && isSelected && answerResult.correctAnswer !== index
                 
                 return (
                   <button
@@ -499,7 +499,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
                     onClick={() => handleSelectAnswer(index)}
                     disabled={answerSubmitted}
                     className={`p-5 rounded-2xl text-left transition-all ${
-                      showResult
+                      hasResult
                         ? isCorrect
                           ? 'bg-green-500 text-white ring-4 ring-green-500/30'
                           : isWrong
@@ -518,7 +518,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
                   >
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                        showResult
+                        hasResult
                           ? isCorrect
                             ? 'bg-white/20'
                             : isWrong
@@ -530,9 +530,9 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
                               ? 'bg-white/20'
                               : isDark ? 'bg-white/10' : 'bg-purple-100 text-purple-600'
                       }`}>
-                        {showResult && isCorrect ? (
+                        {hasResult && isCorrect ? (
                           <CheckCircle className="h-6 w-6" />
-                        ) : showResult && isWrong ? (
+                        ) : hasResult && isWrong ? (
                           <XCircle className="h-6 w-6" />
                         ) : answerSubmitted && isSelected ? (
                           <Clock className="h-5 w-5 animate-pulse" />
@@ -570,8 +570,8 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
               </div>
             )}
 
-            {/* Answer Result Feedback - only shows after both answered */}
-            {answerResult && (
+            {/* Answer Result Feedback - only shows after both answered and we know the result */}
+            {answerResult && answerResult.correctAnswer !== undefined && answerResult.correctAnswer !== null && (
               <div className={`mt-6 p-4 rounded-xl text-center ${
                 answerResult.correct
                   ? isDark ? 'bg-green-500/10 text-green-400' : 'bg-green-100 text-green-700'
