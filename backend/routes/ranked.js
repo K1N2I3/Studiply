@@ -1016,6 +1016,43 @@ router.get('/history/:userId', async (req, res) => {
   }
 })
 
+// Get queue count for UI display
+router.get('/queue/count', (req, res) => {
+  try {
+    const { subject, difficulty } = req.query
+    
+    let totalInQueue = 0
+    let totalInMatches = 0
+    const queueCounts = {}
+    
+    for (const [key, queue] of matchmakingQueue) {
+      queueCounts[key] = queue.length
+      totalInQueue += queue.length
+      
+      // If specific subject/difficulty requested
+      if (subject && difficulty && key === `${subject}_${difficulty}`) {
+        return res.json({
+          success: true,
+          count: queue.length,
+          key
+        })
+      }
+    }
+    
+    totalInMatches = activeMatches.size * 2 // 2 players per match
+    
+    res.json({
+      success: true,
+      totalInQueue,
+      totalInMatches,
+      totalOnline: totalInQueue + totalInMatches,
+      queueCounts
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Debug endpoint - view queue status
 router.get('/debug/queue', async (req, res) => {
   try {
