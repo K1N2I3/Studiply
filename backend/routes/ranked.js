@@ -1016,6 +1016,41 @@ router.get('/history/:userId', async (req, res) => {
   }
 })
 
+// Clear all ranked data (admin endpoint)
+router.post('/admin/clear', async (req, res) => {
+  try {
+    console.log('🧹 [Ranked] Clearing all ranked data...')
+    
+    // Clear in-memory data
+    const queueCount = matchmakingQueue.size
+    const matchCount = activeMatches.size
+    const pendingCount = pendingMatches.size
+    
+    matchmakingQueue.clear()
+    activeMatches.clear()
+    pendingMatches.clear()
+    finalizingMatches.clear()
+    
+    // Optionally clear MongoDB matches (uncomment if needed)
+    // await Match.deleteMany({ status: { $ne: 'completed' } })
+    
+    console.log(`🧹 [Ranked] Cleared: ${queueCount} queues, ${matchCount} matches, ${pendingCount} pending`)
+    
+    res.json({
+      success: true,
+      message: 'All ranked data cleared',
+      cleared: {
+        queues: queueCount,
+        activeMatches: matchCount,
+        pendingMatches: pendingCount
+      }
+    })
+  } catch (error) {
+    console.error('Error clearing ranked data:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Get queue count for UI display
 router.get('/queue/count', (req, res) => {
   try {
