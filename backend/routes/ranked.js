@@ -713,33 +713,23 @@ router.get('/queue/stats', async (req, res) => {
   }
 })
 
-// Next question - sync state and advance if ready
+// Next question - PURE IN-MEMORY for speed, no DB during gameplay
 router.post('/match/:matchId/next', async (req, res) => {
   try {
     const { matchId } = req.params
     const { userId, clientQuestionIndex } = req.body
 
-    // Use in-memory cache first for speed
+    // ONLY use in-memory - no DB queries during active gameplay
     let match = activeMatches.get(matchId)
     
-    // Only fall back to database if not in cache
     if (!match) {
-      match = await Match.findOne({ matchId })
-      if (match) {
-        activeMatches.set(matchId, match)
-      }
-    }
-    
-    if (!match) {
-      return res.status(404).json({ success: false, error: 'Match not found' })
+      return res.status(404).json({ success: false, error: 'Match not found or expired' })
     }
 
     const playerNum = match.player1.userId === userId ? 1 : 2
     const serverQ = match.currentQuestion
 
-    console.log(`⏭️ [Ranked] Next from P${playerNum} (${userId.slice(-4)}), serverQ: ${serverQ}, clientQ: ${clientQuestionIndex}`)
-
-    // If match is already completed, just return the result
+    // If match is already completed, return result immediately
     if (match.status === 'completed') {
       const pointChange = playerNum === 1 ? match.player1PointChange : match.player2PointChange
       return res.json({
@@ -757,7 +747,6 @@ router.post('/match/:matchId/next', async (req, res) => {
 
     // If client is behind, tell them to sync
     if (clientQuestionIndex !== undefined && clientQuestionIndex < serverQ) {
-      console.log(`🔄 [Ranked] Client behind, telling to sync: client ${clientQuestionIndex} -> server ${serverQ}`)
       return res.json({
         success: true,
         status: 'sync',
@@ -778,83 +767,80 @@ router.post('/match/:matchId/next', async (req, res) => {
       })
     }
 
-    // Both answered - advance to next question
-    // Use atomic update to prevent race condition
-    const updateResult = await Match.findOneAndUpdate(
-      { matchId, currentQuestion: serverQ },  // Only update if still on same question
-      { 
-        $inc: { currentQuestion: 1 },
-        $set: { questionStartedAt: new Date() }
-      },
-      { new: true }
-    )
-
-    if (updateResult) {
-      match = updateResult
-      activeMatches.set(matchId, match)
-      console.log(`⏭️ [Ranked] Advanced to Q${match.currentQuestion}`)
-    } else {
-      // Another request already advanced - refetch
-      match = await Match.findOne({ matchId })
+    // Both answered - advance in memory (no DB)
+    if (match.currentQuestion === serverQ) {
+      match.currentQuestion++
+      match.questionStartedAt = new Date()
       activeMatches.set(matchId, match)
     }
 
     // Check if match is over
     if (match.currentQuestion >= match.totalQuestions) {
-      // Use lock to prevent double finalization
-      if (finalizingMatches.has(matchId)) {
-        // Wait for finalization to complete
-        await new Promise(resolve => setTimeout(resolve, 500))
-        match = await Match.findOne({ matchId })
+      // Prevent double finalization
+      if (match.status === 'completed' || finalizingMatches.has(matchId)) {
+        const pointChange = playerNum === 1 ? match.player1PointChange : match.player2PointChange
+        return res.json({
+          success: true,
+          status: 'completed',
+          winner: match.winner,
+          playerNum,
+          player1Score: match.player1Score,
+          player2Score: match.player2Score,
+          player1PointChange: match.player1PointChange,
+          player2PointChange: match.player2PointChange,
+          pointChange
+        })
       }
 
-      if (match.status !== 'completed') {
-        finalizingMatches.add(matchId)
+      finalizingMatches.add(matchId)
+      
+      try {
+        match.finalize()
         
-        try {
-          match.finalize()
-          
-          const player1Won = match.winner === 'player1'
-          const player2Won = match.winner === 'player2'
-          const isDraw = match.winner === 'draw'
-          
-          console.log(`🏆 [Ranked] Match result - P1: ${match.player1Score}, P2: ${match.player2Score}, Winner: ${match.winner}`)
-          
-          // Update player 1 rank
-          let player1Rank = await UserRank.findOne({ userId: match.player1.userId })
-          if (!player1Rank) {
-            player1Rank = new UserRank({ userId: match.player1.userId, userName: match.player1.userName })
-          }
-          const p1Result = player1Rank.updateAfterMatch(match.subject, match.difficulty, player1Won, isDraw)
-          await player1Rank.save()
-          match.player1PointChange = p1Result.pointChange
-          console.log(`📊 [Ranked] P1: ${player1Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'}, ${p1Result.pointChange > 0 ? '+' : ''}${p1Result.pointChange}`)
-
-          // Update player 2 rank (if not bot)
-          if (!match.player2.isBot) {
-            let player2Rank = await UserRank.findOne({ userId: match.player2.userId })
-            if (!player2Rank) {
-              player2Rank = new UserRank({ userId: match.player2.userId, userName: match.player2.userName })
-            }
-            const p2Result = player2Rank.updateAfterMatch(match.subject, match.difficulty, player2Won, isDraw)
-            await player2Rank.save()
-            match.player2PointChange = p2Result.pointChange
-            console.log(`📊 [Ranked] P2: ${player2Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'}, ${p2Result.pointChange > 0 ? '+' : ''}${p2Result.pointChange}`)
-          }
-
-          await match.save()
-          activeMatches.set(matchId, match)
-          
-          // Clean up
-          pendingMatches.delete(match.player1.userId)
-          if (!match.player2.isBot) {
-            pendingMatches.delete(match.player2.userId)
-          }
-
-          console.log(`🏁 [Ranked] Match ${matchId} completed!`)
-        } finally {
-          finalizingMatches.delete(matchId)
+        const player1Won = match.winner === 'player1'
+        const player2Won = match.winner === 'player2'
+        const isDraw = match.winner === 'draw'
+        
+        console.log(`🏆 [Ranked] Match ${matchId} - P1: ${match.player1Score}, P2: ${match.player2Score}, Winner: ${match.winner}`)
+        
+        // Update player 1 rank - ALWAYS save
+        let player1Rank = await UserRank.findOne({ userId: match.player1.userId })
+        if (!player1Rank) {
+          player1Rank = new UserRank({ userId: match.player1.userId, userName: match.player1.userName })
         }
+        const p1Result = player1Rank.updateAfterMatch(match.subject, match.difficulty, player1Won, isDraw)
+        await player1Rank.save()
+        match.player1PointChange = p1Result.pointChange
+        console.log(`📊 P1 ${match.player1.userName}: ${player1Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p1Result.pointChange > 0 ? '+' : ''}${p1Result.pointChange})`)
+
+        // Update player 2 rank (if not bot) - ALWAYS save
+        if (!match.player2.isBot) {
+          let player2Rank = await UserRank.findOne({ userId: match.player2.userId })
+          if (!player2Rank) {
+            player2Rank = new UserRank({ userId: match.player2.userId, userName: match.player2.userName })
+          }
+          const p2Result = player2Rank.updateAfterMatch(match.subject, match.difficulty, player2Won, isDraw)
+          await player2Rank.save()
+          match.player2PointChange = p2Result.pointChange
+          console.log(`📊 P2 ${match.player2.userName}: ${player2Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p2Result.pointChange > 0 ? '+' : ''}${p2Result.pointChange})`)
+        } else {
+          // Bot always gets 0 point change
+          match.player2PointChange = 0
+        }
+
+        // Save match to database for history
+        await match.save()
+        activeMatches.set(matchId, match)
+        
+        // Clean up pending
+        pendingMatches.delete(match.player1.userId)
+        pendingMatches.delete(match.player2.userId)
+
+        console.log(`🏁 [Ranked] Match ${matchId} saved to DB!`)
+      } catch (err) {
+        console.error(`❌ [Ranked] Error finalizing match:`, err)
+      } finally {
+        finalizingMatches.delete(matchId)
       }
 
       const pointChange = playerNum === 1 ? match.player1PointChange : match.player2PointChange
@@ -872,6 +858,7 @@ router.post('/match/:matchId/next', async (req, res) => {
       })
     }
 
+    // Not complete yet - continue to next question
     res.json({
       success: true,
       status: 'continue',

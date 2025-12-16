@@ -167,63 +167,80 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     }
 
     let pollCount = 0
-    const maxPolls = 40 // 20 seconds max (500ms * 40)
+    const maxPolls = 60 // 30 seconds max (500ms * 60)
     
-    pollIntervalRef.current = setInterval(async () => {
+    const poll = async () => {
       pollCount++
       
       try {
         const result = await nextQuestion(matchId, userId, currentQuestionIndex)
         
-        if (result.success) {
-          console.log(`🔄 Poll ${pollCount}: ${result.status}, serverQ: ${result.currentQuestion}`)
-          
-          if (result.status === 'completed') {
-            clearInterval(pollIntervalRef.current)
-            // Show pending answer result before match complete
-            if (pendingAnswerRef.current) {
-              setAnswerResult(pendingAnswerRef.current)
-              pendingAnswerRef.current = null
-            }
-            setTimeout(() => handleMatchComplete(result), 1000)
-          } else if (result.status === 'continue' || result.status === 'sync') {
-            // Both answered - show result first, then advance
-            clearInterval(pollIntervalRef.current)
-            setPlayer1Score(result.player1Score)
-            setPlayer2Score(result.player2Score)
-            
-            // Show the pending answer result
-            if (pendingAnswerRef.current) {
-              setAnswerResult(pendingAnswerRef.current)
-              setWaitingForOpponent(false)
-              pendingAnswerRef.current = null
-              // Wait to show result, then advance
-              setTimeout(() => handleNextQuestion(result.currentQuestion), 1500)
-            } else {
-              handleNextQuestion(result.currentQuestion)
-            }
-          } else if (result.status === 'waiting') {
-            setPlayer1Score(result.player1Score)
-            setPlayer2Score(result.player2Score)
+        if (!result.success) {
+          console.error('Poll failed:', result.error)
+          if (pollCount < maxPolls) {
+            pollIntervalRef.current = setTimeout(poll, 500)
           }
+          return
         }
         
-        if (pollCount >= maxPolls) {
-          clearInterval(pollIntervalRef.current)
-          // Force advance
-          moveToNextQuestion()
+        console.log(`🔄 Poll ${pollCount}: ${result.status}`)
+        
+        if (result.status === 'completed') {
+          // Match done - show result
+          if (pendingAnswerRef.current) {
+            setAnswerResult(pendingAnswerRef.current)
+            setWaitingForOpponent(false)
+            pendingAnswerRef.current = null
+          }
+          setTimeout(() => handleMatchComplete(result), 800)
+          
+        } else if (result.status === 'continue' || result.status === 'sync') {
+          // Both answered - show result then advance
+          setPlayer1Score(result.player1Score)
+          setPlayer2Score(result.player2Score)
+          
+          if (pendingAnswerRef.current) {
+            setAnswerResult(pendingAnswerRef.current)
+            setWaitingForOpponent(false)
+            pendingAnswerRef.current = null
+            setTimeout(() => handleNextQuestion(result.currentQuestion), 1200)
+          } else {
+            handleNextQuestion(result.currentQuestion)
+          }
+          
+        } else if (result.status === 'waiting') {
+          // Still waiting - continue polling
+          setPlayer1Score(result.player1Score)
+          setPlayer2Score(result.player2Score)
+          
+          if (pollCount < maxPolls) {
+            pollIntervalRef.current = setTimeout(poll, 500)
+          } else {
+            // Timeout - force advance
+            console.log('⏰ Timeout, forcing advance')
+            moveToNextQuestion()
+          }
         }
       } catch (err) {
         console.error('Poll error:', err)
+        if (pollCount < maxPolls) {
+          pollIntervalRef.current = setTimeout(poll, 1000) // Retry slower on error
+        }
       }
-    }, 500)
+    }
+    
+    // Start polling immediately
+    poll()
   }
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current)
+        clearTimeout(pollIntervalRef.current)
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
       }
     }
   }, [])
