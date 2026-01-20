@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTheme } from '../contexts/ThemeContext'
 import { Mail, Lock, ArrowRight, ArrowLeft, Sparkles, KeyRound, Eye, EyeOff } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3003/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://studiply.onrender.com/api' : 'http://localhost:3003/api')
 
 const ForgotPassword = () => {
   const [step, setStep] = useState(1) // 1: enter email, 2: enter code & new password
