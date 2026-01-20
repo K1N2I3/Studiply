@@ -471,3 +471,121 @@ export const sendStreakReminder = async (email, userName, currentStreak) => {
   return await sendWithResend(email, `Keep Your ${currentStreak}-Day Streak Going`, html, text, fromEmail)
 }
 
+/**
+ * 生成密码重置邮件 HTML 模板
+ */
+const generatePasswordResetEmailHTML = (code) => {
+  const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <title>Password Reset - Studiply</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #ffffff; color: #333333;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #ffffff; padding: 20px;">
+        <tr>
+          <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border: 1px solid #e5e7eb;">
+              <!-- Simple Header -->
+              <tr>
+                <td style="padding: 32px 24px 24px; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #111827; letter-spacing: -0.5px;">Studiply</h1>
+                </td>
+              </tr>
+              
+              <!-- Main Content -->
+              <tr>
+                <td style="padding: 40px 24px;">
+                  <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.5; color: #374151;">Hello,</p>
+                  
+                  <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.5; color: #374151;">We received a request to reset your password. Use the following code to reset it:</p>
+                  
+                  <!-- Reset Code -->
+                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 0 0 32px 0;">
+                    <tr>
+                      <td align="center" style="padding: 24px; background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                        <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Password Reset Code</p>
+                        <p style="margin: 0; font-size: 36px; font-weight: 700; color: #111827; letter-spacing: 4px; font-family: 'Courier New', Courier, monospace;">${code}</p>
+                      </td>
+                    </tr>
+                  </table>
+                  
+                  <p style="margin: 0 0 24px 0; font-size: 14px; line-height: 1.5; color: #6b7280;">This code will expire in 10 minutes. If you did not request a password reset, please ignore this email or contact support if you have concerns.</p>
+                  
+                  <p style="margin: 0; font-size: 16px; line-height: 1.5; color: #374151;">Best regards,<br>Studiply Team</p>
+                </td>
+              </tr>
+              
+              <!-- Footer -->
+              <tr>
+                <td style="padding: 24px; text-align: center; border-top: 1px solid #e5e7eb; background-color: #f9fafb;">
+                  <p style="margin: 0 0 12px 0; font-size: 12px; line-height: 1.5; color: #6b7280;">
+                    <a href="${websiteUrl}" style="color: #6b7280; text-decoration: underline;">Visit Studiply</a> | 
+                    <a href="${websiteUrl}/unsubscribe" style="color: #6b7280; text-decoration: underline;">Unsubscribe</a>
+                  </p>
+                  <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Studiply. All rights reserved.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `
+}
+
+/**
+ * 发送密码重置邮件
+ */
+export const sendPasswordResetEmail = async (email, code) => {
+  const startTime = Date.now()
+
+  try {
+    // 优先使用 Resend（如果配置了）
+    if (resend) {
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@studiply.it'
+      const text = `Hello,\n\nWe received a request to reset your password. Use the following code to reset it:\n\n${code}\n\nThis code will expire in 10 minutes. If you did not request a password reset, please ignore this email.\n\nBest regards,\nStudiply Team\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
+      return await sendWithResend(email, 'Studiply - Password Reset Code', generatePasswordResetEmailHTML(code), text, fromEmail)
+    }
+    
+    // 备选：使用 SMTP
+    if (smtpTransporter) {
+      const websiteUrl = process.env.FRONTEND_URL || 'https://www.studiply.it'
+      const mailOptions = {
+        from: `"Studiply" <${process.env.EMAIL_USER || 'noreply@studiply.it'}>`,
+        to: email,
+        subject: 'Studiply - Password Reset Code',
+        priority: 'normal',
+        headers: {
+          'X-Priority': '3',
+          'X-MSMail-Priority': 'Normal',
+          'Importance': 'normal',
+          'Date': new Date().toUTCString(),
+          'X-Entity-Ref-ID': `password-reset-${Date.now()}`,
+          'List-Unsubscribe': `<${websiteUrl}/unsubscribe>`,
+          'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+          'Precedence': 'bulk',
+        },
+        html: generatePasswordResetEmailHTML(code),
+        text: `Hello,\n\nWe received a request to reset your password. Use the following code:\n\n${code}\n\nThis code is valid for 10 minutes.\n\nIf you didn't request this, you can safely ignore this email.\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
+      }
+
+      const info = await smtpTransporter.sendMail(mailOptions)
+      const duration = Date.now() - startTime
+      console.log(`✅ [SMTP] Password reset email sent to ${email} in ${duration}ms. Message ID: ${info.messageId}`)
+      return { success: true, messageId: info.messageId, provider: 'smtp' }
+    }
+    
+    // 如果都没有配置，抛出错误
+    throw new Error('No email service configured. Please set RESEND_API_KEY or SMTP credentials.')
+  } catch (error) {
+    const duration = Date.now() - startTime
+    console.error(`❌ Failed to send password reset email to ${email} after ${duration}ms:`, error)
+    throw error
+  }
+}

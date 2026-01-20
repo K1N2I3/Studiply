@@ -33,6 +33,7 @@ import MacOSLoginHandler from './pages/MacOSLoginHandler'
 import MacOSLogin from './pages/MacOSLogin'
 import BecomeTutor from './pages/BecomeTutor'
 import DesktopAuth from './pages/DesktopAuth'
+import ForgotPassword from './pages/ForgotPassword'
 
 // Import components
 import Header from './components/Header'
@@ -155,6 +156,7 @@ function AppContent() {
         <Route path="/home" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/test" element={<TestPage />} />
         <Route path="/debug" element={<Debug />} />
         <Route path="/minimal-test" element={<MinimalTest />} />

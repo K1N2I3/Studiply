@@ -330,12 +330,12 @@ const Login = () => {
                     />
                     <span className="font-medium text-slate-600">Remember me</span>
                   </label>
-                  <button
-                    type="button"
+                  <Link
+                    to="/forgot-password"
                     className="font-medium text-purple-500 transition hover:text-purple-600 hover:underline text-xs"
                   >
                     Forgot password?
-                  </button>
+                  </Link>
                 </div>
 
                 <button

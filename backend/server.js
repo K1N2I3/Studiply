@@ -4,7 +4,7 @@ import mongoose from 'mongoose'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import nodemailer from 'nodemailer'
-import { sendVerificationEmail, sendEmailChangeVerification, sendCalendarReminder, sendStreakReminder } from './services/emailService.js'
+import { sendVerificationEmail, sendEmailChangeVerification, sendCalendarReminder, sendStreakReminder, sendPasswordResetEmail } from './services/emailService.js'
 import admin from 'firebase-admin'
 import dotenv from 'dotenv'
 import { sendVerificationCode, verifyCode } from './services/twilioService.js'
@@ -60,6 +60,8 @@ const userSchema = new mongoose.Schema({
   subjects: [{ type: String }],
   emailVerified: { type: Boolean, default: false },
   verificationCode: { type: String },
+  resetCode: { type: String },
+  resetCodeExpiry: { type: Date },
   createdAt: { type: Date, default: Date.now }
 })
 
@@ -344,6 +346,136 @@ app.post('/api/login', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Login failed. Please try again.'
+    })
+  }
+})
+
+// Forgot password - send reset code
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      })
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase().trim() })
+    
+    // For security, always return success even if user not found
+    // This prevents email enumeration attacks
+    if (!user) {
+      console.log(`Password reset requested for non-existent email: ${email}`)
+      return res.json({
+        success: true,
+        message: 'If an account with that email exists, a reset code has been sent.'
+      })
+    }
+
+    // Generate 6-digit reset code
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
+    const resetCodeExpiry = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+
+    // Save reset code to user
+    user.resetCode = resetCode
+    user.resetCodeExpiry = resetCodeExpiry
+    await user.save()
+
+    // Send password reset email
+    try {
+      await sendPasswordResetEmail(email, resetCode)
+      console.log(`✅ Password reset code sent to ${email}`)
+    } catch (emailError) {
+      console.error('Failed to send password reset email:', emailError)
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to send reset email. Please try again.'
+      })
+    }
+
+    res.json({
+      success: true,
+      message: 'If an account with that email exists, a reset code has been sent.'
+    })
+
+  } catch (error) {
+    console.error('Forgot password error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process request. Please try again.'
+    })
+  }
+})
+
+// Reset password with code
+app.post('/api/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email, code, and new password are required'
+      })
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters long'
+      })
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email: email.toLowerCase().trim() })
+    
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid reset code or email'
+      })
+    }
+
+    // Check if reset code exists and matches
+    if (!user.resetCode || user.resetCode !== code) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid reset code'
+      })
+    }
+
+    // Check if reset code has expired
+    if (!user.resetCodeExpiry || new Date() > user.resetCodeExpiry) {
+      return res.status(400).json({
+        success: false,
+        error: 'Reset code has expired. Please request a new one.'
+      })
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+
+    // Update password and clear reset code
+    user.password = hashedPassword
+    user.resetCode = undefined
+    user.resetCodeExpiry = undefined
+    await user.save()
+
+    console.log(`✅ Password reset successful for ${email}`)
+
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully. You can now log in with your new password.'
+    })
+
+  } catch (error) {
+    console.error('Reset password error:', error)
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reset password. Please try again.'
     })
   }
 })

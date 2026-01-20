@@ -95,6 +95,22 @@ export const userAPI = {
       method: 'POST',
       body: JSON.stringify({ email })
     })
+  },
+
+  // Forgot password - request reset code
+  forgotPassword: async (email) => {
+    return apiRequest('/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    })
+  },
+
+  // Reset password with code
+  resetPassword: async (email, code, newPassword) => {
+    return apiRequest('/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, newPassword })
+    })
   }
 }
 
