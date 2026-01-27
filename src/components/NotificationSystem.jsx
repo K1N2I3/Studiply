@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { X, BookOpen, Target, Trophy, Clock } from 'lucide-react'
+import { X, BookOpen, Target, Trophy, Clock, Loader2 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
+import { generateCalendarQuiz } from '../services/calendarQuizService'
 
 const NotificationSystem = ({ events = [] }) => {
   const { isDark } = useTheme()
@@ -9,6 +10,8 @@ const NotificationSystem = ({ events = [] }) => {
   const [currentQuiz, setCurrentQuiz] = useState(null)
   const [quizAnswers, setQuizAnswers] = useState({})
   const [quizScore, setQuizScore] = useState(null)
+  const [quizLoading, setQuizLoading] = useState(false)
+  const [quizError, setQuizError] = useState(null)
 
   // 检查需要显示的通知
   useEffect(() => {
@@ -46,76 +49,61 @@ const NotificationSystem = ({ events = [] }) => {
     setNotifications(newNotifications)
   }, [events])
 
-  // 生成测验题目
-  const generateQuiz = (subject) => {
-    const quizQuestions = {
-      'Mathematics': [
-        {
-          question: "What is the derivative of x²?",
-          options: ["2x", "x", "2", "x²"],
-          correct: 0
-        },
-        {
-          question: "What is the integral of 2x?",
-          options: ["x²", "x² + C", "2x²", "x"],
-          correct: 1
-        }
-      ],
-      'Science': [
-        {
-          question: "What is the chemical symbol for water?",
-          options: ["H2O", "CO2", "O2", "H2"],
-          correct: 0
-        },
-        {
-          question: "What is the speed of light?",
-          options: ["300,000 km/s", "150,000 km/s", "450,000 km/s", "600,000 km/s"],
-          correct: 0
-        }
-      ],
-      'English': [
-        {
-          question: "What is a metaphor?",
-          options: ["A comparison using 'like' or 'as'", "A direct comparison", "A sound device", "A type of poem"],
-          correct: 1
-        },
-        {
-          question: "What is the past tense of 'go'?",
-          options: ["goed", "went", "gone", "going"],
-          correct: 1
-        }
-      ]
-    }
-
-    const questions = quizQuestions[subject] || [
-      {
-        question: "What is the capital of France?",
-        options: ["London", "Berlin", "Paris", "Madrid"],
-        correct: 2
-      }
-    ]
-
-    return {
-      subject,
-      questions: questions.slice(0, 3), // 只显示3个问题
-      timeLimit: 30 // 30秒
-    }
-  }
-
-  // 开始测验
-  const startQuiz = (notification) => {
-    const quiz = generateQuiz(notification.subject)
-    setCurrentQuiz(quiz)
+  // 开始测验 - 使用 AI 生成题目
+  const startQuiz = async (notification) => {
+    setQuizLoading(true)
+    setQuizError(null)
     setShowQuiz(true)
     setQuizAnswers({})
     setQuizScore(null)
 
-    // 30秒后自动提交
-    setTimeout(() => {
-      if (showQuiz && !quizScore) {
-        submitQuiz()
+    try {
+      // 获取事件描述
+      const description = notification.event?.description || notification.event?.title || ''
+      const subject = notification.subject || notification.event?.subject || 'general'
+
+      console.log('📝 [Calendar Quiz] Generating quiz:', { subject, description })
+
+      // 调用 AI API 生成题目
+      const result = await generateCalendarQuiz(subject, description, 5)
+
+      if (result.success && result.quiz) {
+        // 格式化题目以匹配现有格式
+        const formattedQuiz = {
+          subject: result.quiz.subject || subject,
+          questions: result.quiz.questions.map((q, index) => ({
+            question: q.question,
+            options: q.options,
+            correct: q.correctAnswer,
+            questionId: q.questionId || `q_${index}`
+          })),
+          timeLimit: 300 // 5分钟
+        }
+
+        setCurrentQuiz(formattedQuiz)
+        console.log('✅ [Calendar Quiz] Quiz generated successfully:', formattedQuiz.questions.length, 'questions')
+      } else {
+        throw new Error(result.error || 'Failed to generate quiz')
       }
-    }, 30000)
+    } catch (error) {
+      console.error('❌ [Calendar Quiz] Error generating quiz:', error)
+      setQuizError(error.message || 'Failed to generate quiz. Please try again.')
+      // 如果 AI 生成失败，使用备用题目
+      const fallbackQuiz = {
+        subject: notification.subject || 'General',
+        questions: [
+          {
+            question: "What is the main topic of this test?",
+            options: ["Review the description", "Study the materials", "Prepare thoroughly", "All of the above"],
+            correct: 3
+          }
+        ],
+        timeLimit: 300
+      }
+      setCurrentQuiz(fallbackQuiz)
+    } finally {
+      setQuizLoading(false)
+    }
   }
 
   // 提交测验
@@ -144,6 +132,8 @@ const NotificationSystem = ({ events = [] }) => {
     setCurrentQuiz(null)
     setQuizAnswers({})
     setQuizScore(null)
+    setQuizLoading(false)
+    setQuizError(null)
   }
 
   if (notifications.length === 0 && !showQuiz) {
@@ -229,30 +219,79 @@ const NotificationSystem = ({ events = [] }) => {
       ))}
 
       {/* 测验模态框 */}
-      {showQuiz && currentQuiz && (
+      {showQuiz && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`rounded-3xl p-6 border-2 max-w-md mx-4 w-full ${
+          <div className={`rounded-3xl p-6 border-2 max-w-2xl mx-4 w-full max-h-[90vh] overflow-y-auto relative ${
             isDark
               ? 'bg-white/10 border-white/20'
               : 'bg-white/90 border-white/20 shadow-xl'
           }`}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className={`text-xl font-bold ${
-                isDark ? 'text-white' : 'text-gray-800'
-              }`}>
-                {currentQuiz.subject} Quiz
-              </h3>
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${
-                isDark ? 'bg-white/10' : 'bg-gray-100'
-              }`}>
-                <Clock className="w-4 h-4" />
-                <span className="text-sm font-medium">30s</span>
+            {/* Close button */}
+            {!quizLoading && (
+              <button
+                onClick={closeQuiz}
+                className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
+                  isDark
+                    ? 'hover:bg-white/10 text-white/60 hover:text-white'
+                    : 'hover:bg-gray-100 text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+            {quizLoading ? (
+              <div className="text-center py-8">
+                <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-blue-500" />
+                <p className={`text-lg ${isDark ? 'text-white' : 'text-gray-800'}`}>
+                  Generating quiz questions...
+                </p>
+                <p className={`text-sm mt-2 ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                  Using AI to create questions based on your event description
+                </p>
               </div>
-            </div>
+            ) : quizError && !currentQuiz ? (
+              <div className="text-center py-8">
+                <p className={`text-lg mb-4 ${isDark ? 'text-red-400' : 'text-red-600'}`}>
+                  {quizError}
+                </p>
+                <button
+                  onClick={() => {
+                    setShowQuiz(false)
+                    setQuizError(null)
+                  }}
+                  className={`px-4 py-2 rounded-xl font-medium ${
+                    isDark ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'
+                  }`}
+                >
+                  Close
+                </button>
+              </div>
+            ) : currentQuiz && !quizScore ? (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className={`text-xl font-bold ${
+                    isDark ? 'text-white' : 'text-gray-800'
+                  }`}>
+                    {currentQuiz.subject} Quiz
+                  </h3>
+                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${
+                    isDark ? 'bg-white/10' : 'bg-gray-100'
+                  }`}>
+                    <Clock className="w-4 h-4" />
+                    <span className="text-sm font-medium">{Math.floor(currentQuiz.timeLimit / 60)}m</span>
+                  </div>
+                </div>
 
-            {!quizScore ? (
-              <div className="space-y-4">
-                {currentQuiz.questions.map((question, index) => (
+                {quizError && (
+                  <div className={`mb-4 p-3 rounded-lg text-sm ${
+                    isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-50 text-yellow-800'
+                  }`}>
+                    {quizError}
+                  </div>
+                )}
+
+                <div className="space-y-6">
+                  {currentQuiz.questions.map((question, index) => (
                   <div key={index}>
                     <p className={`font-medium mb-2 ${
                       isDark ? 'text-white' : 'text-gray-800'
@@ -289,20 +328,21 @@ const NotificationSystem = ({ events = [] }) => {
                       ))}
                     </div>
                   </div>
-                ))}
+                  ))}
 
-                <button
-                  onClick={submitQuiz}
-                  className={`w-full px-4 py-2 rounded-xl font-medium transition-colors ${
-                    isDark
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
-                >
-                  Submit Quiz
-                </button>
-              </div>
-            ) : (
+                  <button
+                    onClick={submitQuiz}
+                    className={`w-full px-4 py-2 rounded-xl font-medium transition-colors ${
+                      isDark
+                        ? 'bg-blue-500 text-white hover:bg-blue-600'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                  >
+                    Submit Quiz
+                  </button>
+                </div>
+              </>
+            ) : currentQuiz && quizScore !== null ? (
               <div className="text-center">
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
                   quizScore >= 70

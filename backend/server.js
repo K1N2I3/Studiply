@@ -16,6 +16,8 @@ import aiQuestsRoutes from './routes/aiQuests.js'
 import stripeConnectRoutes from './routes/stripeConnect.js'
 import homeworkRoutes from './routes/homework.js'
 import rankedRoutes from './routes/ranked.js'
+import OpenAI from 'openai'
+import Anthropic from '@anthropic-ai/sdk'
 
 dotenv.config()
 
@@ -583,6 +585,203 @@ app.post('/api/reset-password', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to reset password. Please try again.'
+    })
+  }
+})
+
+// Helper function to get AI client for quiz generation
+const getAIClientForQuiz = () => {
+  // Claude (Anthropic) - Priority 1
+  if (process.env.ANTHROPIC_API_KEY) {
+    return {
+      client: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }),
+      model: process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514',
+      provider: 'claude',
+      isAnthropic: true
+    }
+  }
+  // OpenAI GPT-4o
+  else if (process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL === 'gpt-4o') {
+    return {
+      client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+      model: 'gpt-4o',
+      provider: 'openai',
+      isAnthropic: false
+    }
+  }
+  // OpenAI GPT-4o-mini
+  else if (process.env.OPENAI_API_KEY) {
+    return {
+      client: new OpenAI({ apiKey: process.env.OPENAI_API_KEY }),
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      provider: 'openai',
+      isAnthropic: false
+    }
+  }
+  // DeepSeek
+  else if (process.env.DEEPSEEK_API_KEY) {
+    return {
+      client: new OpenAI({
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        baseURL: 'https://api.deepseek.com/v1'
+      }),
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
+      provider: 'deepseek',
+      isAnthropic: false
+    }
+  } else {
+    throw new Error('No AI API key configured')
+  }
+}
+
+// Generate quiz for calendar summative event
+app.post('/api/calendar-quiz/generate', async (req, res) => {
+  try {
+    const { subject, description, questionCount = 5 } = req.body
+
+    if (!subject) {
+      return res.status(400).json({
+        success: false,
+        error: 'Subject is required'
+      })
+    }
+
+    if (!description || !description.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Description is required'
+      })
+    }
+
+    // Get AI client
+    let aiConfig
+    try {
+      aiConfig = getAIClientForQuiz()
+      console.log(`🤖 [Calendar Quiz] Using ${aiConfig.provider.toUpperCase()} API`)
+    } catch (error) {
+      console.error('❌ [Calendar Quiz] AI service not configured:', error.message)
+      return res.status(500).json({
+        success: false,
+        error: 'AI service is not configured. Please set ANTHROPIC_API_KEY, OPENAI_API_KEY, or DEEPSEEK_API_KEY environment variable.'
+      })
+    }
+
+    // Subject name mapping
+    const subjectNames = {
+      'italian': 'Italian Language',
+      'english': 'English Language',
+      'spanish': 'Spanish Language',
+      'french': 'French Language',
+      'german': 'German Language',
+      'mandarin': 'Mandarin Chinese',
+      'business': 'Business & Entrepreneurship',
+      'philosophy': 'Philosophy',
+      'mathematics': 'Mathematics',
+      'computerScience': 'Computer Science',
+      'chemistry': 'Chemistry',
+      'biology': 'Biology',
+      'history': 'History',
+      'geography': 'Geography'
+    }
+
+    const subjectName = subjectNames[subject.toLowerCase()] || subject
+
+    // Build system prompt
+    const jsonInstruction = aiConfig.isAnthropic 
+      ? `\n\nIMPORTANT: You MUST return ONLY valid JSON. Do not include any markdown formatting, code blocks, or explanatory text. Return the JSON object directly.`
+      : ''
+
+    const systemPrompt = `You are an educational quiz creator. Generate exactly ${questionCount} multiple-choice questions for a ${subjectName} summative test based on the following description.
+
+Requirements:
+- Generate exactly ${questionCount} questions
+- Each question must have exactly 4 options
+- Include one correct answer and three plausible distractors
+- Questions should be based on the description provided
+- Questions should test understanding of the key concepts mentioned
+- Make questions clear and appropriate for test preparation
+
+Return the response as a JSON object with this exact structure:
+{
+  "questions": [
+    {
+      "question": "The question text",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": 0
+    }
+  ]
+}${jsonInstruction}`
+
+    const userPrompt = `Create ${questionCount} test questions based on this description: ${description.trim()}`
+
+    console.log(`🤖 [Calendar Quiz] Generating quiz for ${subjectName}...`)
+
+    // Call AI API
+    let aiResponse
+    if (aiConfig.isAnthropic) {
+      const message = await aiConfig.client.messages.create({
+        model: aiConfig.model,
+        max_tokens: 2048,
+        temperature: 0.7,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+      aiResponse = message.content[0].text
+    } else {
+      const completion = await aiConfig.client.chat.completions.create({
+        model: aiConfig.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: 'json_object' }
+      })
+      aiResponse = completion.choices[0].message.content
+    }
+
+    // Parse AI response
+    let parsed
+    try {
+      parsed = JSON.parse(aiResponse)
+    } catch (e) {
+      // Try to extract JSON from markdown code blocks
+      const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/) || aiResponse.match(/```\s*([\s\S]*?)\s*```/)
+      if (jsonMatch) {
+        parsed = JSON.parse(jsonMatch[1])
+      } else {
+        throw new Error('Failed to parse AI response as JSON')
+      }
+    }
+
+    // Validate and format questions
+    if (!parsed.questions || !Array.isArray(parsed.questions)) {
+      throw new Error('Invalid response format: questions array not found')
+    }
+
+    const formattedQuestions = parsed.questions.map((q, index) => ({
+      question: q.question,
+      options: q.options || [],
+      correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : q.correct,
+      questionId: `q_${Date.now()}_${index}`
+    }))
+
+    console.log(`✅ [Calendar Quiz] Generated ${formattedQuestions.length} questions`)
+
+    res.json({
+      success: true,
+      quiz: {
+        subject: subjectName,
+        questions: formattedQuestions,
+        questionCount: formattedQuestions.length
+      }
+    })
+
+  } catch (error) {
+    console.error('❌ [Calendar Quiz] Error generating quiz:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to generate quiz. Please try again.'
     })
   }
 })
