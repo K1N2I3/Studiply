@@ -1403,14 +1403,19 @@ app.post('/api/coupons/purchase', async (req, res) => {
       const userDoc = await userRef.get()
       
       // Check if document exists (using property, not function)
-      if (userDoc && typeof userDoc.exists !== 'undefined' && userDoc.exists) {
-        const userData = userDoc.data()
-        if (userData && userData.hasStudiplyPass) {
-          subscriptionStatus = userData.subscription === 'pro' ? 'pro' : 'basic'
+      // Firebase Admin SDK: exists is a boolean property
+      if (userDoc) {
+        const exists = userDoc.exists // Get property value, not call as function
+        if (exists === true) {
+          const userData = userDoc.data()
+          if (userData && userData.hasStudiplyPass) {
+            subscriptionStatus = userData.subscription === 'pro' ? 'pro' : 'basic'
+          }
         }
       }
     } catch (userError) {
       console.warn('⚠️ Error getting user subscription status, defaulting to none:', userError.message)
+      console.error('⚠️ User error details:', userError)
       // Continue with default 'none' subscription status
     }
 
