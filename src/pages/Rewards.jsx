@@ -177,24 +177,24 @@ const Rewards = () => {
     progressPercentage: 0
   }
 
-  // 奖励商店物品 - 课程打折券
+  // Reward Shop Items - Course Discount Coupons
   const shopItems = [
-    { id: 'discount_10', name: '10% 课程折扣券', description: '购买任何课程享受 10% 折扣', price: 100, discountPercent: 10, icon: GiftIcon, available: true },
-    { id: 'discount_25', name: '25% 课程折扣券', description: '购买任何课程享受 25% 折扣', price: 250, discountPercent: 25, icon: Sparkle, available: true },
-    { id: 'discount_50', name: '50% 课程折扣券', description: '购买任何课程享受 50% 折扣', price: 500, discountPercent: 50, icon: Diamond, available: true },
-    { id: 'discount_100', name: '免费课程券', description: '免费获得一次课程', price: 1000, discountPercent: 100, icon: Crown, available: true },
+    { id: 'discount_10', name: '10% Course Discount', description: 'Get 10% off any course purchase', price: 100, discountPercent: 10, icon: GiftIcon, available: true },
+    { id: 'discount_25', name: '25% Course Discount', description: 'Get 25% off any course purchase', price: 250, discountPercent: 25, icon: Sparkle, available: true },
+    { id: 'discount_50', name: '50% Course Discount', description: 'Get 50% off any course purchase', price: 500, discountPercent: 50, icon: Diamond, available: true },
+    { id: 'discount_100', name: 'Free Course Voucher', description: 'Get one course for free', price: 1000, discountPercent: 100, icon: Crown, available: true },
   ]
 
-  // 购买打折券处理函数
+  // Handle coupon purchase
   const handlePurchaseCoupon = async (item) => {
     if (!user?.id) {
-      setPurchaseError('请先登录')
+      setPurchaseError('Please log in first')
       setTimeout(() => setPurchaseError(null), 3000)
       return
     }
 
     if (stats.gold < item.price) {
-      setPurchaseError('金币不足')
+      setPurchaseError('Insufficient gold')
       setTimeout(() => setPurchaseError(null), 3000)
       return
     }
@@ -207,8 +207,8 @@ const Rewards = () => {
       const result = await purchaseCoupon(user.id, item.id)
       
       if (result.success) {
-        setPurchaseSuccess(`成功购买 ${item.name}！`)
-        // 更新本地 gold 数量
+        setPurchaseSuccess(`Successfully purchased ${item.name}!`)
+        // Update local gold amount
         if (userProgress) {
           setUserProgress({
             ...userProgress,
@@ -221,8 +221,8 @@ const Rewards = () => {
         }, 3000)
       }
     } catch (error) {
-      console.error('购买打折券失败:', error)
-      setPurchaseError(error.message || '购买失败，请重试')
+      console.error('Failed to purchase coupon:', error)
+      setPurchaseError(error.message || 'Purchase failed, please try again')
       setTimeout(() => {
         setPurchaseError(null)
         setPurchasing(null)
@@ -845,7 +845,7 @@ const Rewards = () => {
                   </div>
                 </div>
 
-                {/* 购买消息提示 */}
+                {/* Purchase messages */}
                 {purchaseError && (
                   <div className={`mb-4 p-4 rounded-xl border ${
                     isDark ? 'bg-red-500/20 border-red-500/30 text-red-200' : 'bg-red-50 border-red-200 text-red-700'
@@ -899,7 +899,7 @@ const Rewards = () => {
                                 : 'bg-slate-400 text-white cursor-not-allowed'
                             }`}
                           >
-                            {purchasing === item.id ? '购买中...' : canAfford ? '购买' : '金币不足'}
+                            {purchasing === item.id ? 'Purchasing...' : canAfford ? 'Purchase' : 'Insufficient Gold'}
                           </button>
                         </div>
                       </div>

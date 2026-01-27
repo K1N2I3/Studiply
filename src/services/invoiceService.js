@@ -11,19 +11,19 @@ import { db } from '../firebase/config'
 const PLATFORM_FEE_RATE = 0.20
 
 /**
- * 创建账单（在 session 完成后调用）
- * @param {string} sessionId - 会话 ID
- * @param {string} studentId - 学生 ID
- * @param {string} tutorId - 导师 ID
- * @param {number} durationMinutes - 通话时长（分钟）
- * @param {string} subject - 科目
- * @param {string} couponId - 可选：打折券 ID
+ * Create invoice (called after session completion)
+ * @param {string} sessionId - Session ID
+ * @param {string} studentId - Student ID
+ * @param {string} tutorId - Tutor ID
+ * @param {number} durationMinutes - Call duration in minutes
+ * @param {string} subject - Subject
+ * @param {string} couponId - Optional: Coupon ID
  */
 export const createInvoice = async (sessionId, studentId, tutorId, durationMinutes, subject, couponId = null) => {
   try {
     console.log('📄 Creating invoice...', { sessionId, studentId, tutorId, durationMinutes, subject })
     
-    // 验证必需参数
+    // Validate required parameters
     if (!sessionId || !studentId || !tutorId) {
       console.error('❌ Missing required parameters:', { sessionId, studentId, tutorId })
       return { success: false, error: 'Missing required parameters: sessionId, studentId, or tutorId' }
@@ -34,7 +34,7 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
       return { success: false, error: 'Invalid duration' }
     }
     
-    // 检查是否已存在相同 sessionId 的账单（防止重复创建）
+    // Check if invoice already exists for this session (prevent duplicates)
     try {
       const existingQuery = query(
         collection(db, 'invoices'),
@@ -57,10 +57,10 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
       }
     } catch (checkError) {
       console.warn('⚠️ Could not check for existing invoice:', checkError.message)
-      // 继续创建，即使检查失败
+      // Continue creating even if check fails
     }
     
-    // 获取导师的小时费率
+    // Get tutor's hourly rate
     const tutorDoc = await getDoc(doc(db, 'users', tutorId))
     if (!tutorDoc.exists()) {
       console.error('❌ Tutor not found:', tutorId)
@@ -72,20 +72,20 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
     
     console.log('💰 Tutor hourly rate:', hourlyRate)
     
-    // 计算费用（按分钟比例）
+    // Calculate fees (proportional to minutes)
     const hours = durationMinutes / 60
     let subtotal = parseFloat((hourlyRate * hours).toFixed(2))
     let discountAmount = 0
     let discountPercent = 0
     let couponUsed = null
 
-    // 如果提供了打折券，应用折扣
+    // Apply discount if coupon is provided
     if (couponId) {
       try {
         const couponDoc = await getDoc(doc(db, 'users', studentId, 'coupons', couponId))
         if (couponDoc.exists()) {
           const couponData = couponDoc.data()
-          // 检查打折券是否可用（未使用且未过期）
+          // Check if coupon is available (not used and not expired)
           const now = new Date()
           const expiresAt = couponData.expiresAt?.toDate()
           
@@ -107,12 +107,12 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
     const platformFee = parseFloat((subtotal * PLATFORM_FEE_RATE).toFixed(2))
     const tutorEarnings = parseFloat((subtotal - platformFee).toFixed(2))
     
-    // 获取学生信息
+    // Get student information
     const studentDoc = await getDoc(doc(db, 'users', studentId))
     const studentName = studentDoc.exists() ? studentDoc.data().name : 'Unknown'
     const tutorName = tutorData.name || 'Unknown'
     
-    // 创建账单数据
+    // Create invoice data
     const invoiceData = {
       sessionId,
       studentId,
@@ -136,7 +136,7 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
     
     console.log('📄 Invoice data:', invoiceData)
     
-    // 创建账单
+    // Create invoice
     const invoiceRef = await addDoc(collection(db, 'invoices'), invoiceData)
     
     console.log('✅ Invoice created successfully:', invoiceRef.id)
@@ -322,7 +322,7 @@ export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
     const invoiceData = invoiceDoc.data()
     console.log('📄 Invoice data:', invoiceData)
     
-    // 更新账单状态
+    // Update invoice status
     await updateDoc(invoiceRef, {
       status: 'paid',
       paidAt: serverTimestamp(),
@@ -332,7 +332,7 @@ export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
     
     console.log('✅ Invoice status updated to paid')
     
-    // 如果使用了打折券，标记为已使用
+    // Mark coupon as used if one was applied
     if (invoiceData.couponId) {
       try {
         const couponRef = doc(db, 'users', invoiceData.studentId, 'coupons', invoiceData.couponId)
@@ -347,7 +347,7 @@ export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
       }
     }
     
-    // 更新导师的收入统计
+    // Update tutor earnings statistics
     const tutorStatsRef = doc(db, 'tutorStats', invoiceData.tutorId)
     const tutorStatsDoc = await getDoc(tutorStatsRef)
     

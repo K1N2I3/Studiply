@@ -1383,7 +1383,7 @@ const sendStreakReminders = async (forceSend = false) => {
 }
 
 // API endpoint to send streak reminders (can be called by cron job)
-// 购买打折券 API
+// Purchase coupon API
 app.post('/api/coupons/purchase', async (req, res) => {
   try {
     const { userId, couponType } = req.body
@@ -1392,7 +1392,7 @@ app.post('/api/coupons/purchase', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: userId and couponType' })
     }
 
-    // 定义打折券类型和价格
+    // Define coupon types and prices
     const couponTypes = {
       'discount_10': { price: 100, discountPercent: 10 },
       'discount_25': { price: 250, discountPercent: 25 },
@@ -1405,7 +1405,7 @@ app.post('/api/coupons/purchase', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid coupon type' })
     }
 
-    // 获取用户进度（gold）
+    // Get user progress (gold)
     if (!firestore) {
       return res.status(500).json({ success: false, error: 'Firestore not initialized' })
     }
@@ -1424,24 +1424,24 @@ app.post('/api/coupons/purchase', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Insufficient gold' })
     }
 
-    // 扣除 gold
+    // Deduct gold
     const newGold = currentGold - couponConfig.price
     await progressRef.update({ gold: newGold })
 
-    // 创建打折券并存储到用户账户
+    // Create coupon and store in user account
     const couponId = `coupon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     const couponData = {
       id: couponId,
       type: couponType,
       discountPercent: couponConfig.discountPercent,
       purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
-      expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)), // 90天后过期
+      expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)), // Expires in 90 days
       used: false,
       usedAt: null,
       usedForInvoiceId: null
     }
 
-    // 存储到用户的 coupons 子集合
+    // Store in user's coupons subcollection
     await firestore.collection('users').doc(userId).collection('coupons').doc(couponId).set(couponData)
 
     console.log(`✅ Coupon purchased: ${couponType} by user ${userId}, remaining gold: ${newGold}`)
@@ -1457,7 +1457,7 @@ app.post('/api/coupons/purchase', async (req, res) => {
   }
 })
 
-// 获取用户的可用打折券
+// Get user's available coupons
 app.get('/api/coupons/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params
@@ -1476,7 +1476,7 @@ app.get('/api/coupons/user/:userId', async (req, res) => {
       const couponData = doc.data()
       const expiresAt = couponData.expiresAt
 
-      // 检查是否过期
+      // Check if expired
       if (expiresAt && expiresAt.toMillis() > now.toMillis()) {
         coupons.push({
           id: doc.id,
