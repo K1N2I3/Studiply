@@ -378,7 +378,7 @@ const NotificationSystem = ({ events = [] }) => {
                   Close
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       )}
