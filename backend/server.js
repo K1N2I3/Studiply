@@ -1392,24 +1392,61 @@ app.post('/api/coupons/purchase', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields: userId and couponType' })
     }
 
-    // Define coupon types and prices
-    const couponTypes = {
-      'discount_10': { price: 100, discountPercent: 10 },
-      'discount_25': { price: 250, discountPercent: 25 },
-      'discount_50': { price: 500, discountPercent: 50 },
-      'discount_100': { price: 1000, discountPercent: 100 }
-    }
-
-    const couponConfig = couponTypes[couponType]
-    if (!couponConfig) {
-      return res.status(400).json({ success: false, error: 'Invalid coupon type' })
-    }
-
-    // Get user progress (gold)
     if (!firestore) {
       return res.status(500).json({ success: false, error: 'Firestore not initialized' })
     }
 
+    // Get user subscription status
+    const userRef = firestore.collection('users').doc(userId)
+    const userDoc = await userRef.get()
+    
+    let subscriptionStatus = 'none' // none, basic, pro
+    if (userDoc.exists()) {
+      const userData = userDoc.data()
+      if (userData.hasStudiplyPass) {
+        subscriptionStatus = userData.subscription === 'pro' ? 'pro' : 'basic'
+      }
+    }
+
+    // Define coupon types and prices based on subscription status
+    // Base prices remain the same, but discount percentages vary
+    const basePrices = {
+      'discount_10': 100,
+      'discount_25': 250,
+      'discount_50': 500,
+      'discount_100': 1000
+    }
+
+    // Discount percentages based on subscription tier
+    const discountPercentages = {
+      'none': {
+        'discount_10': 5,
+        'discount_25': 15,
+        'discount_50': 30,
+        'discount_100': 50
+      },
+      'basic': {
+        'discount_10': 10,
+        'discount_25': 25,
+        'discount_50': 50,
+        'discount_100': 100
+      },
+      'pro': {
+        'discount_10': 15,
+        'discount_25': 35,
+        'discount_50': 60,
+        'discount_100': 100
+      }
+    }
+
+    const price = basePrices[couponType]
+    if (!price) {
+      return res.status(400).json({ success: false, error: 'Invalid coupon type' })
+    }
+
+    const discountPercent = discountPercentages[subscriptionStatus][couponType]
+
+    // Get user progress (gold)
     const progressRef = firestore.collection('studyprogress').doc(userId)
     const progressDoc = await progressRef.get()
 
@@ -1420,12 +1457,12 @@ app.post('/api/coupons/purchase', async (req, res) => {
     const progressData = progressDoc.data()
     const currentGold = progressData.gold || 0
 
-    if (currentGold < couponConfig.price) {
+    if (currentGold < price) {
       return res.status(400).json({ success: false, error: 'Insufficient gold' })
     }
 
     // Deduct gold
-    const newGold = currentGold - couponConfig.price
+    const newGold = currentGold - price
     await progressRef.update({ gold: newGold })
 
     // Create coupon and store in user account
@@ -1433,7 +1470,8 @@ app.post('/api/coupons/purchase', async (req, res) => {
     const couponData = {
       id: couponId,
       type: couponType,
-      discountPercent: couponConfig.discountPercent,
+      discountPercent: discountPercent,
+      subscriptionTier: subscriptionStatus,
       purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
       expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)), // Expires in 90 days
       used: false,

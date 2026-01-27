@@ -177,13 +177,56 @@ const Rewards = () => {
     progressPercentage: 0
   }
 
-  // Reward Shop Items - Course Discount Coupons
-  const shopItems = [
-    { id: 'discount_10', name: '10% Course Discount', description: 'Get 10% off any course purchase', price: 100, discountPercent: 10, icon: GiftIcon, available: true },
-    { id: 'discount_25', name: '25% Course Discount', description: 'Get 25% off any course purchase', price: 250, discountPercent: 25, icon: Sparkle, available: true },
-    { id: 'discount_50', name: '50% Course Discount', description: 'Get 50% off any course purchase', price: 500, discountPercent: 50, icon: Diamond, available: true },
-    { id: 'discount_100', name: 'Free Course Voucher', description: 'Get one course for free', price: 1000, discountPercent: 100, icon: Crown, available: true },
-  ]
+  // Get user subscription status
+  const subscriptionStatus = user?.hasStudiplyPass 
+    ? (user?.subscription === 'pro' ? 'pro' : 'basic')
+    : 'none'
+
+  // Discount percentages based on subscription tier
+  const discountPercentages = {
+    'none': {
+      'discount_10': 5,
+      'discount_25': 15,
+      'discount_50': 30,
+      'discount_100': 50
+    },
+    'basic': {
+      'discount_10': 10,
+      'discount_25': 25,
+      'discount_50': 50,
+      'discount_100': 100
+    },
+    'pro': {
+      'discount_10': 15,
+      'discount_25': 35,
+      'discount_50': 60,
+      'discount_100': 100
+    }
+  }
+
+  // Reward Shop Items - Course Discount Coupons (discount varies by subscription)
+  const getShopItems = () => {
+    const baseItems = [
+      { id: 'discount_10', baseName: 'Course Discount', baseDescription: 'Get {percent}% off any course purchase', price: 100, icon: GiftIcon, available: true },
+      { id: 'discount_25', baseName: 'Course Discount', baseDescription: 'Get {percent}% off any course purchase', price: 250, icon: Sparkle, available: true },
+      { id: 'discount_50', baseName: 'Course Discount', baseDescription: 'Get {percent}% off any course purchase', price: 500, icon: Diamond, available: true },
+      { id: 'discount_100', baseName: subscriptionStatus === 'none' ? 'Course Discount' : 'Free Course Voucher', baseDescription: subscriptionStatus === 'none' ? 'Get {percent}% off any course purchase' : 'Get one course for free', price: 1000, icon: Crown, available: true },
+    ]
+
+    return baseItems.map(item => {
+      const discountPercent = discountPercentages[subscriptionStatus][item.id]
+      return {
+        ...item,
+        name: item.id === 'discount_100' && subscriptionStatus !== 'none' 
+          ? 'Free Course Voucher'
+          : `${discountPercent}% ${item.baseName}`,
+        description: item.baseDescription.replace('{percent}', discountPercent),
+        discountPercent: discountPercent
+      }
+    })
+  }
+
+  const shopItems = getShopItems()
 
   // Handle coupon purchase
   const handlePurchaseCoupon = async (item) => {
@@ -832,9 +875,26 @@ const Rewards = () => {
             }`}>
               <div className="p-8">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    Reward Shop
-                  </h2>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                      Reward Shop
+                    </h2>
+                    {subscriptionStatus === 'none' && (
+                      <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
+                        Upgrade to Studiply Pass for better discounts!
+                      </p>
+                    )}
+                    {subscriptionStatus === 'basic' && (
+                      <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
+                        Upgrade to Pass Pro for maximum discounts!
+                      </p>
+                    )}
+                    {subscriptionStatus === 'pro' && (
+                      <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
+                        You're getting maximum discounts with Pass Pro!
+                      </p>
+                    )}
+                  </div>
                   <div className={`flex items-center gap-2 px-4 py-2 rounded-xl ${
                     isDark ? 'bg-yellow-500/20 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'
                   }`}>
