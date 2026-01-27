@@ -1397,16 +1397,21 @@ app.post('/api/coupons/purchase', async (req, res) => {
     }
 
     // Get user subscription status
-    const userRef = firestore.collection('users').doc(userId)
-    const userDoc = await userRef.get()
-    
     let subscriptionStatus = 'none' // none, basic, pro
-    // Check if document exists (using property, not function)
-    if (userDoc && userDoc.exists !== false && userDoc.data) {
-      const userData = userDoc.data()
-      if (userData && userData.hasStudiplyPass) {
-        subscriptionStatus = userData.subscription === 'pro' ? 'pro' : 'basic'
+    try {
+      const userRef = firestore.collection('users').doc(userId)
+      const userDoc = await userRef.get()
+      
+      // Check if document exists (using property, not function)
+      if (userDoc && typeof userDoc.exists !== 'undefined' && userDoc.exists) {
+        const userData = userDoc.data()
+        if (userData && userData.hasStudiplyPass) {
+          subscriptionStatus = userData.subscription === 'pro' ? 'pro' : 'basic'
+        }
       }
+    } catch (userError) {
+      console.warn('⚠️ Error getting user subscription status, defaulting to none:', userError.message)
+      // Continue with default 'none' subscription status
     }
 
     // Define coupon types and prices based on subscription status
