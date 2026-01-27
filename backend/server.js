@@ -362,12 +362,29 @@ app.post('/api/forgot-password', async (req, res) => {
       })
     }
 
-    // Find user by email
+    // Find user by email in MongoDB
     const user = await User.findOne({ email: email.toLowerCase().trim() })
+    
+    // Also check Firestore for SimpleAuth users
+    let firestoreUserFound = false
+    let firestoreUserDoc = null
+    if (firestore) {
+      try {
+        const usersRef = firestore.collection('users')
+        const snapshot = await usersRef.where('email', '==', email.toLowerCase().trim()).get()
+        firestoreUserFound = !snapshot.empty
+        if (firestoreUserFound) {
+          firestoreUserDoc = snapshot.docs[0]
+          console.log(`✅ User found in Firestore: ${email}`)
+        }
+      } catch (error) {
+        console.warn('Error checking Firestore:', error)
+      }
+    }
     
     // For security, always return success even if user not found
     // This prevents email enumeration attacks
-    if (!user) {
+    if (!user && !firestoreUserFound) {
       console.log(`Password reset requested for non-existent email: ${email}`)
       return res.json({
         success: true,
@@ -379,10 +396,27 @@ app.post('/api/forgot-password', async (req, res) => {
     const resetCode = Math.floor(100000 + Math.random() * 900000).toString()
     const resetCodeExpiry = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
 
-    // Save reset code to user
-    user.resetCode = resetCode
-    user.resetCodeExpiry = resetCodeExpiry
-    await user.save()
+    // Save reset code to MongoDB user (if exists)
+    if (user) {
+      user.resetCode = resetCode
+      user.resetCodeExpiry = resetCodeExpiry
+      await user.save()
+      console.log(`✅ Reset code saved to MongoDB for ${email}`)
+    }
+
+    // Also save reset code to Firestore user (if exists)
+    if (firestore && firestoreUserDoc) {
+      try {
+        await firestoreUserDoc.ref.update({
+          resetCode: resetCode,
+          resetCodeExpiry: admin.firestore.Timestamp.fromDate(resetCodeExpiry)
+        })
+        console.log(`✅ Reset code saved to Firestore for ${email}`)
+      } catch (firestoreError) {
+        console.error('❌ Error saving reset code to Firestore:', firestoreError)
+        // Continue even if Firestore update fails
+      }
+    }
 
     // Send password reset email
     try {
