@@ -1,7 +1,5 @@
 // API service for communicating with backend
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-backend-url.com/api' 
-  : 'http://localhost:3003/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://studiply.onrender.com/api' : 'http://localhost:3003/api')
 
 // Helper function to get auth token
 const getAuthToken = () => {
@@ -122,4 +120,40 @@ export const isAuthenticated = () => {
 // Get stored token
 export const getToken = () => {
   return getAuthToken()
+}
+
+// Coupon API functions
+export const purchaseCoupon = async (userId, couponType) => {
+  const response = await fetch(`${API_BASE_URL}/coupons/purchase`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId, couponType })
+  })
+  
+  const data = await response.json()
+  
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to purchase coupon')
+  }
+  
+  return data
+}
+
+export const getUserCoupons = async (userId) => {
+  const response = await fetch(`${API_BASE_URL}/coupons/user/${userId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  
+  const data = await response.json()
+  
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch coupons')
+  }
+  
+  return data
 }

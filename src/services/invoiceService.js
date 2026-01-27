@@ -17,8 +17,9 @@ const PLATFORM_FEE_RATE = 0.20
  * @param {string} tutorId - 导师 ID
  * @param {number} durationMinutes - 通话时长（分钟）
  * @param {string} subject - 科目
+ * @param {string} couponId - 可选：打折券 ID
  */
-export const createInvoice = async (sessionId, studentId, tutorId, durationMinutes, subject) => {
+export const createInvoice = async (sessionId, studentId, tutorId, durationMinutes, subject, couponId = null) => {
   try {
     console.log('📄 Creating invoice...', { sessionId, studentId, tutorId, durationMinutes, subject })
     
@@ -73,7 +74,36 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
     
     // 计算费用（按分钟比例）
     const hours = durationMinutes / 60
-    const subtotal = parseFloat((hourlyRate * hours).toFixed(2))
+    let subtotal = parseFloat((hourlyRate * hours).toFixed(2))
+    let discountAmount = 0
+    let discountPercent = 0
+    let couponUsed = null
+
+    // 如果提供了打折券，应用折扣
+    if (couponId) {
+      try {
+        const couponDoc = await getDoc(doc(db, 'users', studentId, 'coupons', couponId))
+        if (couponDoc.exists()) {
+          const couponData = couponDoc.data()
+          // 检查打折券是否可用（未使用且未过期）
+          const now = new Date()
+          const expiresAt = couponData.expiresAt?.toDate()
+          
+          if (!couponData.used && (!expiresAt || expiresAt > now)) {
+            discountPercent = couponData.discountPercent || 0
+            discountAmount = parseFloat((subtotal * discountPercent / 100).toFixed(2))
+            subtotal = parseFloat((subtotal - discountAmount).toFixed(2))
+            couponUsed = couponId
+            console.log(`✅ Coupon applied: ${discountPercent}% discount, saving €${discountAmount}`)
+          } else {
+            console.warn('⚠️ Coupon is used or expired:', couponId)
+          }
+        }
+      } catch (couponError) {
+        console.warn('⚠️ Error applying coupon:', couponError)
+      }
+    }
+    
     const platformFee = parseFloat((subtotal * PLATFORM_FEE_RATE).toFixed(2))
     const tutorEarnings = parseFloat((subtotal - platformFee).toFixed(2))
     
@@ -93,6 +123,9 @@ export const createInvoice = async (sessionId, studentId, tutorId, durationMinut
       durationMinutes,
       hourlyRate,
       subtotal,
+      discountAmount,
+      discountPercent,
+      couponId: couponUsed,
       platformFee,
       platformFeeRate: PLATFORM_FEE_RATE,
       tutorEarnings,
@@ -298,6 +331,21 @@ export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
     })
     
     console.log('✅ Invoice status updated to paid')
+    
+    // 如果使用了打折券，标记为已使用
+    if (invoiceData.couponId) {
+      try {
+        const couponRef = doc(db, 'users', invoiceData.studentId, 'coupons', invoiceData.couponId)
+        await updateDoc(couponRef, {
+          used: true,
+          usedAt: serverTimestamp(),
+          usedForInvoiceId: invoiceId
+        })
+        console.log('✅ Coupon marked as used:', invoiceData.couponId)
+      } catch (couponError) {
+        console.warn('⚠️ Error marking coupon as used:', couponError)
+      }
+    }
     
     // 更新导师的收入统计
     const tutorStatsRef = doc(db, 'tutorStats', invoiceData.tutorId)

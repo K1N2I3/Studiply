@@ -37,6 +37,7 @@ import {
   GiftIcon,
   Sparkle
 } from 'lucide-react'
+import { purchaseCoupon } from '../services/api'
 
 const Rewards = () => {
   const { user } = useSimpleAuth()
@@ -48,6 +49,9 @@ const Rewards = () => {
   const [leaderboardData, setLeaderboardData] = useState([])
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const [userRank, setUserRank] = useState(null)
+  const [purchasing, setPurchasing] = useState(null)
+  const [purchaseError, setPurchaseError] = useState(null)
+  const [purchaseSuccess, setPurchaseSuccess] = useState(null)
 
   // 实时监听用户进度
   useEffect(() => {
@@ -173,13 +177,58 @@ const Rewards = () => {
     progressPercentage: 0
   }
 
-  // 奖励商店物品
+  // 奖励商店物品 - 课程打折券
   const shopItems = [
-    { id: 'theme_dark', name: 'Dark Theme', description: 'Unlock dark mode theme', price: 100, icon: Sparkle, available: true },
-    { id: 'badge_premium', name: 'Premium Badge', description: 'Show off your premium status', price: 500, icon: Crown, available: true },
-    { id: 'avatar_frame', name: 'Golden Frame', description: 'Exclusive avatar frame', price: 300, icon: Award, available: true },
-    { id: 'title_legend', name: 'Legend Title', description: 'Custom title: "Legend"', price: 1000, icon: Star, available: true },
+    { id: 'discount_10', name: '10% 课程折扣券', description: '购买任何课程享受 10% 折扣', price: 100, discountPercent: 10, icon: GiftIcon, available: true },
+    { id: 'discount_25', name: '25% 课程折扣券', description: '购买任何课程享受 25% 折扣', price: 250, discountPercent: 25, icon: Sparkle, available: true },
+    { id: 'discount_50', name: '50% 课程折扣券', description: '购买任何课程享受 50% 折扣', price: 500, discountPercent: 50, icon: Diamond, available: true },
+    { id: 'discount_100', name: '免费课程券', description: '免费获得一次课程', price: 1000, discountPercent: 100, icon: Crown, available: true },
   ]
+
+  // 购买打折券处理函数
+  const handlePurchaseCoupon = async (item) => {
+    if (!user?.id) {
+      setPurchaseError('请先登录')
+      setTimeout(() => setPurchaseError(null), 3000)
+      return
+    }
+
+    if (stats.gold < item.price) {
+      setPurchaseError('金币不足')
+      setTimeout(() => setPurchaseError(null), 3000)
+      return
+    }
+
+    setPurchasing(item.id)
+    setPurchaseError(null)
+    setPurchaseSuccess(null)
+
+    try {
+      const result = await purchaseCoupon(user.id, item.id)
+      
+      if (result.success) {
+        setPurchaseSuccess(`成功购买 ${item.name}！`)
+        // 更新本地 gold 数量
+        if (userProgress) {
+          setUserProgress({
+            ...userProgress,
+            gold: result.remainingGold
+          })
+        }
+        setTimeout(() => {
+          setPurchaseSuccess(null)
+          setPurchasing(null)
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('购买打折券失败:', error)
+      setPurchaseError(error.message || '购买失败，请重试')
+      setTimeout(() => {
+        setPurchaseError(null)
+        setPurchasing(null)
+      }, 3000)
+    }
+  }
 
   if (loading) {
     return (
@@ -796,6 +845,22 @@ const Rewards = () => {
                   </div>
                 </div>
 
+                {/* 购买消息提示 */}
+                {purchaseError && (
+                  <div className={`mb-4 p-4 rounded-xl border ${
+                    isDark ? 'bg-red-500/20 border-red-500/30 text-red-200' : 'bg-red-50 border-red-200 text-red-700'
+                  }`}>
+                    {purchaseError}
+                  </div>
+                )}
+                {purchaseSuccess && (
+                  <div className={`mb-4 p-4 rounded-xl border ${
+                    isDark ? 'bg-green-500/20 border-green-500/30 text-green-200' : 'bg-green-50 border-green-200 text-green-700'
+                  }`}>
+                    {purchaseSuccess}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {shopItems.map(item => {
                     const Icon = item.icon || Gift
@@ -826,14 +891,15 @@ const Rewards = () => {
                             </span>
                           </div>
                           <button
-                            disabled={!canAfford}
+                            disabled={!canAfford || purchasing === item.id}
+                            onClick={() => handlePurchaseCoupon(item)}
                             className={`px-4 py-2 rounded-xl font-semibold transition-all ${
-                              canAfford
+                              canAfford && purchasing !== item.id
                                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
                                 : 'bg-slate-400 text-white cursor-not-allowed'
                             }`}
                           >
-                            {canAfford ? 'Purchase' : 'Insufficient Gold'}
+                            {purchasing === item.id ? '购买中...' : canAfford ? '购买' : '金币不足'}
                           </button>
                         </div>
                       </div>

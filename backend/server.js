@@ -1383,6 +1383,116 @@ const sendStreakReminders = async (forceSend = false) => {
 }
 
 // API endpoint to send streak reminders (can be called by cron job)
+// 购买打折券 API
+app.post('/api/coupons/purchase', async (req, res) => {
+  try {
+    const { userId, couponType } = req.body
+
+    if (!userId || !couponType) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: userId and couponType' })
+    }
+
+    // 定义打折券类型和价格
+    const couponTypes = {
+      'discount_10': { price: 100, discountPercent: 10 },
+      'discount_25': { price: 250, discountPercent: 25 },
+      'discount_50': { price: 500, discountPercent: 50 },
+      'discount_100': { price: 1000, discountPercent: 100 }
+    }
+
+    const couponConfig = couponTypes[couponType]
+    if (!couponConfig) {
+      return res.status(400).json({ success: false, error: 'Invalid coupon type' })
+    }
+
+    // 获取用户进度（gold）
+    if (!firestore) {
+      return res.status(500).json({ success: false, error: 'Firestore not initialized' })
+    }
+
+    const progressRef = firestore.collection('studyprogress').doc(userId)
+    const progressDoc = await progressRef.get()
+
+    if (!progressDoc.exists) {
+      return res.status(404).json({ success: false, error: 'User progress not found' })
+    }
+
+    const progressData = progressDoc.data()
+    const currentGold = progressData.gold || 0
+
+    if (currentGold < couponConfig.price) {
+      return res.status(400).json({ success: false, error: 'Insufficient gold' })
+    }
+
+    // 扣除 gold
+    const newGold = currentGold - couponConfig.price
+    await progressRef.update({ gold: newGold })
+
+    // 创建打折券并存储到用户账户
+    const couponId = `coupon_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    const couponData = {
+      id: couponId,
+      type: couponType,
+      discountPercent: couponConfig.discountPercent,
+      purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)), // 90天后过期
+      used: false,
+      usedAt: null,
+      usedForInvoiceId: null
+    }
+
+    // 存储到用户的 coupons 子集合
+    await firestore.collection('users').doc(userId).collection('coupons').doc(couponId).set(couponData)
+
+    console.log(`✅ Coupon purchased: ${couponType} by user ${userId}, remaining gold: ${newGold}`)
+
+    res.json({
+      success: true,
+      coupon: couponData,
+      remainingGold: newGold
+    })
+  } catch (error) {
+    console.error('❌ Error purchasing coupon:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// 获取用户的可用打折券
+app.get('/api/coupons/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+
+    if (!firestore) {
+      return res.status(500).json({ success: false, error: 'Firestore not initialized' })
+    }
+
+    const couponsRef = firestore.collection('users').doc(userId).collection('coupons')
+    const snapshot = await couponsRef.where('used', '==', false).get()
+
+    const coupons = []
+    const now = admin.firestore.Timestamp.now()
+
+    snapshot.forEach(doc => {
+      const couponData = doc.data()
+      const expiresAt = couponData.expiresAt
+
+      // 检查是否过期
+      if (expiresAt && expiresAt.toMillis() > now.toMillis()) {
+        coupons.push({
+          id: doc.id,
+          ...couponData,
+          expiresAt: expiresAt.toDate().toISOString()
+        })
+      }
+    })
+
+    res.json({ success: true, coupons })
+  } catch (error) {
+    console.error('❌ Error fetching user coupons:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 app.post('/api/send-streak-reminders', async (req, res) => {
   try {
     // 允许通过查询参数或请求体强制发送（用于测试）
