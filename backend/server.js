@@ -1401,9 +1401,10 @@ app.post('/api/coupons/purchase', async (req, res) => {
     const userDoc = await userRef.get()
     
     let subscriptionStatus = 'none' // none, basic, pro
-    if (userDoc.exists) {
+    // Check if document exists (using property, not function)
+    if (userDoc && userDoc.exists !== false && userDoc.data) {
       const userData = userDoc.data()
-      if (userData.hasStudiplyPass) {
+      if (userData && userData.hasStudiplyPass) {
         subscriptionStatus = userData.subscription === 'pro' ? 'pro' : 'basic'
       }
     }
