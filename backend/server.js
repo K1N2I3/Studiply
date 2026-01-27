@@ -386,10 +386,17 @@ app.post('/api/forgot-password', async (req, res) => {
 
     // Send password reset email
     try {
-      await sendPasswordResetEmail(email, resetCode)
-      console.log(`✅ Password reset code sent to ${email}`)
+      console.log(`📧 [Forgot Password] Calling sendPasswordResetEmail for ${email}`)
+      console.log(`📧 [Forgot Password] Reset code: ${resetCode}`)
+      const emailResult = await sendPasswordResetEmail(email, resetCode)
+      console.log(`✅ Password reset code sent to ${email}`, emailResult)
     } catch (emailError) {
-      console.error('Failed to send password reset email:', emailError)
+      console.error('❌ Failed to send password reset email:', emailError)
+      console.error('❌ Error details:', {
+        message: emailError.message,
+        stack: emailError.stack,
+        code: emailError.code
+      })
       return res.status(500).json({
         success: false,
         error: 'Failed to send reset email. Please try again.'

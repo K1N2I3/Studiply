@@ -4,7 +4,14 @@ import nodemailer from 'nodemailer'
 // 初始化 Resend（如果配置了 API Key）
 let resend = null
 if (process.env.RESEND_API_KEY) {
-  resend = new Resend(process.env.RESEND_API_KEY)
+  try {
+    resend = new Resend(process.env.RESEND_API_KEY)
+    console.log('✅ Resend initialized successfully')
+  } catch (error) {
+    console.error('❌ Failed to initialize Resend:', error)
+  }
+} else {
+  console.warn('⚠️ RESEND_API_KEY not found in environment variables')
 }
 
 // SMTP 配置（作为备选方案）
@@ -545,12 +552,20 @@ const generatePasswordResetEmailHTML = (code) => {
 export const sendPasswordResetEmail = async (email, code) => {
   const startTime = Date.now()
 
+  console.log(`📧 [Password Reset] Attempting to send email to ${email}`)
+  console.log(`📧 [Password Reset] Resend initialized: ${!!resend}`)
+  console.log(`📧 [Password Reset] RESEND_API_KEY exists: ${!!process.env.RESEND_API_KEY}`)
+  console.log(`📧 [Password Reset] RESEND_FROM_EMAIL: ${process.env.RESEND_FROM_EMAIL || 'not set'}`)
+
   try {
     // 优先使用 Resend（如果配置了）
     if (resend) {
       const fromEmail = process.env.RESEND_FROM_EMAIL || 'noreply@studiply.it'
+      console.log(`📧 [Password Reset] Using Resend, from: ${fromEmail}`)
       const text = `Hello,\n\nWe received a request to reset your password. Use the following code to reset it:\n\n${code}\n\nThis code will expire in 10 minutes. If you did not request a password reset, please ignore this email.\n\nBest regards,\nStudiply Team\n\n© ${new Date().getFullYear()} Studiply. All rights reserved.`
-      return await sendWithResend(email, 'Studiply - Password Reset Code', generatePasswordResetEmailHTML(code), text, fromEmail)
+      const result = await sendWithResend(email, 'Studiply - Password Reset Code', generatePasswordResetEmailHTML(code), text, fromEmail)
+      console.log(`✅ [Password Reset] Email sent successfully:`, result)
+      return result
     }
     
     // 备选：使用 SMTP
