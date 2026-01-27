@@ -895,9 +895,9 @@ const Header = () => {
             <Route
               path="/admin/gold-manager"
               element={
-                <AdminRoute>
+                <ProtectedRoute>
                   <GoldManager />
-                </AdminRoute>
+                </ProtectedRoute>
               }
             />
             <Route

@@ -20,6 +20,7 @@ const GoldManager = () => {
     if (user?.id && !targetUserId) {
       loadGold(user.id)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, targetUserId])
 
   const loadGold = async (userId) => {
