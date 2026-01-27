@@ -157,3 +157,39 @@ export const getUserCoupons = async (userId) => {
   
   return data
 }
+
+// Gold management API functions
+export const updateUserGold = async (userId, gold, operation = 'set') => {
+  const response = await fetch(`${API_BASE_URL}/gold/update`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId, gold, operation })
+  })
+  
+  const data = await response.json()
+  
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to update gold')
+  }
+  
+  return data
+}
+
+export const getUserGold = async (userId) => {
+  const response = await fetch(`${API_BASE_URL}/gold/user/${userId}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    }
+  })
+  
+  const data = await response.json()
+  
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to fetch gold')
+  }
+  
+  return data
+}

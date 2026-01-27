@@ -52,6 +52,7 @@ import TutorDashboard from '../pages/TutorDashboard'
 import StudentDashboard from '../pages/StudentDashboard'
 import TutorAccountsAdmin from '../pages/TutorAccountsAdmin'
 import AdminPanel from '../pages/AdminPanel'
+import GoldManager from '../pages/GoldManager'
 import LearningSession from '../pages/LearningSession'
 import QuestAcademy from '../pages/QuestAcademy'
 import QuestExecution from '../pages/QuestExecution'
@@ -888,6 +889,14 @@ const Header = () => {
               element={
                 <AdminRoute>
                   <TutorAccountsAdmin />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/gold-manager"
+              element={
+                <AdminRoute>
+                  <GoldManager />
                 </AdminRoute>
               }
             />

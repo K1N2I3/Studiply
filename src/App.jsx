@@ -175,6 +175,7 @@ function AppContent() {
         <Route path="/become-tutor" element={<ProtectedRoute><BecomeTutor /></ProtectedRoute>} />
         <Route path="/desktop-auth" element={<DesktopAuth />} />
         <Route path="/admin/tutor-accounts" element={<ProtectedRoute><TutorAccountsAdmin /></ProtectedRoute>} />
+        <Route path="/admin/gold-manager" element={<ProtectedRoute><GoldManager /></ProtectedRoute>} />
         <Route path="/macos-login" element={<MacOSLoginHandler />} />
       </Routes>
     </div>

@@ -1495,6 +1495,108 @@ app.post('/api/coupons/purchase', async (req, res) => {
   }
 })
 
+// Update user gold (admin or user can update their own)
+app.post('/api/gold/update', async (req, res) => {
+  try {
+    const { userId, gold, operation = 'set' } = req.body // operation: 'set', 'add', 'subtract'
+
+    if (!userId || gold === undefined) {
+      return res.status(400).json({ success: false, error: 'Missing required fields: userId and gold' })
+    }
+
+    if (!firestore) {
+      return res.status(500).json({ success: false, error: 'Firestore not initialized' })
+    }
+
+    const progressRef = firestore.collection('studyprogress').doc(userId)
+    const progressDoc = await progressRef.get()
+
+    if (!progressDoc.exists) {
+      // Create new progress document if it doesn't exist
+      await progressRef.set({
+        totalXP: 0,
+        gold: 0,
+        currentLevel: 1,
+        completedQuests: [],
+        achievements: [],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      })
+    }
+
+    const progressData = progressDoc.exists ? progressDoc.data() : { gold: 0 }
+    const currentGold = progressData.gold || 0
+
+    let newGold
+    switch (operation) {
+      case 'add':
+        newGold = currentGold + parseFloat(gold)
+        break
+      case 'subtract':
+        newGold = Math.max(0, currentGold - parseFloat(gold))
+        break
+      case 'set':
+      default:
+        newGold = parseFloat(gold)
+        break
+    }
+
+    await progressRef.update({
+      gold: newGold,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    })
+
+    console.log(`✅ Gold updated for user ${userId}: ${operation} ${gold}, new total: ${newGold}`)
+
+    res.json({
+      success: true,
+      userId,
+      previousGold: currentGold,
+      newGold: newGold,
+      operation
+    })
+  } catch (error) {
+    console.error('❌ Error updating gold:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Get user gold
+app.get('/api/gold/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+
+    if (!firestore) {
+      return res.status(500).json({ success: false, error: 'Firestore not initialized' })
+    }
+
+    const progressRef = firestore.collection('studyprogress').doc(userId)
+    const progressDoc = await progressRef.get()
+
+    if (!progressDoc.exists) {
+      return res.json({
+        success: true,
+        userId,
+        gold: 0,
+        exists: false
+      })
+    }
+
+    const progressData = progressDoc.data()
+    const gold = progressData.gold || 0
+
+    res.json({
+      success: true,
+      userId,
+      gold: gold,
+      exists: true
+    })
+  } catch (error) {
+    console.error('❌ Error getting user gold:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Get user's available coupons
 app.get('/api/coupons/user/:userId', async (req, res) => {
   try {
