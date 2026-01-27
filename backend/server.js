@@ -470,40 +470,106 @@ app.post('/api/reset-password', async (req, res) => {
       })
     }
 
-    // Find user by email
+    // Find user by email in MongoDB
     const user = await User.findOne({ email: email.toLowerCase().trim() })
     
-    if (!user) {
+    // Also check Firestore for SimpleAuth users
+    let firestoreUser = null
+    let firestoreUserDoc = null
+    if (firestore) {
+      try {
+        const usersRef = firestore.collection('users')
+        const snapshot = await usersRef.where('email', '==', email.toLowerCase().trim()).get()
+        if (!snapshot.empty) {
+          firestoreUserDoc = snapshot.docs[0]
+          firestoreUser = firestoreUserDoc.data()
+          console.log(`✅ User found in Firestore: ${email}`)
+        }
+      } catch (error) {
+        console.warn('Error checking Firestore:', error)
+      }
+    }
+    
+    if (!user && !firestoreUser) {
+      console.log(`❌ User not found in MongoDB or Firestore: ${email}`)
       return res.status(400).json({
         success: false,
         error: 'Invalid reset code or email'
       })
     }
 
-    // Check if reset code exists and matches
-    if (!user.resetCode || user.resetCode !== code) {
+    // Check reset code - try MongoDB first, then Firestore
+    let resetCodeValid = false
+    let resetCodeExpired = false
+    
+    if (user) {
+      if (user.resetCode && user.resetCode === code) {
+        resetCodeValid = true
+        // Check expiry in MongoDB
+        if (!user.resetCodeExpiry || new Date() > user.resetCodeExpiry) {
+          resetCodeExpired = true
+        }
+      }
+    }
+    
+    // If MongoDB code doesn't match, check Firestore
+    if (!resetCodeValid && firestoreUser) {
+      const firestoreCode = firestoreUser.resetCode
+      console.log(`🔍 Checking Firestore reset code. Expected: ${code}, Found: ${firestoreCode}`)
+      if (firestoreCode && firestoreCode === code) {
+        resetCodeValid = true
+        // Check expiry in Firestore
+        if (firestoreUser.resetCodeExpiry) {
+          const expiryDate = firestoreUser.resetCodeExpiry.toDate()
+          resetCodeExpired = new Date() > expiryDate
+          console.log(`🔍 Firestore code expiry: ${expiryDate}, Now: ${new Date()}, Expired: ${resetCodeExpired}`)
+        }
+      }
+    }
+
+    if (!resetCodeValid) {
+      console.log(`❌ Invalid reset code for ${email}. MongoDB code: ${user?.resetCode}, Firestore code: ${firestoreUser?.resetCode}, Provided: ${code}`)
       return res.status(400).json({
         success: false,
         error: 'Invalid reset code'
       })
     }
 
-    // Check if reset code has expired
-    if (!user.resetCodeExpiry || new Date() > user.resetCodeExpiry) {
+    if (resetCodeExpired) {
+      console.log(`❌ Reset code expired for ${email}`)
       return res.status(400).json({
         success: false,
         error: 'Reset code has expired. Please request a new one.'
       })
     }
 
-    // Hash the new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    console.log(`✅ Reset code validated for ${email}`)
 
-    // Update password and clear reset code
-    user.password = hashedPassword
-    user.resetCode = undefined
-    user.resetCodeExpiry = undefined
-    await user.save()
+    // Hash the new password for MongoDB (if user exists)
+    if (user) {
+      const hashedPassword = await bcrypt.hash(newPassword, 12)
+      // Update password in MongoDB and clear reset code
+      user.password = hashedPassword
+      user.resetCode = undefined
+      user.resetCodeExpiry = undefined
+      await user.save()
+      console.log(`✅ MongoDB password updated for ${email}`)
+    }
+
+    // Also update password in Firestore (SimpleAuth uses plain text password)
+    if (firestore && firestoreUserDoc) {
+      try {
+        await firestoreUserDoc.ref.update({
+          password: newPassword.trim(), // SimpleAuth stores plain text password
+          resetCode: admin.firestore.FieldValue.delete(),
+          resetCodeExpiry: admin.firestore.FieldValue.delete()
+        })
+        console.log(`✅ Firestore password updated for ${email}`)
+      } catch (firestoreError) {
+        console.error('❌ Error updating Firestore password:', firestoreError)
+        // Don't fail the request if Firestore update fails
+      }
+    }
 
     console.log(`✅ Password reset successful for ${email}`)
 
