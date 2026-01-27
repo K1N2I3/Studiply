@@ -34,6 +34,7 @@ import MacOSLogin from './pages/MacOSLogin'
 import BecomeTutor from './pages/BecomeTutor'
 import DesktopAuth from './pages/DesktopAuth'
 import ForgotPassword from './pages/ForgotPassword'
+import GoldManager from './pages/GoldManager'
 
 // Import components
 import Header from './components/Header'
