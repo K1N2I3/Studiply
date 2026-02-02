@@ -10,8 +10,10 @@ import {
   Clock,
   Target,
   Lightbulb,
-  Sparkles
+  Sparkles,
+  Shield
 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { useNotification } from '../contexts/NotificationContext'
@@ -350,6 +352,31 @@ const Homepage = () => {
             </div>
           </div>
         </section>
+
+        {/* Footer with Privacy Policy Link */}
+        <footer className={`mt-16 pt-8 pb-8 border-t ${
+          isDark ? 'border-white/10' : 'border-slate-200'
+        }`}>
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 text-sm">
+            <p className={`${
+              isDark ? 'text-white/60' : 'text-slate-500'
+            }`}>
+              © {new Date().getFullYear()} Studiply. All rights reserved.
+            </p>
+            <span className={`hidden sm:inline ${
+              isDark ? 'text-white/40' : 'text-slate-400'
+            }`}>•</span>
+            <Link
+              to="/privacy"
+              className={`inline-flex items-center gap-2 transition hover:opacity-80 ${
+                isDark ? 'text-purple-300 hover:text-purple-200' : 'text-purple-600 hover:text-purple-700'
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              <span>Privacy Policy</span>
+            </Link>
+          </div>
+        </footer>
       </div>
 
       {/* Tutor Application Form Modal */}

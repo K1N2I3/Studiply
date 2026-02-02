@@ -1,5 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
+import { Shield } from 'lucide-react'
 
 const Home = () => {
   const features = [
@@ -156,6 +157,25 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Footer with Privacy Policy Link */}
+      <footer className="py-8 bg-white border-t border-gray-200">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 text-sm">
+            <p className="text-gray-500">
+              © {new Date().getFullYear()} Studiply. All rights reserved.
+            </p>
+            <span className="hidden sm:inline text-gray-400">•</span>
+            <Link
+              to="/privacy"
+              className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 transition hover:opacity-80"
+            >
+              <Shield className="w-4 h-4" />
+              <span>Privacy Policy</span>
+            </Link>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
