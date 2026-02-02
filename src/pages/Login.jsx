@@ -139,10 +139,13 @@ const Login = () => {
           }
         }
       } else {
-        setError(result.error)
+        // 显示详细错误信息
+        console.error('Google login error details:', result)
+        setError(result.error || 'Google login failed, please try again')
       }
     } catch (submitError) {
-      setError('An unexpected error occurred')
+      console.error('Google login exception:', submitError)
+      setError('An unexpected error occurred. Please check the browser console for details.')
     } finally {
       setLoading(false)
     }

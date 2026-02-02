@@ -212,17 +212,30 @@ export const simpleGoogleLogin = async () => {
     }
   } catch (error) {
     console.error('Google login error:', error)
+    console.error('Error code:', error.code)
+    console.error('Error message:', error.message)
+    
     let errorMessage = 'Google login failed, please try again'
     
     if (error.code === 'auth/popup-closed-by-user') {
       errorMessage = 'Login cancelled'
     } else if (error.code === 'auth/popup-blocked') {
       errorMessage = 'Popup blocked. Please allow popups for this site.'
+    } else if (error.code === 'auth/operation-not-allowed') {
+      errorMessage = 'Google login is not enabled. Please enable it in Firebase Console → Authentication → Sign-in method.'
+    } else if (error.code === 'auth/unauthorized-domain') {
+      errorMessage = 'This domain is not authorized. Please add it in Firebase Console → Authentication → Settings → Authorized domains.'
+    } else if (error.code === 'auth/configuration-not-found') {
+      errorMessage = 'Google OAuth configuration not found. Please configure OAuth consent screen in Google Cloud Console.'
+    } else if (error.message) {
+      // 显示具体错误信息以便调试
+      errorMessage = `Google login failed: ${error.message}`
     }
     
     return {
       success: false,
-      error: errorMessage
+      error: errorMessage,
+      errorCode: error.code // 添加错误代码以便调试
     }
   }
 }
