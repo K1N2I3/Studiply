@@ -35,6 +35,7 @@ import BecomeTutor from './pages/BecomeTutor'
 import DesktopAuth from './pages/DesktopAuth'
 import ForgotPassword from './pages/ForgotPassword'
 import GoldManager from './pages/GoldManager'
+import Privacy from './pages/Privacy'
 
 // Import components
 import Header from './components/Header'
@@ -158,6 +159,7 @@ function AppContent() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/test" element={<TestPage />} />
         <Route path="/debug" element={<Debug />} />
         <Route path="/minimal-test" element={<MinimalTest />} />
