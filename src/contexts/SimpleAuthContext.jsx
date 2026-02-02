@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { simpleRegister, simpleLogin, simpleLogout, getUserDetails } from '../firebase/simpleAuth'
+import { simpleRegister, simpleLogin, simpleLogout, getUserDetails, simpleGoogleLogin } from '../firebase/simpleAuth'
 import { useTheme } from './ThemeContext'
 import { doc, onSnapshot, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -237,6 +237,39 @@ export const SimpleAuthProvider = ({ children }) => {
     }
   }
 
+  const googleLogin = async () => {
+    try {
+      const result = await simpleGoogleLogin()
+      if (result.success) {
+        if (result.isNewUser) {
+          // 新用户，返回 Google 信息用于注册流程
+          return {
+            success: true,
+            isNewUser: true,
+            googleUser: result.googleUser
+          }
+        } else {
+          // 已存在用户，直接登录
+          const userData = result.user
+          if (userData.isTutor === undefined) {
+            userData.isTutor = false
+          }
+          setUser(userData)
+          localStorage.setItem('simpleUser', JSON.stringify(userData))
+          return {
+            success: true,
+            isNewUser: false,
+            user: userData
+          }
+        }
+      } else {
+        return result
+      }
+    } catch (error) {
+      return { success: false, error: 'Google login failed, please try again' }
+    }
+  }
+
   const reloadUser = async () => {
     const savedUser = localStorage.getItem('simpleUser')
     if (savedUser) {
@@ -276,6 +309,7 @@ export const SimpleAuthProvider = ({ children }) => {
     login,
     register,
     logout,
+    googleLogin,
     reloadUser,
     updateUser,
     loading

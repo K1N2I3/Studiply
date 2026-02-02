@@ -23,7 +23,7 @@ const Login = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const { isDark } = useTheme()
 
-  const { login, user, logout } = useSimpleAuth()
+  const { login, user, logout, googleLogin } = useSimpleAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -93,6 +93,50 @@ const Login = () => {
           // 如果有原始路径，跳转回去；否则跳转到默认页面
           const from = location.state?.from || '/tutoring'
           navigate(from, { replace: true })
+        }
+      } else {
+        setError(result.error)
+      }
+    } catch (submitError) {
+      setError('An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const result = await googleLogin()
+
+      if (result.success) {
+        if (result.isNewUser) {
+          // 新用户，跳转到注册页面并传递 Google 信息
+          navigate('/register', {
+            state: {
+              googleUser: result.googleUser
+            }
+          })
+        } else {
+          // 已存在用户，直接登录
+          const urlParams = new URLSearchParams(location.search)
+          const redirectUri = urlParams.get('redirect_uri')
+          const platform = urlParams.get('platform')
+
+          if (redirectUri && platform === 'macos') {
+            const signedInUser = result.user
+            const token = result.token || 'mock_token_for_macos'
+
+            const callbackUrl = `${redirectUri}?status=success&user_id=${signedInUser.id}&email=${encodeURIComponent(signedInUser.email)}&name=${encodeURIComponent(signedInUser.name)}&token=${token}&is_tutor=${signedInUser.isTutor || false}`
+
+            console.log('Redirecting to macOS app:', callbackUrl)
+            window.location.href = callbackUrl
+          } else {
+            const from = location.state?.from || '/tutoring'
+            navigate(from, { replace: true })
+          }
         }
       } else {
         setError(result.error)
@@ -366,18 +410,27 @@ const Login = () => {
                 <div className="pt-1 text-center text-xs">
                   <span className="text-slate-500">Or continue with</span>
                   <div className="mt-2 grid grid-cols-2 gap-2">
-                    {['Google', 'Facebook'].map((provider) => (
-                      <button
-                        key={provider}
-                        type="button"
-                        className="flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-600 transition hover:-translate-y-1 hover:border-purple-200 hover:text-purple-600 hover:shadow-lg"
-                      >
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
-                          {provider === 'Google' ? 'G' : 'F'}
-                        </span>
-                        {provider}
-                      </button>
-                    ))}
+                    <button
+                      type="button"
+                      onClick={handleGoogleLogin}
+                      disabled={loading}
+                      className="flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-600 transition hover:-translate-y-1 hover:border-purple-200 hover:text-purple-600 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+                        G
+                      </span>
+                      Google
+                    </button>
+                    <button
+                      type="button"
+                      disabled
+                      className="flex items-center justify-center gap-1.5 rounded-full border border-slate-200 bg-white py-2.5 text-xs font-semibold text-slate-400 opacity-50 cursor-not-allowed"
+                    >
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-400">
+                        F
+                      </span>
+                      Facebook
+                    </button>
                   </div>
                 </div>
               </form>

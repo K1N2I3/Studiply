@@ -1,10 +1,11 @@
 import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore'
-import { db } from './config'
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
+import { db, auth } from './config'
 
 // 简单的用户认证系统（不使用Firebase Auth）
 export const simpleRegister = async (userData) => {
   try {
-    const { email, password, name, school, grade, phone, location, bio, subjects } = userData
+    const { email, password, name, school, grade, phone, location, bio, subjects, avatar } = userData
     
     // 检查用户是否已存在
     const usersRef = collection(db, 'users')
@@ -32,6 +33,7 @@ export const simpleRegister = async (userData) => {
       location,
       bio,
       subjects,
+      avatar: avatar || null, // 保存头像（如果有）
       isTutor: false, // 新用户默认不是导师
       tutorProfile: null,
       emailVerified: true,
@@ -51,7 +53,7 @@ export const simpleRegister = async (userData) => {
         location,
         bio,
         subjects,
-        avatar: null, // 添加avatar字段
+        avatar: avatar || null, // 添加avatar字段
         isTutor: false,
         tutorProfile: null
       }
@@ -149,6 +151,79 @@ export const getUserDetails = async (userId) => {
   } catch (error) {
     console.error('Error getting user details:', error)
     return { success: false, error: error.message }
+  }
+}
+
+// Google 登录
+export const simpleGoogleLogin = async () => {
+  try {
+    const provider = new GoogleAuthProvider()
+    const result = await signInWithPopup(auth, provider)
+    const googleUser = result.user
+    
+    // 检查用户是否已经在 Firestore 中存在
+    const usersRef = collection(db, 'users')
+    const q = query(usersRef, where('email', '==', googleUser.email.toLowerCase().trim()))
+    const querySnapshot = await getDocs(q)
+    
+    if (!querySnapshot.empty) {
+      // 用户已存在，直接登录
+      const userDoc = querySnapshot.docs[0]
+      const userData = userDoc.data()
+      
+      // 检查是否被封禁
+      if (userData.banned === true) {
+        const banMessage = userData.banMessage || 'Your account has been banned by the administrator.'
+        return {
+          success: false,
+          error: banMessage
+        }
+      }
+      
+      return {
+        success: true,
+        user: {
+          id: userData.id,
+          name: userData.name || googleUser.displayName || 'User',
+          email: userData.email,
+          school: userData.school || '',
+          grade: userData.grade || '',
+          phone: userData.phone || '',
+          location: userData.location || '',
+          bio: userData.bio || '',
+          subjects: userData.subjects || [],
+          avatar: userData.avatar || googleUser.photoURL || null,
+          isTutor: userData.isTutor || false,
+          tutorProfile: userData.tutorProfile || null
+        }
+      }
+    } else {
+      // 新用户，返回 Google 信息用于注册流程
+      return {
+        success: true,
+        isNewUser: true,
+        googleUser: {
+          id: googleUser.uid,
+          name: googleUser.displayName || '',
+          email: googleUser.email || '',
+          photoURL: googleUser.photoURL || null
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Google login error:', error)
+    let errorMessage = 'Google login failed, please try again'
+    
+    if (error.code === 'auth/popup-closed-by-user') {
+      errorMessage = 'Login cancelled'
+    } else if (error.code === 'auth/popup-blocked') {
+      errorMessage = 'Popup blocked. Please allow popups for this site.'
+    }
+    
+    return {
+      success: false,
+      error: errorMessage
+    }
   }
 }
 

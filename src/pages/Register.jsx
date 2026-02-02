@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { User, Mail, Lock, Check, BookOpen, Phone, MapPin, Edit3, Search, Sparkles, ArrowRight, Loader2, XCircle, CheckCircle2 } from 'lucide-react'
@@ -43,11 +43,24 @@ const Register = () => {
   const { register } = useSimpleAuth()
   const { isDark } = useTheme()
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  // 检查是否有来自 Google 登录的用户信息
+  const [googleUser, setGoogleUser] = useState(location.state?.googleUser || null)
 
   useEffect(() => {
     setIsVisible(true)
     // Initialize EmailJS
     emailjs.init(emailjsConfig.publicKey)
+    
+    // 如果有 Google 用户信息，预填充表单
+    if (googleUser) {
+      setFormData(prev => ({
+        ...prev,
+        name: googleUser.name || '',
+        email: googleUser.email || ''
+      }))
+    }
     
     // 禁用页面滚动
     document.body.style.overflow = 'hidden'
@@ -58,7 +71,7 @@ const Register = () => {
       document.body.style.overflow = ''
       document.documentElement.style.overflow = ''
     }
-  }, [])
+  }, [googleUser])
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -214,7 +227,7 @@ const Register = () => {
     setLoading(true)
 
     try {
-      const result = await register({
+      const registerData = {
         name: formData.name.trim(),
         email: formData.email.trim().toLowerCase(),
         password: formData.password.trim(),
@@ -224,7 +237,14 @@ const Register = () => {
         location: formData.location,
         bio: formData.bio,
         subjects: formData.subjects
-      })
+      }
+      
+      // 如果是 Google 用户，添加头像信息
+      if (googleUser && googleUser.photoURL) {
+        registerData.avatar = googleUser.photoURL
+      }
+      
+      const result = await register(registerData)
       
       if (result.success) {
         // Registration successful - redirect to login
@@ -272,6 +292,11 @@ const Register = () => {
   const validateStep = (step) => {
     switch (step) {
       case 1:
+        // Google 用户只需要设置密码，name 和 email 已经锁定
+        if (googleUser) {
+          return formData.password && formData.confirmPassword && formData.password === formData.confirmPassword
+        }
+        // 普通用户需要所有字段
         return formData.name && formData.email && formData.password && formData.confirmPassword && formData.password === formData.confirmPassword && !emailExists
       case 2:
         return formData.school && formData.grade
@@ -447,7 +472,7 @@ const Register = () => {
         
         // 自动完成注册并跳转到主页面
         try {
-          const result = await register({
+          const registerData = {
             name: formData.name.trim(),
             email: formData.email.trim().toLowerCase(),
             password: formData.password.trim(),
@@ -457,7 +482,14 @@ const Register = () => {
             location: formData.location,
             bio: formData.bio,
             subjects: formData.subjects
-          })
+          }
+          
+          // 如果是 Google 用户，添加头像信息
+          if (googleUser && googleUser.photoURL) {
+            registerData.avatar = googleUser.photoURL
+          }
+          
+          const result = await register(registerData)
           
           if (result.success) {
             // 注册成功，直接跳转到主页面（用户已自动登录）
@@ -504,20 +536,27 @@ const Register = () => {
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Full Name
+                {googleUser && (
+                  <span className="ml-2 text-xs font-normal text-purple-500">(from Google)</span>
+                )}
               </label>
               <div className="relative group">
                 <input
                   name="name"
                   type="text"
                   className={`w-full px-4 py-2.5 pl-11 rounded-xl border transition-all input-focus-effect text-sm ${
-                    isDark
-                      ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
-                      : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
+                    googleUser
+                      ? isDark
+                        ? 'bg-white/10 border-purple-400/40 text-white/80 cursor-not-allowed'
+                        : 'bg-slate-100 border-purple-300 text-slate-600 cursor-not-allowed'
+                      : isDark
+                        ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                        : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Enter your full name"
                   value={formData.name}
                   onChange={handleChange}
-                  disabled={loading}
+                  disabled={loading || googleUser !== null}
                   required
                 />
                 <User className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
@@ -531,40 +570,47 @@ const Register = () => {
                 isDark ? 'text-white/90' : 'text-slate-700'
               }`}>
                 Email Address
+                {googleUser && (
+                  <span className="ml-2 text-xs font-normal text-purple-500">(from Google)</span>
+                )}
               </label>
               <div className="relative group">
                 <input
                   name="email"
                   type="email"
                   className={`w-full px-4 py-2.5 pl-11 pr-11 rounded-xl border transition-all input-focus-effect text-sm ${
-                    emailExists
+                    googleUser
                       ? isDark
-                        ? 'bg-white/5 border-red-400/60 text-white placeholder:text-white/40 focus:border-red-400/60 focus:ring-4 focus:ring-red-500/20'
-                        : 'bg-white/90 border-red-300 text-slate-900 placeholder:text-slate-400 focus:border-red-400 focus:ring-4 focus:ring-red-500/20'
-                      : checkingEmail
+                        ? 'bg-white/10 border-purple-400/40 text-white/80 cursor-not-allowed'
+                        : 'bg-slate-100 border-purple-300 text-slate-600 cursor-not-allowed'
+                      : emailExists
                         ? isDark
-                          ? 'bg-white/5 border-purple-400/60 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
-                          : 'bg-white/90 border-purple-300 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
-                        : isDark
-                          ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
-                          : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
+                          ? 'bg-white/5 border-red-400/60 text-white placeholder:text-white/40 focus:border-red-400/60 focus:ring-4 focus:ring-red-500/20'
+                          : 'bg-white/90 border-red-300 text-slate-900 placeholder:text-slate-400 focus:border-red-400 focus:ring-4 focus:ring-red-500/20'
+                        : checkingEmail
+                          ? isDark
+                            ? 'bg-white/5 border-purple-400/60 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                            : 'bg-white/90 border-purple-300 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
+                          : isDark
+                            ? 'bg-white/5 border-white/10 text-white placeholder:text-white/40 focus:border-purple-400/60 focus:ring-4 focus:ring-purple-500/20'
+                            : 'bg-white/90 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20'
                   }`}
                   placeholder="Enter your email address"
                   value={formData.email}
                   onChange={handleChange}
                   onBlur={handleEmailBlur}
-                  disabled={loading || checkingEmail}
+                  disabled={loading || checkingEmail || googleUser !== null}
                   required
                 />
                 <Mail className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                   isDark ? 'text-white/60' : 'text-slate-400'
                 }`} />
-                {checkingEmail && (
+                {checkingEmail && !googleUser && (
                   <Loader2 className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin ${
                     isDark ? 'text-purple-400' : 'text-purple-600'
                   }`} />
                 )}
-                {!checkingEmail && emailChecked && formData.email && isValidEmail(formData.email) && (
+                {!checkingEmail && !googleUser && emailChecked && formData.email && isValidEmail(formData.email) && (
                   emailExists ? (
                     <XCircle className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
                       isDark ? 'text-red-400' : 'text-red-500'
@@ -574,6 +620,11 @@ const Register = () => {
                       isDark ? 'text-emerald-400' : 'text-emerald-500'
                     }`} />
                   )
+                )}
+                {googleUser && (
+                  <CheckCircle2 className={`absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${
+                    isDark ? 'text-purple-400' : 'text-purple-600'
+                  }`} />
                 )}
               </div>
             </div>
