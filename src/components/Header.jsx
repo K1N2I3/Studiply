@@ -68,6 +68,7 @@ import DesktopAuth from '../pages/DesktopAuth'
 import HomeworkHelper from '../pages/HomeworkHelper'
 import RankedMode from '../pages/RankedMode'
 import RankedLeaderboard from '../pages/RankedLeaderboard'
+import Privacy from '../pages/Privacy'
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -939,6 +940,10 @@ const Header = () => {
                   <ExtensionDownload /> 
                 </ProtectedRoute> 
               } 
+            />
+            <Route
+              path="/privacy"
+              element={<Privacy />}
             />
             {/* 默认重定向到Tutoring页面 */}
             <Route path="*" element={
