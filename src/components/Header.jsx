@@ -886,14 +886,7 @@ const Header = () => {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/admin/tutor-accounts"
-              element={
-                <AdminRoute>
-                  <TutorAccountsAdmin />
-                </AdminRoute>
-              }
-            />
+            {/* Admin routes - specific paths must come before /admin */}
             <Route
               path="/admin/clear-ranks"
               element={
@@ -903,19 +896,19 @@ const Header = () => {
               }
             />
             <Route
-              path="/admin/gold-manager"
-              element={
-                <ProtectedRoute>
-                  <GoldManager />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/admin/tutor-accounts"
               element={
                 <AdminRoute>
                   <TutorAccountsAdmin />
                 </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/gold-manager"
+              element={
+                <ProtectedRoute>
+                  <GoldManager />
+                </ProtectedRoute>
               }
             />
             <Route
