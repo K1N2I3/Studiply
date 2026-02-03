@@ -7,6 +7,7 @@ import {
   startMatch,
   submitAnswer,
   nextQuestion,
+  forfeitMatch,
   RANK_TIERS
 } from '../services/rankedService'
 
@@ -198,6 +199,38 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           }
           setTimeout(() => handleMatchComplete(result), 800)
           
+        } else if (result.status === 'forfeited' || result.status === 'cancelled') {
+          // Opponent forfeited - match is cancelled
+          clearInterval(pollIntervalRef.current)
+          setMatchComplete(true)
+          const isPlayer1 = match?.playerNum === 1
+          const myPointChange = isPlayer1 ? result.player1PointChange : result.player2PointChange
+          
+          setMatchResult({
+            winner: result.winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: result.player1PointChange,
+            player2PointChange: result.player2PointChange,
+            pointChange: myPointChange,
+            forfeited: true
+          })
+          
+          // Notify parent after delay
+          setTimeout(() => {
+            onComplete({
+              winner: result.winner,
+              playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+              player1Score: match?.player1Score || 0,
+              player2Score: match?.player2Score || 0,
+              player1PointChange: result.player1PointChange,
+              player2PointChange: result.player2PointChange,
+              pointChange: myPointChange,
+              forfeited: true
+            })
+          }, 3000)
+          
         } else if (result.status === 'continue' || result.status === 'sync') {
           // Both answered - show result then advance
           setPlayer1Score(result.player1Score)
@@ -351,8 +384,22 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
       clearInterval(timerRef.current)
     }
     
+    try {
+      // Call forfeit API to delete match and notify opponent
+      console.log('🚪 Forfeiting match...', matchId)
+      const result = await forfeitMatch(matchId, userId)
+      
+      if (result.success) {
+        console.log('✅ Match forfeited successfully')
+        // Match is deleted, opponent will be notified via polling
+      } else {
+        console.error('❌ Failed to forfeit match:', result.error)
+      }
+    } catch (error) {
+      console.error('❌ Error forfeiting match:', error)
+    }
+    
     // Call onExit to return to lobby
-    // The parent component will handle cleanup
     onExit()
   }
 

@@ -354,6 +354,33 @@ export const getMatchHistory = async (userId, subject = null, limit = 20) => {
   }
 }
 
+/**
+ * Forfeit/Exit match
+ */
+export const forfeitMatch = async (matchId, userId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ranked/match/${matchId}/forfeit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId })
+    })
+    const result = await response.json()
+    
+    if (response.ok && result.success) {
+      return {
+        success: true,
+        winner: result.winner,
+        player1PointChange: result.player1PointChange,
+        player2PointChange: result.player2PointChange
+      }
+    }
+    return { success: false, error: result.error }
+  } catch (error) {
+    console.error('Error forfeiting match:', error)
+    return { success: false, error: error.message }
+  }
+}
+
 export default {
   RANK_TIERS,
   POINT_RULES,
@@ -371,6 +398,7 @@ export default {
   nextQuestion,
   getMatchResult,
   getLeaderboard,
-  getMatchHistory
+  getMatchHistory,
+  forfeitMatch
 }
 

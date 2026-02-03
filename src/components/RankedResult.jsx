@@ -9,6 +9,7 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
   const [animationPhase, setAnimationPhase] = useState(0)
   const [showConfetti, setShowConfetti] = useState(false)
 
+  const isForfeited = result?.forfeited || false
   const isWin = result?.playerNum === 1 
     ? result?.winner === 'player1' 
     : result?.winner === 'player2'
@@ -79,11 +80,13 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
 
       {/* Background gradient based on result */}
       <div className={`absolute inset-0 ${
-        isWin
-          ? 'bg-gradient-to-br from-green-900/30 via-emerald-900/20 to-transparent'
-          : isDraw
-            ? 'bg-gradient-to-br from-yellow-900/30 via-amber-900/20 to-transparent'
-            : 'bg-gradient-to-br from-red-900/30 via-rose-900/20 to-transparent'
+        isForfeited
+          ? 'bg-gradient-to-br from-orange-900/30 via-amber-900/20 to-transparent'
+          : isWin
+            ? 'bg-gradient-to-br from-green-900/30 via-emerald-900/20 to-transparent'
+            : isDraw
+              ? 'bg-gradient-to-br from-yellow-900/30 via-amber-900/20 to-transparent'
+              : 'bg-gradient-to-br from-red-900/30 via-rose-900/20 to-transparent'
       }`} />
 
       <div className="relative z-10 max-w-lg w-full mx-4">
@@ -100,21 +103,39 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
             <div className={`text-8xl mb-4 ${
               isWin ? 'animate-bounce' : ''
             }`}>
-              {isWin ? '🏆' : isDraw ? '🤝' : '💔'}
+              {isForfeited 
+                ? '🚪' 
+                : isWin 
+                  ? '🏆' 
+                  : isDraw 
+                    ? '🤝' 
+                    : '💔'}
             </div>
             
             <h1 className={`text-4xl font-black mb-2 ${
-              isWin 
-                ? 'text-green-500' 
-                : isDraw 
-                  ? 'text-yellow-500' 
-                  : 'text-red-500'
+              isForfeited
+                ? 'text-orange-500'
+                : isWin 
+                  ? 'text-green-500' 
+                  : isDraw 
+                    ? 'text-yellow-500' 
+                    : 'text-red-500'
             }`}>
-              {isWin ? 'VICTORY!' : isDraw ? 'DRAW!' : 'DEFEAT'}
+              {isForfeited 
+                ? (isWin ? 'OPPONENT FORFEITED!' : 'YOU FORFEITED!')
+                : isWin 
+                  ? 'VICTORY!' 
+                  : isDraw 
+                    ? 'DRAW!' 
+                    : 'DEFEAT'}
             </h1>
             
             <p className={`text-lg ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
-              Final Score: {result?.player1Score} - {result?.player2Score}
+              {isForfeited 
+                ? (isWin 
+                    ? 'Your opponent left the match. You win!' 
+                    : 'You left the match. This counts as a loss.')
+                : `Final Score: ${result?.player1Score} - ${result?.player2Score}`}
             </p>
           </div>
 

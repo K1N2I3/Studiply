@@ -745,6 +745,22 @@ router.post('/match/:matchId/next', async (req, res) => {
       })
     }
 
+    // If match is cancelled/forfeited, return forfeited status
+    if (match.status === 'cancelled') {
+      const pointChange = playerNum === 1 ? match.player1PointChange : match.player2PointChange
+      return res.json({
+        success: true,
+        status: 'forfeited',
+        winner: match.winner,
+        playerNum,
+        player1Score: match.player1Score,
+        player2Score: match.player2Score,
+        player1PointChange: match.player1PointChange,
+        player2PointChange: match.player2PointChange,
+        pointChange
+      })
+    }
+
     // If client is behind, tell them to sync
     if (clientQuestionIndex !== undefined && clientQuestionIndex < serverQ) {
       return res.json({
@@ -1034,6 +1050,121 @@ router.post('/admin/clear', async (req, res) => {
     })
   } catch (error) {
     console.error('Error clearing ranked data:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
+// Forfeit/Exit match
+router.post('/match/:matchId/forfeit', async (req, res) => {
+  try {
+    const { matchId } = req.params
+    const { userId } = req.body
+
+    if (!userId) {
+      return res.status(400).json({ success: false, error: 'User ID required' })
+    }
+
+    // Get match from memory or DB
+    let match = activeMatches.get(matchId)
+    if (!match) {
+      match = await Match.findOne({ matchId })
+    }
+
+    if (!match) {
+      return res.status(404).json({ success: false, error: 'Match not found' })
+    }
+
+    // Check if match is already completed
+    if (match.status === 'completed' || match.status === 'cancelled') {
+      return res.json({ success: true, message: 'Match already ended' })
+    }
+
+    const playerNum = match.player1.userId === userId ? 1 : 2
+    const isPlayer1 = playerNum === 1
+
+    console.log(`🚪 [Ranked] Player ${playerNum} (${userId}) forfeiting match ${matchId}`)
+
+    // Determine winner (opponent wins)
+    const winner = isPlayer1 ? 'player2' : 'player1'
+    match.winner = winner
+    match.status = 'cancelled'
+    match.completedAt = new Date()
+
+    // Calculate point changes
+    const pointRules = POINT_RULES[match.difficulty]
+    
+    // Forfeiter loses points
+    if (isPlayer1) {
+      match.player1PointChange = pointRules.lose
+    } else {
+      match.player2PointChange = pointRules.lose
+    }
+
+    // Opponent wins points (if not bot)
+    if (!match.player2.isBot) {
+      if (isPlayer1) {
+        match.player2PointChange = pointRules.win
+      } else {
+        match.player1PointChange = pointRules.win
+      }
+    } else {
+      // Bot doesn't get points
+      if (isPlayer1) {
+        match.player2PointChange = 0
+      } else {
+        match.player1PointChange = 0
+      }
+    }
+
+    // Update ranks
+    try {
+      // Update forfeiter's rank (lose)
+      let forfeiterRank = await UserRank.findOne({ userId: isPlayer1 ? match.player1.userId : match.player2.userId })
+      if (!forfeiterRank) {
+        forfeiterRank = new UserRank({ 
+          userId: isPlayer1 ? match.player1.userId : match.player2.userId,
+          userName: isPlayer1 ? match.player1.userName : match.player2.userName
+        })
+      }
+      forfeiterRank.updateAfterMatch(match.subject, match.difficulty, false, false)
+      await forfeiterRank.save()
+
+      // Update opponent's rank (win, if not bot)
+      if (!match.player2.isBot) {
+        const opponentId = isPlayer1 ? match.player2.userId : match.player1.userId
+        let opponentRank = await UserRank.findOne({ userId: opponentId })
+        if (!opponentRank) {
+          opponentRank = new UserRank({ 
+            userId: opponentId,
+            userName: isPlayer1 ? match.player2.userName : match.player1.userName
+          })
+        }
+        opponentRank.updateAfterMatch(match.subject, match.difficulty, true, false)
+        await opponentRank.save()
+      }
+    } catch (rankError) {
+      console.error('Error updating ranks on forfeit:', rankError)
+    }
+
+    // Save match to DB (for history, but marked as cancelled)
+    await match.save()
+
+    // Remove from active matches and pending matches
+    activeMatches.delete(matchId)
+    pendingMatches.delete(match.player1.userId)
+    pendingMatches.delete(match.player2.userId)
+
+    console.log(`✅ [Ranked] Match ${matchId} forfeited. Winner: ${winner}`)
+
+    res.json({
+      success: true,
+      message: 'Match forfeited',
+      winner,
+      player1PointChange: match.player1PointChange,
+      player2PointChange: match.player2PointChange
+    })
+  } catch (error) {
+    console.error('Error forfeiting match:', error)
     res.status(500).json({ success: false, error: error.message })
   }
 })
