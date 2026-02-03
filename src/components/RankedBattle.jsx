@@ -265,12 +265,6 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
       })
 
       if (result.success) {
-        // Store the result but DON'T show it yet if opponent hasn't answered
-        const answerData = {
-          correct: result.correct,
-          correctAnswer: result.correctAnswer
-        }
-        
         setPlayer1Score(result.player1Score)
         setPlayer2Score(result.player2Score)
 
@@ -278,13 +272,26 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
 
         if (result.bothAnswered) {
           // Both answered - NOW show the result
+          // IMPORTANT: Use the actual result from API
+          // If result.correct is null (shouldn't happen when bothAnswered), calculate it
+          const answerData = {
+            correct: result.correct !== null && result.correct !== undefined 
+              ? result.correct 
+              : (answerIndex === result.correctAnswer),
+            correctAnswer: result.correctAnswer !== null && result.correctAnswer !== undefined 
+              ? result.correctAnswer 
+              : (match?.questions?.[currentQuestionIndex]?.correctAnswer)
+          }
           setAnswerResult(answerData)
           setTimeout(() => moveToNextQuestion(), 1500)
         } else {
           // Wait for opponent - don't show result yet
+          // Store the answer index we submitted, so we can check later
+          pendingAnswerRef.current = {
+            submittedAnswer: answerIndex,
+            questionIndex: currentQuestionIndex
+          }
           setWaitingForOpponent(true)
-          // Store pending result to show later
-          pendingAnswerRef.current = answerData
           startPolling()
         }
       } else if (result.error && (
@@ -493,8 +500,21 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           setPlayer1Score(result.player1Score)
           setPlayer2Score(result.player2Score)
           
-          if (pendingAnswerRef.current) {
-            setAnswerResult(pendingAnswerRef.current)
+          // IMPORTANT: Get the correct answer from match data, not from pendingAnswerRef
+          // because pendingAnswerRef might have null values
+          if (pendingAnswerRef.current && match) {
+            const questionIndex = pendingAnswerRef.current.questionIndex
+            const submittedAnswer = pendingAnswerRef.current.submittedAnswer
+            const question = match.questions[questionIndex]
+            
+            if (question) {
+              // Calculate if answer was correct
+              const isCorrect = submittedAnswer === question.correctAnswer
+              setAnswerResult({
+                correct: isCorrect,
+                correctAnswer: question.correctAnswer
+              })
+            }
             setWaitingForOpponent(false)
             pendingAnswerRef.current = null
             setTimeout(() => handleNextQuestion(result.currentQuestion), 1200)
