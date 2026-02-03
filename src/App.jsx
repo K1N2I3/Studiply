@@ -36,6 +36,8 @@ import DesktopAuth from './pages/DesktopAuth'
 import ForgotPassword from './pages/ForgotPassword'
 import GoldManager from './pages/GoldManager'
 import Privacy from './pages/Privacy'
+import ClearRanks from './pages/ClearRanks'
+import AdminRoute from './components/AdminRoute'
 
 // Import components
 import Header from './components/Header'
@@ -180,6 +182,7 @@ function AppContent() {
         <Route path="/admin/tutor-accounts" element={<ProtectedRoute><TutorAccountsAdmin /></ProtectedRoute>} />
         <Route path="/gold-manager" element={<ProtectedRoute><GoldManager /></ProtectedRoute>} />
         <Route path="/admin/gold-manager" element={<ProtectedRoute><GoldManager /></ProtectedRoute>} />
+        <Route path="/admin/clear-ranks" element={<AdminRoute><ClearRanks /></AdminRoute>} />
         <Route path="/macos-login" element={<MacOSLoginHandler />} />
       </Routes>
     </div>
