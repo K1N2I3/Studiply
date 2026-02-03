@@ -1160,6 +1160,43 @@ router.post('/admin/clear', async (req, res) => {
   }
 })
 
+// Clear all user ranks (reset all points and stats)
+router.post('/admin/clear-ranks', async (req, res) => {
+  try {
+    console.log('🧹 [Ranked] Clearing all user ranks...')
+    
+    // Reset all user ranks - set all points to 0, reset tiers to BRONZE
+    const result = await UserRank.updateMany(
+      {},
+      {
+        $set: {
+          'subjectRanks.$[].points': 0,
+          'subjectRanks.$[].tier': 'BRONZE',
+          'subjectRanks.$[].wins': 0,
+          'subjectRanks.$[].losses': 0,
+          'subjectRanks.$[].winStreak': 0,
+          'subjectRanks.$[].bestWinStreak': 0,
+          totalWins: 0,
+          totalLosses: 0,
+          totalMatches: 0,
+          seasonHighestTier: 'BRONZE'
+        }
+      }
+    )
+    
+    console.log(`🧹 [Ranked] Reset ${result.modifiedCount} user ranks`)
+    
+    res.json({
+      success: true,
+      message: 'All user ranks cleared',
+      modifiedCount: result.modifiedCount
+    })
+  } catch (error) {
+    console.error('Error clearing user ranks:', error)
+    res.status(500).json({ success: false, error: error.message })
+  }
+})
+
 // Forfeit/Exit match
 router.post('/match/:matchId/forfeit', async (req, res) => {
   try {
