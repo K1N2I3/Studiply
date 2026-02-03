@@ -719,13 +719,53 @@ router.post('/match/:matchId/next', async (req, res) => {
     const { matchId } = req.params
     const { userId, clientQuestionIndex } = req.body
 
-    // ONLY use in-memory - no DB queries during active gameplay
+    // Check in-memory first, then DB
     let match = activeMatches.get(matchId)
     
+    // If not in memory, check DB (might have been forfeited)
     if (!match) {
-      return res.status(404).json({ success: false, error: 'Match not found or expired' })
+      try {
+        match = await Match.findOne({ matchId })
+      } catch (dbError) {
+        console.error('Error querying DB for match:', dbError)
+      }
+      
+      // If match doesn't exist in DB either, it was deleted (forfeited)
+      if (!match) {
+        console.log(`⚠️ [Ranked] Match ${matchId} not found in memory or DB - forfeited/deleted`)
+        return res.json({
+          success: true,
+          status: 'forfeited',
+          error: 'Match was forfeited by opponent',
+          player1PointChange: 0,
+          player2PointChange: 0
+        })
+      }
+      
+      // If found in DB but status is cancelled, it was forfeited
+      if (match.status === 'cancelled') {
+        const playerNum = match.player1.userId === userId ? 1 : 2
+        const pointChange = playerNum === 1 ? (match.player1PointChange || 0) : (match.player2PointChange || 0)
+        return res.json({
+          success: true,
+          status: 'forfeited',
+          winner: match.winner,
+          playerNum,
+          player1Score: match.player1Score || 0,
+          player2Score: match.player2Score || 0,
+          player1PointChange: match.player1PointChange || 0,
+          player2PointChange: match.player2PointChange || 0,
+          pointChange
+        })
+      }
+      
+      // Add back to memory if found and active
+      if (match.status !== 'completed' && match.status !== 'cancelled') {
+        activeMatches.set(matchId, match)
+      }
     }
 
+    // Now we know match exists, determine player number
     const playerNum = match.player1.userId === userId ? 1 : 2
     const serverQ = match.currentQuestion
 
@@ -1146,19 +1186,25 @@ router.post('/match/:matchId/forfeit', async (req, res) => {
       console.error('Error updating ranks on forfeit:', rankError)
     }
 
-    // Save match to DB (for history, but marked as cancelled)
-    await match.save()
+    // IMPORTANT: Delete match from database completely (not just mark as cancelled)
+    try {
+      await Match.deleteOne({ matchId })
+      console.log(`🗑️ [Ranked] Match ${matchId} deleted from database`)
+    } catch (deleteError) {
+      console.error('Error deleting match from DB:', deleteError)
+      // Still continue even if delete fails
+    }
 
-    // Remove from active matches and pending matches
+    // Remove from active matches and pending matches IMMEDIATELY
     activeMatches.delete(matchId)
     pendingMatches.delete(match.player1.userId)
     pendingMatches.delete(match.player2.userId)
 
-    console.log(`✅ [Ranked] Match ${matchId} forfeited. Winner: ${winner}`)
+    console.log(`✅ [Ranked] Match ${matchId} forfeited and deleted. Winner: ${winner}`)
 
     res.json({
       success: true,
-      message: 'Match forfeited',
+      message: 'Match forfeited and deleted',
       winner,
       player1PointChange: match.player1PointChange,
       player2PointChange: match.player2PointChange

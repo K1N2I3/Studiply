@@ -172,7 +172,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     }
 
     let pollCount = 0
-    const maxPolls = 60 // 30 seconds max (500ms * 60)
+    const maxPolls = 120 // 60 seconds max (500ms * 120)
     
     const poll = async () => {
       pollCount++
@@ -181,6 +181,49 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         const result = await nextQuestion(matchId, userId, currentQuestionIndex)
         
         if (!result.success) {
+          // Check if match was deleted (forfeited)
+          if (result.error && (
+            result.error.includes('not found') || 
+            result.error.includes('forfeited') ||
+            result.error.includes('expired')
+          )) {
+            console.log('🚪 Match deleted - opponent forfeited')
+            clearInterval(pollIntervalRef.current)
+            clearInterval(timerRef.current)
+            
+            setMatchComplete(true)
+            const isPlayer1 = match?.playerNum === 1
+            const winner = isPlayer1 ? 'player1' : 'player2'
+            // Get point change based on difficulty
+            const difficulty = match?.difficulty || 'medium'
+            const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+            
+            setMatchResult({
+              winner: winner,
+              playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+              player1Score: match?.player1Score || 0,
+              player2Score: match?.player2Score || 0,
+              player1PointChange: isPlayer1 ? myPointChange : 0,
+              player2PointChange: isPlayer1 ? 0 : myPointChange,
+              pointChange: myPointChange,
+              forfeited: true
+            })
+            
+            setTimeout(() => {
+              onComplete({
+                winner: winner,
+                playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+                player1Score: match?.player1Score || 0,
+                player2Score: match?.player2Score || 0,
+                player1PointChange: isPlayer1 ? myPointChange : 0,
+                player2PointChange: isPlayer1 ? 0 : myPointChange,
+                pointChange: myPointChange,
+                forfeited: true
+              })
+            }, 2000)
+            return
+          }
+          
           console.error('Poll failed:', result.error)
           if (pollCount < maxPolls) {
             pollIntervalRef.current = setTimeout(poll, 500)
@@ -199,37 +242,42 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           }
           setTimeout(() => handleMatchComplete(result), 800)
           
-        } else if (result.status === 'forfeited' || result.status === 'cancelled') {
-          // Opponent forfeited - match is cancelled
+        } else if (result.status === 'forfeited' || result.error === 'Match was forfeited by opponent') {
+          // Opponent forfeited - match is cancelled/deleted
+          console.log('🚪 Opponent forfeited! Match deleted.')
           clearInterval(pollIntervalRef.current)
+          clearInterval(timerRef.current)
+          
           setMatchComplete(true)
           const isPlayer1 = match?.playerNum === 1
-          const myPointChange = isPlayer1 ? result.player1PointChange : result.player2PointChange
+          // If opponent forfeited, you win
+          const winner = isPlayer1 ? 'player1' : 'player2'
+          const myPointChange = isPlayer1 ? (result.player1PointChange || 20) : (result.player2PointChange || 20)
           
           setMatchResult({
-            winner: result.winner,
+            winner: winner,
             playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
             player1Score: match?.player1Score || 0,
             player2Score: match?.player2Score || 0,
-            player1PointChange: result.player1PointChange,
-            player2PointChange: result.player2PointChange,
+            player1PointChange: isPlayer1 ? myPointChange : 0,
+            player2PointChange: isPlayer1 ? 0 : myPointChange,
             pointChange: myPointChange,
             forfeited: true
           })
           
-          // Notify parent after delay
+          // Notify parent immediately
           setTimeout(() => {
             onComplete({
-              winner: result.winner,
+              winner: winner,
               playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
               player1Score: match?.player1Score || 0,
               player2Score: match?.player2Score || 0,
-              player1PointChange: result.player1PointChange,
-              player2PointChange: result.player2PointChange,
+              player1PointChange: isPlayer1 ? myPointChange : 0,
+              player2PointChange: isPlayer1 ? 0 : myPointChange,
               pointChange: myPointChange,
               forfeited: true
             })
-          }, 3000)
+          }, 2000)
           
         } else if (result.status === 'continue' || result.status === 'sync') {
           // Both answered - show result then advance
@@ -610,6 +658,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           // Match Complete Screen
           <div className="text-center py-16">
             {(() => {
+              const isForfeited = matchResult?.forfeited || false
               const iWon = (matchResult?.winner === 'player1' && isPlayer1) || 
                            (matchResult?.winner === 'player2' && !isPlayer1)
               const isDraw = matchResult?.winner === 'draw'
@@ -618,14 +667,34 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
               
               return (
                 <>
-                  <div className={`text-6xl mb-6 ${iWon ? 'animate-bounce' : ''}`}>
-                    {iWon ? '🎉' : isDraw ? '🤝' : '😔'}
+                  <div className={`text-6xl mb-6 ${iWon && !isForfeited ? 'animate-bounce' : ''}`}>
+                    {isForfeited 
+                      ? (iWon ? '🚪' : '😔')
+                      : iWon 
+                        ? '🎉' 
+                        : isDraw 
+                          ? '🤝' 
+                          : '😔'}
                   </div>
-                  <h2 className={`text-4xl font-black mb-4 ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                    {iWon ? 'Victory!' : isDraw ? 'Draw!' : 'Defeat'}
+                  <h2 className={`text-4xl font-black mb-4 ${
+                    isForfeited
+                      ? (iWon ? 'text-orange-500' : 'text-red-500')
+                      : isDark ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    {isForfeited
+                      ? (iWon ? 'Opponent Forfeited!' : 'You Forfeited!')
+                      : iWon 
+                        ? 'Victory!' 
+                        : isDraw 
+                          ? 'Draw!' 
+                          : 'Defeat'}
                   </h2>
                   <p className={`text-xl ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
-                    Final Score: {isPlayer1 ? player1Score : player2Score} - {isPlayer1 ? player2Score : player1Score}
+                    {isForfeited
+                      ? (iWon 
+                          ? 'Your opponent left the match. You win!' 
+                          : 'You left the match. This counts as a loss.')
+                      : `Final Score: ${isPlayer1 ? player1Score : player2Score} - ${isPlayer1 ? player2Score : player1Score}`}
                   </p>
                   <div className={`mt-4 text-2xl font-bold ${
                     myPointChange > 0 ? 'text-green-500' : myPointChange < 0 ? 'text-red-500' : 'text-yellow-500'

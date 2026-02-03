@@ -272,6 +272,17 @@ export const nextQuestion = async (matchId, userId, clientQuestionIndex) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, clientQuestionIndex })
     })
+    
+    // If match not found (404), it was forfeited/deleted
+    if (response.status === 404) {
+      console.log('🚪 Match not found (404) - likely forfeited')
+      return {
+        success: true,
+        status: 'forfeited',
+        error: 'Match was forfeited by opponent or expired'
+      }
+    }
+    
     const result = await response.json()
     
     if (response.ok && result.success) {
@@ -285,12 +296,22 @@ export const nextQuestion = async (matchId, userId, clientQuestionIndex) => {
         player2Score: result.player2Score,
         player1PointChange: result.player1PointChange,
         player2PointChange: result.player2PointChange,
-        pointChange: result.pointChange
+        pointChange: result.pointChange,
+        error: result.error // Include error message if match was forfeited
       }
     }
-    return { success: false, error: result.error }
+    
+    return { success: false, error: result.error || 'Unknown error' }
   } catch (error) {
     console.error('Error moving to next question:', error)
+    // Network errors might indicate match was deleted
+    if (error.message.includes('fetch') || error.message.includes('network')) {
+      return {
+        success: true,
+        status: 'forfeited',
+        error: 'Match connection lost - likely forfeited'
+      }
+    }
     return { success: false, error: error.message }
   }
 }
