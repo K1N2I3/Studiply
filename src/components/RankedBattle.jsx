@@ -533,6 +533,43 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
       if (result.success) {
         if (result.status === 'completed') {
           handleMatchComplete(result)
+        } else if (result.status === 'forfeited' || result.error === 'Match was forfeited by opponent') {
+          // Opponent forfeited during question transition
+          console.log('🚪 Opponent forfeited during moveToNextQuestion')
+          clearInterval(timerRef.current)
+          if (pollIntervalRef.current) {
+            clearTimeout(pollIntervalRef.current)
+          }
+          
+          setMatchComplete(true)
+          const isPlayer1 = match?.playerNum === 1
+          const winner = isPlayer1 ? 'player1' : 'player2'
+          const difficulty = match?.difficulty || 'medium'
+          const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+          
+          setMatchResult({
+            winner: winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: isPlayer1 ? myPointChange : 0,
+            player2PointChange: isPlayer1 ? 0 : myPointChange,
+            pointChange: myPointChange,
+            forfeited: true
+          })
+          
+          setTimeout(() => {
+            onComplete({
+              winner: winner,
+              playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+              player1Score: match?.player1Score || 0,
+              player2Score: match?.player2Score || 0,
+              player1PointChange: isPlayer1 ? myPointChange : 0,
+              player2PointChange: isPlayer1 ? 0 : myPointChange,
+              pointChange: myPointChange,
+              forfeited: true
+            })
+          }, 2000)
         } else if (result.status === 'continue' || result.status === 'sync') {
           handleNextQuestion(result.currentQuestion)
         } else if (result.status === 'waiting') {
@@ -540,9 +577,88 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           setPlayer1Score(result.player1Score)
           setPlayer2Score(result.player2Score)
         }
+      } else if (result.error && (
+        result.error.includes('not found') || 
+        result.error.includes('forfeited') ||
+        result.error.includes('expired')
+      )) {
+        // Match was deleted
+        console.log('🚪 Match deleted during moveToNextQuestion')
+        clearInterval(timerRef.current)
+        if (pollIntervalRef.current) {
+          clearTimeout(pollIntervalRef.current)
+        }
+        
+        setMatchComplete(true)
+        const isPlayer1 = match?.playerNum === 1
+        const winner = isPlayer1 ? 'player1' : 'player2'
+        const difficulty = match?.difficulty || 'medium'
+        const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+        
+        setMatchResult({
+          winner: winner,
+          playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+          player1Score: match?.player1Score || 0,
+          player2Score: match?.player2Score || 0,
+          player1PointChange: isPlayer1 ? myPointChange : 0,
+          player2PointChange: isPlayer1 ? 0 : myPointChange,
+          pointChange: myPointChange,
+          forfeited: true
+        })
+        
+        setTimeout(() => {
+          onComplete({
+            winner: winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: isPlayer1 ? myPointChange : 0,
+            player2PointChange: isPlayer1 ? 0 : myPointChange,
+            pointChange: myPointChange,
+            forfeited: true
+          })
+        }, 2000)
       }
     } catch (err) {
       console.error('Error moving to next question:', err)
+      // Check if it's a 404 or network error indicating match was deleted
+      if (err.message && (err.message.includes('404') || err.message.includes('not found'))) {
+        console.log('🚪 Match deleted (error in moveToNextQuestion)')
+        clearInterval(timerRef.current)
+        if (pollIntervalRef.current) {
+          clearTimeout(pollIntervalRef.current)
+        }
+        
+        setMatchComplete(true)
+        const isPlayer1 = match?.playerNum === 1
+        const winner = isPlayer1 ? 'player1' : 'player2'
+        const difficulty = match?.difficulty || 'medium'
+        const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+        
+        setMatchResult({
+          winner: winner,
+          playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+          player1Score: match?.player1Score || 0,
+          player2Score: match?.player2Score || 0,
+          player1PointChange: isPlayer1 ? myPointChange : 0,
+          player2PointChange: isPlayer1 ? 0 : myPointChange,
+          pointChange: myPointChange,
+          forfeited: true
+        })
+        
+        setTimeout(() => {
+          onComplete({
+            winner: winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: isPlayer1 ? myPointChange : 0,
+            player2PointChange: isPlayer1 ? 0 : myPointChange,
+            pointChange: myPointChange,
+            forfeited: true
+          })
+        }, 2000)
+      }
     }
   }
 
