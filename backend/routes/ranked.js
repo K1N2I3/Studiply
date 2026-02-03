@@ -205,11 +205,23 @@ router.get('/status/:userId/:subject', async (req, res) => {
 
     const subjectRank = userRank.getSubjectRank(subject)
     
+    // Convert mongoose document to plain object to ensure all fields are included
+    const subjectRankObj = subjectRank.toObject ? subjectRank.toObject() : {
+      subject: subjectRank.subject,
+      points: subjectRank.points || 0,
+      tier: subjectRank.tier || 'BRONZE',
+      wins: subjectRank.wins || 0,
+      losses: subjectRank.losses || 0,
+      winStreak: subjectRank.winStreak || 0,
+      bestWinStreak: subjectRank.bestWinStreak || 0,
+      lastMatchAt: subjectRank.lastMatchAt
+    }
+    
     res.json({
       success: true,
       subjectRank: {
-        ...subjectRank,
-        tierInfo: RANK_TIERS[subjectRank.tier]
+        ...subjectRankObj,
+        tierInfo: RANK_TIERS[subjectRankObj.tier]
       }
     })
   } catch (error) {
@@ -234,22 +246,70 @@ router.post('/queue', async (req, res) => {
       const matchId = pendingMatches.get(userId)
       const match = activeMatches.get(matchId)
       if (match) {
-        const isPlayer1 = match.player1.userId === userId
-        const opponent = isPlayer1 ? match.player2 : match.player1
-        console.log(`🎮 [Ranked] User ${userId} already has pending match: ${matchId}`)
-        return res.json({
-          success: true,
-          status: 'matched',
-          matchId,
-          opponent: {
-            userName: opponent.userName,
-            tier: opponent.tier,
-            isBot: opponent.isBot || false
+        // Check if match is still active (not completed or cancelled)
+        if (match.status === 'completed' || match.status === 'cancelled') {
+          // Old match - clean it up
+          console.log(`🧹 [Ranked] Cleaning up old match ${matchId} for user ${userId}`)
+          activeMatches.delete(matchId)
+          pendingMatches.delete(userId)
+          // Also delete from DB if it exists
+          try {
+            await Match.deleteOne({ matchId })
+          } catch (err) {
+            console.error('Error deleting old match from DB:', err)
           }
-        })
+        } else {
+          // Active match - return it
+          const isPlayer1 = match.player1.userId === userId
+          const opponent = isPlayer1 ? match.player2 : match.player1
+          console.log(`🎮 [Ranked] User ${userId} already has pending match: ${matchId}`)
+          return res.json({
+            success: true,
+            status: 'matched',
+            matchId,
+            opponent: {
+              userName: opponent.userName,
+              tier: opponent.tier,
+              isBot: opponent.isBot || false
+            }
+          })
+        }
       } else {
+        // Match not in memory - check DB and clean up if needed
+        try {
+          const dbMatch = await Match.findOne({ matchId })
+          if (dbMatch && (dbMatch.status === 'completed' || dbMatch.status === 'cancelled')) {
+            console.log(`🧹 [Ranked] Cleaning up old DB match ${matchId} for user ${userId}`)
+            await Match.deleteOne({ matchId })
+          }
+        } catch (err) {
+          console.error('Error checking/cleaning DB match:', err)
+        }
         pendingMatches.delete(userId)
       }
+    }
+    
+    // Also check for any active matches in DB for this user and clean them up
+    try {
+      const oldMatches = await Match.find({
+        $or: [
+          { 'player1.userId': userId },
+          { 'player2.userId': userId }
+        ],
+        status: { $in: ['completed', 'cancelled'] }
+      })
+      if (oldMatches.length > 0) {
+        console.log(`🧹 [Ranked] Cleaning up ${oldMatches.length} old matches for user ${userId}`)
+        await Match.deleteMany({
+          $or: [
+            { 'player1.userId': userId },
+            { 'player2.userId': userId }
+          ],
+          status: { $in: ['completed', 'cancelled'] }
+        })
+      }
+    } catch (err) {
+      console.error('Error cleaning up old matches:', err)
     }
 
     // Get user's tier for this subject
@@ -884,15 +944,21 @@ router.post('/match/:matchId/next', async (req, res) => {
           match.player2PointChange = 0
         }
 
-        // Save match to database for history
-        await match.save()
-        activeMatches.set(matchId, match)
+        // IMPORTANT: Delete match from DB after completion (don't keep old matches)
+        // We only save match history in a separate collection if needed
+        try {
+          await Match.deleteOne({ matchId })
+          console.log(`🗑️ [Ranked] Match ${matchId} deleted from DB after completion`)
+        } catch (deleteError) {
+          console.error('Error deleting completed match from DB:', deleteError)
+        }
         
-        // Clean up pending
+        // Remove from active matches and pending matches
+        activeMatches.delete(matchId)
         pendingMatches.delete(match.player1.userId)
         pendingMatches.delete(match.player2.userId)
 
-        console.log(`🏁 [Ranked] Match ${matchId} saved to DB!`)
+        console.log(`🏁 [Ranked] Match ${matchId} completed and cleaned up!`)
       } catch (err) {
         console.error(`❌ [Ranked] Error finalizing match:`, err)
       } finally {
