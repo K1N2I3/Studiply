@@ -111,7 +111,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         // Silently handle errors in background polling
         console.log('Background poll error (non-critical):', err.message)
       }
-    }, 2000) // Poll every 2 seconds
+    }, 1000) // Poll every 1 second for faster detection
 
     return () => clearInterval(backgroundPoll)
   }, [match, matchId, userId, currentQuestionIndex, matchComplete, loading])
