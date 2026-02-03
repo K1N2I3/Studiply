@@ -1165,31 +1165,31 @@ router.post('/admin/clear-ranks', async (req, res) => {
   try {
     console.log('🧹 [Ranked] Clearing all user ranks...')
     
-    // Reset all user ranks - set all points to 0, reset tiers to BRONZE
-    const result = await UserRank.updateMany(
-      {},
-      {
-        $set: {
-          'subjectRanks.$[].points': 0,
-          'subjectRanks.$[].tier': 'BRONZE',
-          'subjectRanks.$[].wins': 0,
-          'subjectRanks.$[].losses': 0,
-          'subjectRanks.$[].winStreak': 0,
-          'subjectRanks.$[].bestWinStreak': 0,
-          totalWins: 0,
-          totalLosses: 0,
-          totalMatches: 0,
-          seasonHighestTier: 'BRONZE'
-        }
-      }
-    )
+    // DELETE ALL UserRank documents - this removes all ranks, points, stats, and leaderboard data
+    const deleteResult = await UserRank.deleteMany({})
     
-    console.log(`🧹 [Ranked] Reset ${result.modifiedCount} user ranks`)
+    console.log(`🧹 [Ranked] Deleted ${deleteResult.deletedCount} user rank documents`)
+    
+    // Also delete all Match documents (match history)
+    const matchDeleteResult = await Match.deleteMany({})
+    
+    console.log(`🧹 [Ranked] Deleted ${matchDeleteResult.deletedCount} match documents`)
+    
+    // Clear in-memory data as well
+    matchmakingQueue.clear()
+    activeMatches.clear()
+    pendingMatches.clear()
+    finalizingMatches.clear()
+    
+    console.log(`🧹 [Ranked] All ranked data completely deleted`)
     
     res.json({
       success: true,
-      message: 'All user ranks cleared',
-      modifiedCount: result.modifiedCount
+      message: 'All ranked data completely deleted',
+      deleted: {
+        userRanks: deleteResult.deletedCount,
+        matches: matchDeleteResult.deletedCount
+      }
     })
   } catch (error) {
     console.error('Error clearing user ranks:', error)
