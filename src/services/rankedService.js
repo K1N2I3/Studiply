@@ -262,6 +262,17 @@ export const submitAnswer = async ({ matchId, userId, questionIndex, answer, ans
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, questionIndex, answer, answerTime })
     })
+    
+    // If match not found (404), it was forfeited/deleted
+    if (response.status === 404) {
+      console.log('🚪 Match not found (404) in submitAnswer - forfeited/deleted')
+      return { 
+        success: false, 
+        error: 'Match not found - opponent forfeited',
+        forfeited: true
+      }
+    }
+    
     const result = await response.json()
     
     if (response.ok && result.success) {
@@ -277,6 +288,14 @@ export const submitAnswer = async ({ matchId, userId, questionIndex, answer, ans
     return { success: false, error: result.error }
   } catch (error) {
     console.error('Error submitting answer:', error)
+    // Network errors might indicate match was deleted
+    if (error.message && (error.message.includes('404') || error.message.includes('not found'))) {
+      return { 
+        success: false, 
+        error: 'Match not found - opponent forfeited',
+        forfeited: true
+      }
+    }
     return { success: false, error: error.message }
   }
 }
