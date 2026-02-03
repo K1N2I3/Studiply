@@ -451,8 +451,20 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         
         if (result.status === 'completed') {
           // Match done - show result
-          if (pendingAnswerRef.current) {
-            setAnswerResult(pendingAnswerRef.current)
+          // IMPORTANT: Get the correct answer from match data
+          if (pendingAnswerRef.current && match) {
+            const questionIndex = pendingAnswerRef.current.questionIndex
+            const submittedAnswer = pendingAnswerRef.current.submittedAnswer
+            const question = match.questions[questionIndex]
+            
+            if (question) {
+              // Calculate if answer was correct
+              const isCorrect = submittedAnswer === question.correctAnswer
+              setAnswerResult({
+                correct: isCorrect,
+                correctAnswer: question.correctAnswer
+              })
+            }
             setWaitingForOpponent(false)
             pendingAnswerRef.current = null
           }
