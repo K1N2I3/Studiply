@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Swords, Clock, CheckCircle, XCircle, Zap, User, Bot, Shield, Medal, Trophy, Gem, Diamond, Crown } from 'lucide-react'
+import { Swords, Clock, CheckCircle, XCircle, Zap, User, Bot, Shield, Medal, Trophy, Gem, Diamond, Crown, LogOut, AlertTriangle } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import RankBadge from './RankBadge'
 import {
@@ -46,6 +46,10 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
   // Match complete
   const [matchComplete, setMatchComplete] = useState(false)
   const [matchResult, setMatchResult] = useState(null)
+  
+  // Exit confirmation
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
 
   // Load match data
   useEffect(() => {
@@ -233,6 +237,28 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     poll()
   }
 
+  // Handle browser back button
+  useEffect(() => {
+    const handlePopState = (e) => {
+      // Prevent default back navigation
+      e.preventDefault()
+      window.history.pushState(null, '', window.location.href)
+      
+      // Show exit confirmation if not already showing
+      if (!showExitConfirm && !matchComplete && !isExiting) {
+        setShowExitConfirm(true)
+      }
+    }
+    
+    // Push state to prevent back navigation
+    window.history.pushState(null, '', window.location.href)
+    window.addEventListener('popstate', handlePopState)
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [showExitConfirm, matchComplete, isExiting])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -312,6 +338,24 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     }
   }
 
+  const handleExitMatch = async () => {
+    if (isExiting) return
+    
+    setIsExiting(true)
+    
+    // Stop all timers and polling
+    if (pollIntervalRef.current) {
+      clearTimeout(pollIntervalRef.current)
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+    }
+    
+    // Call onExit to return to lobby
+    // The parent component will handle cleanup
+    onExit()
+  }
+
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${
@@ -349,11 +393,73 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         ? 'bg-gradient-to-br from-[#0a0615] via-[#1a0a2e] to-[#0d0520]' 
         : 'bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100'
     }`}>
+      {/* Exit Confirmation Modal */}
+      {showExitConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className={`rounded-3xl p-8 max-w-md mx-4 ${
+            isDark ? 'bg-slate-900 border border-white/10' : 'bg-white shadow-2xl'
+          }`}>
+            <div className="text-center mb-6">
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+                isDark ? 'bg-red-500/20' : 'bg-red-100'
+              }`}>
+                <AlertTriangle className={`h-8 w-8 ${isDark ? 'text-red-400' : 'text-red-600'}`} />
+              </div>
+              <h3 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                Exit Battle?
+              </h3>
+              <p className={`${isDark ? 'text-white/60' : 'text-slate-600'}`}>
+                Leaving now will result in a loss. Are you sure you want to exit?
+              </p>
+            </div>
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition ${
+                  isDark
+                    ? 'bg-white/10 text-white hover:bg-white/20'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExitMatch}
+                disabled={isExiting}
+                className={`flex-1 py-3 px-4 rounded-xl font-semibold transition ${
+                  isExiting
+                    ? 'opacity-50 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-red-500 to-rose-600 text-white hover:from-red-600 hover:to-rose-700'
+                }`}
+              >
+                {isExiting ? 'Exiting...' : 'Exit Battle'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header - Scores */}
       <div className={`sticky top-0 z-20 px-6 py-4 ${
         isDark ? 'bg-black/50 backdrop-blur-xl' : 'bg-white/80 backdrop-blur-xl shadow-lg'
       }`}>
         <div className="max-w-4xl mx-auto flex items-center justify-between">
+          {/* Exit Button */}
+          <button
+            onClick={() => setShowExitConfirm(true)}
+            disabled={matchComplete || isExiting}
+            className={`p-2 rounded-xl transition ${
+              matchComplete || isExiting
+                ? 'opacity-50 cursor-not-allowed'
+                : isDark
+                  ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                  : 'bg-red-100 text-red-600 hover:bg-red-200'
+            }`}
+            title="Exit Battle"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
           {/* Player 1 (You) */}
           <div className="flex items-center gap-4">
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${

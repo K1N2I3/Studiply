@@ -283,6 +283,37 @@ const RankedMode = () => {
     setOpponent(null)
   }
 
+  const handleExitBattle = async () => {
+    // Clean up polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+    
+    // Leave queue if still searching
+    if (isSearching) {
+      try {
+        await leaveQueue({
+          userId: user.id,
+          subject: selectedSubject,
+          difficulty: selectedDifficulty,
+          tier: subjectRank?.tier || 'BRONZE'
+        })
+      } catch (error) {
+        console.error('Error leaving queue on exit:', error)
+      }
+      setIsSearching(false)
+      setSearchTime(0)
+    }
+    
+    // Reset battle state
+    setInBattle(false)
+    setMatchId(null)
+    setOpponent(null)
+    
+    showError('You have left the battle. This will be recorded as a loss.', 'Battle Exited')
+  }
+
   // Show battle screen
   if (inBattle && matchId) {
     return (
@@ -293,10 +324,7 @@ const RankedMode = () => {
         subject={selectedSubject}
         difficulty={selectedDifficulty}
         onComplete={handleBattleComplete}
-        onExit={() => {
-          setInBattle(false)
-          setMatchId(null)
-        }}
+        onExit={handleExitBattle}
       />
     )
   }
