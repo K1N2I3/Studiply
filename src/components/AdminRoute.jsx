@@ -3,7 +3,20 @@ import { Navigate } from 'react-router-dom'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 
 const AdminRoute = ({ children }) => {
-  const { user } = useSimpleAuth()
+  const { user, loading } = useSimpleAuth()
+  
+  // 等待加载完成
+  if (loading) {
+    console.log('⏳ AdminRoute: Loading user data...')
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
   
   // 检查用户是否登录
   if (!user) {
@@ -17,7 +30,8 @@ const AdminRoute = ({ children }) => {
   console.log('🔒 AdminRoute check:', {
     userEmail: user?.email,
     isAdmin,
-    expectedEmail: 'studiply.email@gmail.com'
+    expectedEmail: 'studiply.email@gmail.com',
+    loading
   })
   
   if (!isAdmin) {
