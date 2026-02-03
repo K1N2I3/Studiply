@@ -3,7 +3,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { useNotification } from '../contexts/NotificationContext'
 import { Trash2, AlertTriangle, CheckCircle } from 'lucide-react'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://studiply-backend.onrender.com'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? 'https://studiply.onrender.com/api' : 'http://localhost:3003/api')
 
 const ClearRanks = () => {
   const { isDark } = useTheme()
@@ -19,7 +19,7 @@ const ClearRanks = () => {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ranked/admin/clear-ranks`, {
+      const response = await fetch(`${API_BASE_URL}/ranked/admin/clear-ranks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
