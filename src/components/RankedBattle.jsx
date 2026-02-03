@@ -59,7 +59,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
 
   // Continuous background polling to detect opponent forfeit
   useEffect(() => {
-    if (!match || matchComplete || loading) return
+    if (!match || matchComplete || loading || isExiting) return // Don't poll if user is exiting
 
     // Poll every 2 seconds to check if match still exists
     const backgroundPoll = setInterval(async () => {
@@ -79,17 +79,20 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           
           setMatchComplete(true)
           const isPlayer1 = match?.playerNum === 1
-          const winner = isPlayer1 ? 'player1' : 'player2'
-          const difficulty = match?.difficulty || 'medium'
-          const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+          
+          // IMPORTANT: Use result from API, not assume we won
+          // If opponent forfeited, result.winner should be us (player1 or player2)
+          // If we forfeited, we shouldn't be in this polling (isExiting check above)
+          const winner = result.winner || (isPlayer1 ? 'player1' : 'player2')
+          const myPointChange = isPlayer1 ? (result.player1PointChange || 0) : (result.player2PointChange || 0)
           
           setMatchResult({
             winner: winner,
-            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
-            player1Score: match?.player1Score || 0,
-            player2Score: match?.player2Score || 0,
-            player1PointChange: isPlayer1 ? myPointChange : 0,
-            player2PointChange: isPlayer1 ? 0 : myPointChange,
+            playerNum: result.playerNum || match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: result.player1Score || match?.player1Score || 0,
+            player2Score: result.player2Score || match?.player2Score || 0,
+            player1PointChange: result.player1PointChange || 0,
+            player2PointChange: result.player2PointChange || 0,
             pointChange: myPointChange,
             forfeited: true
           })
@@ -97,11 +100,11 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           setTimeout(() => {
             onComplete({
               winner: winner,
-              playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
-              player1Score: match?.player1Score || 0,
-              player2Score: match?.player2Score || 0,
-              player1PointChange: isPlayer1 ? myPointChange : 0,
-              player2PointChange: isPlayer1 ? 0 : myPointChange,
+              playerNum: result.playerNum || match?.playerNum || (isPlayer1 ? 1 : 2),
+              player1Score: result.player1Score || match?.player1Score || 0,
+              player2Score: result.player2Score || match?.player2Score || 0,
+              player1PointChange: result.player1PointChange || 0,
+              player2PointChange: result.player2PointChange || 0,
               pointChange: myPointChange,
               forfeited: true
             })
@@ -114,7 +117,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     }, 1000) // Poll every 1 second for faster detection
 
     return () => clearInterval(backgroundPoll)
-  }, [match, matchId, userId, currentQuestionIndex, matchComplete, loading])
+  }, [match, matchId, userId, currentQuestionIndex, matchComplete, loading, isExiting])
 
   // Start timer when question begins
   useEffect(() => {
@@ -761,16 +764,49 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
       
       if (result.success) {
         console.log('✅ Match forfeited successfully')
-        // Match is deleted, opponent will be notified via polling
+        
+        // IMPORTANT: Set match result showing we lost
+        setMatchComplete(true)
+        const isPlayer1 = match?.playerNum === 1
+        const winner = result.winner || (isPlayer1 ? 'player2' : 'player1') // Opponent wins
+        const myPointChange = isPlayer1 ? (result.player1PointChange || 0) : (result.player2PointChange || 0)
+        
+        setMatchResult({
+          winner: winner,
+          playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+          player1Score: match?.player1Score || 0,
+          player2Score: match?.player2Score || 0,
+          player1PointChange: result.player1PointChange || 0,
+          player2PointChange: result.player2PointChange || 0,
+          pointChange: myPointChange, // This should be negative (we lost)
+          forfeited: true,
+          isForfeiter: true // Mark that we forfeited
+        })
+        
+        // Notify parent with correct result (we lost)
+        setTimeout(() => {
+          onComplete({
+            winner: winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: result.player1PointChange || 0,
+            player2PointChange: result.player2PointChange || 0,
+            pointChange: myPointChange,
+            forfeited: true,
+            isForfeiter: true
+          })
+        }, 2000)
       } else {
         console.error('❌ Failed to forfeit match:', result.error)
+        // Even if API fails, exit the match
+        onExit()
       }
     } catch (error) {
       console.error('❌ Error forfeiting match:', error)
+      // Even if error, exit the match
+      onExit()
     }
-    
-    // Call onExit to return to lobby
-    onExit()
   }
 
   if (loading) {

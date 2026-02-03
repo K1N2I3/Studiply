@@ -1133,11 +1133,11 @@ router.post('/match/:matchId/forfeit', async (req, res) => {
     // Calculate point changes
     const pointRules = POINT_RULES[match.difficulty]
     
-    // Forfeiter loses points
+    // Forfeiter loses points (lose is already negative in POINT_RULES)
     if (isPlayer1) {
-      match.player1PointChange = pointRules.lose
+      match.player1PointChange = pointRules.lose // Already negative
     } else {
-      match.player2PointChange = pointRules.lose
+      match.player2PointChange = pointRules.lose // Already negative
     }
 
     // Opponent wins points (if not bot)
