@@ -204,6 +204,17 @@ export const getQueueCount = async (subject, difficulty) => {
 export const getMatch = async (matchId, userId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/ranked/match/${matchId}?userId=${userId}`)
+    
+    // If match not found (404), it was forfeited/deleted
+    if (response.status === 404) {
+      console.log('🚪 Match not found (404) - forfeited/deleted')
+      return { 
+        success: false, 
+        error: 'Match not found - opponent forfeited',
+        forfeited: true
+      }
+    }
+    
     const result = await response.json()
     
     if (response.ok && result.success) {
@@ -212,6 +223,14 @@ export const getMatch = async (matchId, userId) => {
     return { success: false, error: result.error }
   } catch (error) {
     console.error('Error getting match:', error)
+    // Network errors might indicate match was deleted
+    if (error.message.includes('404') || error.message.includes('not found')) {
+      return { 
+        success: false, 
+        error: 'Match not found - opponent forfeited',
+        forfeited: true
+      }
+    }
     return { success: false, error: error.message }
   }
 }

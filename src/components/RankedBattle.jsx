@@ -57,6 +57,65 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     loadMatch()
   }, [matchId])
 
+  // Continuous background polling to detect opponent forfeit
+  useEffect(() => {
+    if (!match || matchComplete || loading) return
+
+    // Poll every 2 seconds to check if match still exists
+    const backgroundPoll = setInterval(async () => {
+      try {
+        const result = await nextQuestion(matchId, userId, currentQuestionIndex)
+        
+        // If match was forfeited/deleted, handle it
+        if (result.status === 'forfeited' || 
+            (result.error && result.error.includes('forfeited')) ||
+            (result.error && result.error.includes('not found'))) {
+          console.log('🚪 Background poll detected match forfeited!')
+          clearInterval(backgroundPoll)
+          clearInterval(timerRef.current)
+          if (pollIntervalRef.current) {
+            clearTimeout(pollIntervalRef.current)
+          }
+          
+          setMatchComplete(true)
+          const isPlayer1 = match?.playerNum === 1
+          const winner = isPlayer1 ? 'player1' : 'player2'
+          const difficulty = match?.difficulty || 'medium'
+          const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+          
+          setMatchResult({
+            winner: winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: isPlayer1 ? myPointChange : 0,
+            player2PointChange: isPlayer1 ? 0 : myPointChange,
+            pointChange: myPointChange,
+            forfeited: true
+          })
+          
+          setTimeout(() => {
+            onComplete({
+              winner: winner,
+              playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+              player1Score: match?.player1Score || 0,
+              player2Score: match?.player2Score || 0,
+              player1PointChange: isPlayer1 ? myPointChange : 0,
+              player2PointChange: isPlayer1 ? 0 : myPointChange,
+              pointChange: myPointChange,
+              forfeited: true
+            })
+          }, 2000)
+        }
+      } catch (err) {
+        // Silently handle errors in background polling
+        console.log('Background poll error (non-critical):', err.message)
+      }
+    }, 2000) // Poll every 2 seconds
+
+    return () => clearInterval(backgroundPoll)
+  }, [match, matchId, userId, currentQuestionIndex, matchComplete, loading])
+
   // Start timer when question begins
   useEffect(() => {
     if (match && !answerSubmitted && !matchComplete) {
@@ -94,10 +153,78 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
           await startMatch(matchId)
         }
       } else {
-        setError(result.error)
+        // If match not found, it was likely forfeited
+        if (result.error && result.error.includes('not found')) {
+          console.log('🚪 Match not found during load - opponent forfeited')
+          setMatchComplete(true)
+          const isPlayer1 = match?.playerNum === 1
+          const winner = isPlayer1 ? 'player1' : 'player2'
+          const difficulty = match?.difficulty || 'medium'
+          const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+          
+          setMatchResult({
+            winner: winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: isPlayer1 ? myPointChange : 0,
+            player2PointChange: isPlayer1 ? 0 : myPointChange,
+            pointChange: myPointChange,
+            forfeited: true
+          })
+          
+          setTimeout(() => {
+            onComplete({
+              winner: winner,
+              playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+              player1Score: match?.player1Score || 0,
+              player2Score: match?.player2Score || 0,
+              player1PointChange: isPlayer1 ? myPointChange : 0,
+              player2PointChange: isPlayer1 ? 0 : myPointChange,
+              pointChange: myPointChange,
+              forfeited: true
+            })
+          }, 2000)
+        } else {
+          setError(result.error)
+        }
       }
     } catch (err) {
-      setError(err.message)
+      // Network errors might indicate match was deleted
+      if (err.message.includes('404') || err.message.includes('not found')) {
+        console.log('🚪 Match not found (network error) - opponent forfeited')
+        setMatchComplete(true)
+        const isPlayer1 = match?.playerNum === 1
+        const winner = isPlayer1 ? 'player1' : 'player2'
+        const difficulty = match?.difficulty || 'medium'
+        const myPointChange = difficulty === 'easy' ? 15 : difficulty === 'medium' ? 20 : 30
+        
+        setMatchResult({
+          winner: winner,
+          playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+          player1Score: match?.player1Score || 0,
+          player2Score: match?.player2Score || 0,
+          player1PointChange: isPlayer1 ? myPointChange : 0,
+          player2PointChange: isPlayer1 ? 0 : myPointChange,
+          pointChange: myPointChange,
+          forfeited: true
+        })
+        
+        setTimeout(() => {
+          onComplete({
+            winner: winner,
+            playerNum: match?.playerNum || (isPlayer1 ? 1 : 2),
+            player1Score: match?.player1Score || 0,
+            player2Score: match?.player2Score || 0,
+            player1PointChange: isPlayer1 ? myPointChange : 0,
+            player2PointChange: isPlayer1 ? 0 : myPointChange,
+            pointChange: myPointChange,
+            forfeited: true
+          })
+        }, 2000)
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
