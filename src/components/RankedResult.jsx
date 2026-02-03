@@ -10,6 +10,7 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
   const [showConfetti, setShowConfetti] = useState(false)
 
   const isForfeited = result?.forfeited || false
+  const isYouForfeiter = result?.isForfeiter || false // User who forfeited
   const isWin = result?.playerNum === 1 
     ? result?.winner === 'player1' 
     : result?.winner === 'player2'
@@ -122,7 +123,7 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
                     : 'text-red-500'
             }`}>
               {isForfeited 
-                ? (isWin ? 'OPPONENT FORFEITED!' : 'YOU FORFEITED!')
+                ? (isYouForfeiter ? 'YOU FORFEITED!' : 'OPPONENT FORFEITED!')
                 : isWin 
                   ? 'VICTORY!' 
                   : isDraw 
@@ -132,9 +133,9 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
             
             <p className={`text-lg ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
               {isForfeited 
-                ? (isWin 
-                    ? 'Your opponent left the match. You win!' 
-                    : 'You left the match. This counts as a loss.')
+                ? (isYouForfeiter 
+                    ? 'You left the match. This counts as a loss.' 
+                    : 'Your opponent left the match. You win!')
                 : `Final Score: ${result?.player1Score} - ${result?.player2Score}`}
             </p>
           </div>
