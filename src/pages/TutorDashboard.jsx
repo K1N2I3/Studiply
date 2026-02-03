@@ -31,6 +31,7 @@ import EditTutorProfileModal from '../components/EditTutorProfileModal'
 import { listenToChatList, formatMessageTime, subscribeUnreadStudentMessagesCount, getUnreadStudentsList } from '../services/chatService'
 import { useNavigate, useLocation } from 'react-router-dom'
 import TutorWallet from '../components/TutorWallet'
+import BankAccountSetup from '../components/BankAccountSetup'
 
 const TutorDashboard = () => {
   const { user } = useSimpleAuth()
@@ -802,10 +803,18 @@ const TutorDashboard = () => {
           </div>
         </section>
 
-        {/* Tutor Wallet */}
+        {/* Tutor Wallet and Bank Account Setup */}
         <div className="mb-12 grid gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             <TutorWallet tutorId={user?.id} />
+            <BankAccountSetup 
+              onStatusChange={(status) => {
+                // 当银行账户状态改变时，可以刷新数据
+                if (status === 'verified') {
+                  console.log('✅ Bank account verified!')
+                }
+              }}
+            />
           </div>
           <div className={`lg:col-span-2 rounded-[28px] border p-6 backdrop-blur-xl ${
             isDark ? 'border-white/10 bg-white/5' : 'border-white/70 bg-white'

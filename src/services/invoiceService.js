@@ -376,6 +376,22 @@ export const markInvoiceAsPaid = async (invoiceId, stripeSessionId) => {
     
     console.log('✅ Invoice marked as paid:', invoiceId)
     
+    // 自动转账给导师（如果导师已连接银行账户）
+    try {
+      const { processPayout } = await import('./stripeConnectService')
+      const payoutResult = await processPayout(invoiceId)
+      
+      if (payoutResult.success) {
+        console.log('✅ Payout processed successfully:', payoutResult.transferId)
+      } else {
+        console.warn('⚠️ Payout failed (may need bank setup):', payoutResult.error)
+        // 不阻止支付完成，只是记录警告
+      }
+    } catch (payoutError) {
+      console.warn('⚠️ Error processing payout:', payoutError)
+      // 不阻止支付完成，只是记录警告
+    }
+    
     return { success: true }
   } catch (error) {
     console.error('❌ Error marking invoice as paid:', error)
