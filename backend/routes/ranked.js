@@ -944,19 +944,32 @@ router.post('/match/:matchId/next', async (req, res) => {
           match.player2PointChange = 0
         }
 
-        // IMPORTANT: Delete match from DB after completion (don't keep old matches)
-        // We only save match history in a separate collection if needed
+        // IMPORTANT: Save match to DB first (with completed status) so clients can get final result
+        // Then delete after a short delay to allow clients to fetch the result
         try {
-          await Match.deleteOne({ matchId })
-          console.log(`🗑️ [Ranked] Match ${matchId} deleted from DB after completion`)
-        } catch (deleteError) {
-          console.error('Error deleting completed match from DB:', deleteError)
+          match.status = 'completed'
+          await match.save()
+          console.log(`💾 [Ranked] Match ${matchId} saved to DB with completed status`)
+          
+          // Delete after 5 seconds to allow clients to fetch result
+          setTimeout(async () => {
+            try {
+              await Match.deleteOne({ matchId })
+              console.log(`🗑️ [Ranked] Match ${matchId} deleted from DB after completion`)
+            } catch (deleteError) {
+              console.error('Error deleting completed match from DB:', deleteError)
+            }
+          }, 5000)
+        } catch (saveError) {
+          console.error('Error saving completed match to DB:', saveError)
         }
         
-        // Remove from active matches and pending matches
+        // Remove from active matches and pending matches IMMEDIATELY
         activeMatches.delete(matchId)
         pendingMatches.delete(match.player1.userId)
-        pendingMatches.delete(match.player2.userId)
+        if (!match.player2.isBot) {
+          pendingMatches.delete(match.player2.userId)
+        }
 
         console.log(`🏁 [Ranked] Match ${matchId} completed and cleaned up!`)
       } catch (err) {

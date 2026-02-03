@@ -67,7 +67,18 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
         const result = await nextQuestion(matchId, userId, currentQuestionIndex)
         
         // If match was forfeited/deleted, handle it
-        if (result.status === 'forfeited' || 
+        // BUT: Check if match is actually completed first (not just deleted)
+        if (result.status === 'completed') {
+          // Match completed normally - let handleMatchComplete handle it
+          console.log('✅ Background poll detected match completed normally')
+          clearInterval(backgroundPoll)
+          clearInterval(timerRef.current)
+          if (pollIntervalRef.current) {
+            clearTimeout(pollIntervalRef.current)
+          }
+          handleMatchComplete(result)
+          return
+        } else if (result.status === 'forfeited' || 
             (result.error && result.error.includes('forfeited')) ||
             (result.error && result.error.includes('not found'))) {
           console.log('🚪 Background poll detected match forfeited!')
