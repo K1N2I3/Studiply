@@ -25,18 +25,27 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
   const newRankInfo = result?.playerNum === 1 
     ? result?.player1NewRank 
     : (result?.player2NewRank || result?.player1NewRank) // Fallback to player1NewRank if player2NewRank doesn't exist
-  const promoted = newRankInfo?.promoted || false
-  const newTier = newRankInfo?.newTier
-  const oldTier = newRankInfo?.oldTier
   
-  // Debug logging
+  // Debug logging with more details
+  console.log('🎯 RankedResult - Full Result:', result)
   console.log('🎯 RankedResult - Rank Info:', {
     playerNum: result?.playerNum,
     player1NewRank: result?.player1NewRank,
     player2NewRank: result?.player2NewRank,
     selectedNewRankInfo: newRankInfo,
-    newPoints: newRankInfo?.newPoints
+    newPoints: newRankInfo?.newPoints,
+    pointChange: pointChange
   })
+  
+  const promoted = newRankInfo?.promoted || false
+  const newTier = newRankInfo?.newTier
+  const oldTier = newRankInfo?.oldTier
+  
+  // If newRankInfo is missing newPoints, try to calculate from pointChange
+  // This is a fallback in case the backend didn't return newPoints correctly
+  const displayNewPoints = newRankInfo?.newPoints !== undefined && newRankInfo?.newPoints !== null
+    ? newRankInfo.newPoints
+    : (pointChange || 0) // Fallback: just show the point change if newPoints is missing
 
   useEffect(() => {
     // Animation sequence
@@ -176,7 +185,7 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
                 </span>
               </div>
               <p className={`mt-2 text-sm ${isDark ? 'text-white/40' : 'text-slate-400'}`}>
-                New Total: {newRankInfo?.newPoints || 0} points
+                New Total: {displayNewPoints} points
               </p>
             </div>
           </div>
@@ -210,7 +219,7 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
               <div className="flex justify-center">
                 <RankBadge 
                   tier={newTier || oldTier || 'BRONZE'} 
-                  points={newRankInfo?.newPoints || 0}
+                  points={displayNewPoints}
                   size="lg"
                 />
               </div>

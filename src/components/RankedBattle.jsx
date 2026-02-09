@@ -636,12 +636,15 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
       player2NewRank: result.player2NewRank
     })
     
-    // Notify parent after delay - include ALL result data
+    // Notify parent after delay - include ALL result data, especially rank info
     setTimeout(() => {
       onComplete({
         ...result,
         playerNum: match?.playerNum || result.playerNum,
-        pointChange: myPointChange
+        pointChange: myPointChange,
+        // Ensure rank info is included
+        player1NewRank: result.player1NewRank,
+        player2NewRank: result.player2NewRank
       })
     }, 3000)
   }
