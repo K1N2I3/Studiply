@@ -936,11 +936,10 @@ router.post('/match/:matchId/next', async (req, res) => {
         await player1Rank.save()
         match.player1PointChange = p1Result.pointChange
         
-        // Get updated subject rank for player 1
-        const p1SubjectRank = player1Rank.getSubjectRank(match.subject)
+        // Use values directly from p1Result (updateAfterMatch already returns updated values)
         p1OldTier = p1Result.oldTier || 'BRONZE'
-        p1NewTier = p1SubjectRank.tier || 'BRONZE'
-        p1NewPoints = p1SubjectRank.points || 0
+        p1NewTier = p1Result.newTier || 'BRONZE'
+        p1NewPoints = p1Result.newPoints || 0
         
         console.log(`📊 P1 ${match.player1.userName}: ${player1Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p1Result.pointChange > 0 ? '+' : ''}${p1Result.pointChange})`)
         console.log(`📊 P1 Rank Update: ${p1Result.oldPoints || 0} + ${p1Result.pointChange} = ${p1NewPoints} (${p1OldTier} -> ${p1NewTier})`)
@@ -955,11 +954,10 @@ router.post('/match/:matchId/next', async (req, res) => {
           await player2Rank.save()
           match.player2PointChange = p2Result.pointChange
           
-          // Get updated subject rank for player 2
-          const p2SubjectRank = player2Rank.getSubjectRank(match.subject)
+          // Use values directly from p2Result (updateAfterMatch already returns updated values)
           p2OldTier = p2Result.oldTier || 'BRONZE'
-          p2NewTier = p2SubjectRank.tier || 'BRONZE'
-          p2NewPoints = p2SubjectRank.points || 0
+          p2NewTier = p2Result.newTier || 'BRONZE'
+          p2NewPoints = p2Result.newPoints || 0
           
           console.log(`📊 P2 ${match.player2.userName}: ${player2Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p2Result.pointChange > 0 ? '+' : ''}${p2Result.pointChange})`)
           console.log(`📊 P2 Rank Update: ${p2Result.oldPoints || 0} + ${p2Result.pointChange} = ${p2NewPoints} (${p2OldTier} -> ${p2NewTier})`)
