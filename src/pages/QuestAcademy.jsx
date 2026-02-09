@@ -204,7 +204,7 @@ const QuestAcademy = () => {
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/quest-academy/quests')}
+                onClick={() => navigate('/quest-academy/quests', { state: { subject: activeSubject.id } })}
                 className="mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/30 transition-transform hover:-translate-y-0.5"
               >
                 Start curated plan

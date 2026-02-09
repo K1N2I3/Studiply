@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { 
   ArrowLeft, 
   Search, 
@@ -44,19 +44,30 @@ const DIFFICULTIES = [
 
 const QuestList = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isDark } = useTheme()
   const { user } = useSimpleAuth()
   const { showError, showSuccess } = useNotification()
+
+  // Get subject from location state (passed from QuestAcademy)
+  const subjectFromState = location.state?.subject
 
   const [quests, setQuests] = useState([])
   const [aiQuests, setAIQuests] = useState([])
   const [filteredQuests, setFilteredQuests] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedSubject, setSelectedSubject] = useState('all')
+  const [selectedSubject, setSelectedSubject] = useState(subjectFromState || 'all')
   const [selectedDifficulty, setSelectedDifficulty] = useState('all')
   const [showAIModal, setShowAIModal] = useState(false)
   const [activeTab, setActiveTab] = useState('public') // 'public' or 'my-ai'
+
+  // Update selectedSubject when location state changes
+  useEffect(() => {
+    if (subjectFromState) {
+      setSelectedSubject(subjectFromState)
+    }
+  }, [subjectFromState])
 
   useEffect(() => {
     loadQuests()
