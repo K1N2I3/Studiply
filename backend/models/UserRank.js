@@ -118,6 +118,7 @@ UserRankSchema.index({ 'subjectRanks.subject': 1, 'subjectRanks.points': -1 })
 UserRankSchema.methods.getSubjectRank = function(subject) {
   let subjectRank = this.subjectRanks.find(sr => sr.subject === subject)
   if (!subjectRank) {
+    // Create a new subdocument using the schema
     subjectRank = {
       subject,
       points: 0,
@@ -125,9 +126,12 @@ UserRankSchema.methods.getSubjectRank = function(subject) {
       wins: 0,
       losses: 0,
       winStreak: 0,
-      bestWinStreak: 0
+      bestWinStreak: 0,
+      lastMatchAt: null
     }
     this.subjectRanks.push(subjectRank)
+    // Mark the array as modified so Mongoose saves it
+    this.markModified('subjectRanks')
   }
   return subjectRank
 }
@@ -183,6 +187,9 @@ UserRankSchema.methods.updateAfterMatch = function(subject, difficulty, won, isD
   }
   
   console.log(`📊 [UserRank] ${this.userName} - ${subject}: ${oldPoints} + ${pointChange} = ${subjectRank.points} (${oldTier} -> ${newTier})`)
+  
+  // Mark subjectRanks as modified to ensure Mongoose saves the changes
+  this.markModified('subjectRanks')
   
   return {
     pointChange,
