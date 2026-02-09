@@ -20,8 +20,11 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
     ? result?.player1PointChange 
     : result?.player2PointChange
 
-  const newRankInfo = result?.player1NewRank
-  const promoted = newRankInfo?.promoted
+  // Get new rank info based on player number
+  const newRankInfo = result?.playerNum === 1 
+    ? result?.player1NewRank 
+    : result?.player2NewRank || result?.player1NewRank // Fallback to player1NewRank if player2NewRank doesn't exist
+  const promoted = newRankInfo?.promoted || false
   const newTier = newRankInfo?.newTier
   const oldTier = newRankInfo?.oldTier
 

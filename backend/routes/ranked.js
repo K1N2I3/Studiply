@@ -910,6 +910,14 @@ router.post('/match/:matchId/next', async (req, res) => {
 
       finalizingMatches.add(matchId)
       
+      // Initialize rank update variables outside try block
+      let p1OldTier = 'BRONZE'
+      let p1NewTier = 'BRONZE'
+      let p1NewPoints = 0
+      let p2OldTier = 'BRONZE'
+      let p2NewTier = 'BRONZE'
+      let p2NewPoints = 0
+      
       try {
         match.finalize()
         
@@ -927,6 +935,13 @@ router.post('/match/:matchId/next', async (req, res) => {
         const p1Result = player1Rank.updateAfterMatch(match.subject, match.difficulty, player1Won, isDraw)
         await player1Rank.save()
         match.player1PointChange = p1Result.pointChange
+        
+        // Get updated subject rank for player 1
+        const p1SubjectRank = player1Rank.getSubjectRank(match.subject)
+        p1OldTier = p1Result.oldTier || 'BRONZE'
+        p1NewTier = p1SubjectRank.tier || 'BRONZE'
+        p1NewPoints = p1SubjectRank.points || 0
+        
         console.log(`📊 P1 ${match.player1.userName}: ${player1Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p1Result.pointChange > 0 ? '+' : ''}${p1Result.pointChange})`)
 
         // Update player 2 rank (if not bot) - ALWAYS save
@@ -938,6 +953,13 @@ router.post('/match/:matchId/next', async (req, res) => {
           const p2Result = player2Rank.updateAfterMatch(match.subject, match.difficulty, player2Won, isDraw)
           await player2Rank.save()
           match.player2PointChange = p2Result.pointChange
+          
+          // Get updated subject rank for player 2
+          const p2SubjectRank = player2Rank.getSubjectRank(match.subject)
+          p2OldTier = p2Result.oldTier || 'BRONZE'
+          p2NewTier = p2SubjectRank.tier || 'BRONZE'
+          p2NewPoints = p2SubjectRank.points || 0
+          
           console.log(`📊 P2 ${match.player2.userName}: ${player2Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p2Result.pointChange > 0 ? '+' : ''}${p2Result.pointChange})`)
         } else {
           // Bot always gets 0 point change
@@ -980,7 +1002,8 @@ router.post('/match/:matchId/next', async (req, res) => {
 
       const pointChange = playerNum === 1 ? match.player1PointChange : match.player2PointChange
 
-      return res.json({
+      // Prepare rank update info for response
+      const responseData = {
         success: true,
         status: 'completed',
         winner: match.winner,
@@ -990,7 +1013,36 @@ router.post('/match/:matchId/next', async (req, res) => {
         player1PointChange: match.player1PointChange,
         player2PointChange: match.player2PointChange,
         pointChange
-      })
+      }
+      
+      // Add new rank info for player 1
+      if (playerNum === 1) {
+        responseData.player1NewRank = {
+          newPoints: p1NewPoints,
+          oldTier: p1OldTier,
+          newTier: p1NewTier,
+          promoted: p1OldTier !== p1NewTier
+        }
+      } else {
+        // For player 2, include their rank info if not bot
+        if (!match.player2.isBot) {
+          responseData.player2NewRank = {
+            newPoints: p2NewPoints,
+            oldTier: p2OldTier,
+            newTier: p2NewTier,
+            promoted: p2OldTier !== p2NewTier
+          }
+        }
+        // Also include player 1's info for reference
+        responseData.player1NewRank = {
+          newPoints: p1NewPoints,
+          oldTier: p1OldTier,
+          newTier: p1NewTier,
+          promoted: p1OldTier !== p1NewTier
+        }
+      }
+
+      return res.json(responseData)
     }
 
     // Not complete yet - continue to next question
