@@ -943,6 +943,7 @@ router.post('/match/:matchId/next', async (req, res) => {
         p1NewPoints = p1SubjectRank.points || 0
         
         console.log(`📊 P1 ${match.player1.userName}: ${player1Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p1Result.pointChange > 0 ? '+' : ''}${p1Result.pointChange})`)
+        console.log(`📊 P1 Rank Update: ${p1Result.oldPoints || 0} + ${p1Result.pointChange} = ${p1NewPoints} (${p1OldTier} -> ${p1NewTier})`)
 
         // Update player 2 rank (if not bot) - ALWAYS save
         if (!match.player2.isBot) {
@@ -961,6 +962,7 @@ router.post('/match/:matchId/next', async (req, res) => {
           p2NewPoints = p2SubjectRank.points || 0
           
           console.log(`📊 P2 ${match.player2.userName}: ${player2Won ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'} (${p2Result.pointChange > 0 ? '+' : ''}${p2Result.pointChange})`)
+          console.log(`📊 P2 Rank Update: ${p2Result.oldPoints || 0} + ${p2Result.pointChange} = ${p2NewPoints} (${p2OldTier} -> ${p2NewTier})`)
         } else {
           // Bot always gets 0 point change
           match.player2PointChange = 0
@@ -1015,32 +1017,29 @@ router.post('/match/:matchId/next', async (req, res) => {
         pointChange
       }
       
-      // Add new rank info for player 1
-      if (playerNum === 1) {
-        responseData.player1NewRank = {
-          newPoints: p1NewPoints,
-          oldTier: p1OldTier,
-          newTier: p1NewTier,
-          promoted: p1OldTier !== p1NewTier
-        }
-      } else {
-        // For player 2, include their rank info if not bot
-        if (!match.player2.isBot) {
-          responseData.player2NewRank = {
-            newPoints: p2NewPoints,
-            oldTier: p2OldTier,
-            newTier: p2NewTier,
-            promoted: p2OldTier !== p2NewTier
-          }
-        }
-        // Also include player 1's info for reference
-        responseData.player1NewRank = {
-          newPoints: p1NewPoints,
-          oldTier: p1OldTier,
-          newTier: p1NewTier,
-          promoted: p1OldTier !== p1NewTier
+      // Add new rank info for player 1 (always include for reference)
+      responseData.player1NewRank = {
+        newPoints: p1NewPoints,
+        oldTier: p1OldTier,
+        newTier: p1NewTier,
+        promoted: p1OldTier !== p1NewTier
+      }
+      
+      // Add new rank info for player 2 (if not bot)
+      if (!match.player2.isBot) {
+        responseData.player2NewRank = {
+          newPoints: p2NewPoints,
+          oldTier: p2OldTier,
+          newTier: p2NewTier,
+          promoted: p2OldTier !== p2NewTier
         }
       }
+      
+      console.log(`📤 [Ranked] Returning rank update info:`, {
+        playerNum,
+        player1NewRank: responseData.player1NewRank,
+        player2NewRank: responseData.player2NewRank
+      })
 
       return res.json(responseData)
     }

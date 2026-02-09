@@ -21,12 +21,22 @@ const RankedResult = ({ result, subject, onClose, onPlayAgain }) => {
     : result?.player2PointChange
 
   // Get new rank info based on player number
+  // For player 1, use player1NewRank; for player 2, prefer player2NewRank, fallback to player1NewRank
   const newRankInfo = result?.playerNum === 1 
     ? result?.player1NewRank 
-    : result?.player2NewRank || result?.player1NewRank // Fallback to player1NewRank if player2NewRank doesn't exist
+    : (result?.player2NewRank || result?.player1NewRank) // Fallback to player1NewRank if player2NewRank doesn't exist
   const promoted = newRankInfo?.promoted || false
   const newTier = newRankInfo?.newTier
   const oldTier = newRankInfo?.oldTier
+  
+  // Debug logging
+  console.log('🎯 RankedResult - Rank Info:', {
+    playerNum: result?.playerNum,
+    player1NewRank: result?.player1NewRank,
+    player2NewRank: result?.player2NewRank,
+    selectedNewRankInfo: newRankInfo,
+    newPoints: newRankInfo?.newPoints
+  })
 
   useEffect(() => {
     // Animation sequence
