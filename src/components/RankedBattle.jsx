@@ -614,6 +614,7 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
     const isPlayer1 = match?.playerNum === 1
     const myPointChange = isPlayer1 ? result.player1PointChange : result.player2PointChange
     
+    // Include ALL result data, especially player1NewRank and player2NewRank
     setMatchResult({
       winner: result.winner,
       playerNum: result.playerNum || match?.playerNum,
@@ -621,12 +622,21 @@ const RankedBattle = ({ matchId, userId, opponent, subject, difficulty, onComple
       player2Score: result.player2Score,
       player1PointChange: result.player1PointChange,
       player2PointChange: result.player2PointChange,
-      pointChange: myPointChange
+      pointChange: myPointChange,
+      // IMPORTANT: Include rank update info
+      player1NewRank: result.player1NewRank,
+      player2NewRank: result.player2NewRank,
+      forfeited: result.forfeited,
+      isForfeiter: result.isForfeiter
     })
     
     console.log(`🏁 Match complete! Winner: ${result.winner}, My points: ${myPointChange > 0 ? '+' : ''}${myPointChange}`)
+    console.log(`📊 Rank update info:`, {
+      player1NewRank: result.player1NewRank,
+      player2NewRank: result.player2NewRank
+    })
     
-    // Notify parent after delay
+    // Notify parent after delay - include ALL result data
     setTimeout(() => {
       onComplete({
         ...result,
