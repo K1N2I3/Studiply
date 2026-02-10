@@ -450,11 +450,11 @@ const Tutoring = () => {
     const limitCheck = await checkLimit(user?.id, 'videoCall')
     
     if (!limitCheck.success || !limitCheck.canPerform) {
-      showError(
-        limitCheck.error || 'Daily video call limit reached. Please upgrade to Pro for more calls.',
-        5000,
-        'Limit Reached'
-      )
+        showError(
+          limitCheck.error || 'Weekly video call limit reached. Please upgrade to Pro for unlimited calls.',
+          5000,
+          'Limit Reached'
+        )
       return
     }
 

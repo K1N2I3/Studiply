@@ -442,7 +442,11 @@ const LimitsIndicator = () => {
                         ? 'bg-yellow-500'
                         : 'bg-green-500'
                     }`}
-                    style={{ width: `${(remaining.videoCalls / (hasStudiplyPass ? 3 : 1)) * 100}%` }}
+                    style={{ 
+                      width: hasStudiplyPass && user?.subscription === 'pro' 
+                        ? '100%' 
+                        : `${(remaining.videoCalls / (hasStudiplyPass ? 3 : 1)) * 100}%` 
+                    }}
                   />
                 </div>
               </div>

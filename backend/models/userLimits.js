@@ -11,6 +11,11 @@ const userLimitsSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  week: {
+    type: String,
+    required: false,
+    index: true
+  },
   sessionRequests: {
     type: Number,
     default: 0
