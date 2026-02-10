@@ -38,8 +38,10 @@ const getCurrentDate = (timezone = 'UTC') => {
 }
 
 // Get current week identifier (YYYY-WW format, where WW is week number)
+// Week starts on Monday (ISO 8601 standard)
 const getCurrentWeek = (timezone = 'UTC') => {
   const now = new Date()
+  
   // Get date in user's timezone
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
@@ -49,16 +51,31 @@ const getCurrentWeek = (timezone = 'UTC') => {
     weekday: 'long'
   })
   
-  // Create a date object in the user's timezone
-  const dateStr = formatter.format(now)
   const parts = formatter.formatToParts(now)
-  const year = parts.find(p => p.type === 'year').value
+  const year = parseInt(parts.find(p => p.type === 'year').value)
+  const month = parseInt(parts.find(p => p.type === 'month').value)
+  const day = parseInt(parts.find(p => p.type === 'day').value)
   
-  // Calculate week number (ISO week)
-  const date = new Date(now.toLocaleString('en-US', { timeZone: timezone }))
-  const startOfYear = new Date(date.getFullYear(), 0, 1)
-  const pastDaysOfYear = (date - startOfYear) / 86400000
-  const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7)
+  // Create a date object for the user's timezone
+  // Note: We need to work with UTC and adjust for timezone offset
+  const utcDate = new Date(Date.UTC(year, month - 1, day))
+  const tzOffset = now.getTimezoneOffset() * 60000
+  const localDate = new Date(utcDate.getTime() - tzOffset)
+  
+  // Get the Monday of the current week
+  const dayOfWeek = localDate.getDay()
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek // Sunday = 0, so offset by -6
+  const monday = new Date(localDate)
+  monday.setDate(localDate.getDate() + mondayOffset)
+  
+  // Get the first Monday of the year
+  const yearStart = new Date(year, 0, 1)
+  const firstMonday = new Date(yearStart)
+  const firstMondayOffset = yearStart.getDay() === 0 ? -6 : 1 - yearStart.getDay()
+  firstMonday.setDate(yearStart.getDate() + firstMondayOffset)
+  
+  // Calculate week number
+  const weekNumber = Math.floor((monday - firstMonday) / (7 * 24 * 60 * 60 * 1000)) + 1
   
   return `${year}-W${String(weekNumber).padStart(2, '0')}`
 }
