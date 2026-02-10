@@ -25,7 +25,10 @@ import {
   FileText,
   ThumbsUp,
   ThumbsDown,
-  X
+  X,
+  Crown,
+  Gift,
+  XCircle as RemoveIcon
 } from 'lucide-react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useNotification } from '../contexts/NotificationContext'
@@ -70,8 +73,11 @@ const AdminPanel = () => {
   const [selectedQuestRequest, setSelectedQuestRequest] = useState(null)
   const [showQuestRequestModal, setShowQuestRequestModal] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
-  const [questRequestLoading, setQuestRequestLoading] = useState(false)
-  const [questRequestsLoading, setQuestRequestsLoading] = useState(false)
+  const [questRequestLoading, setQuestRequestsLoading] = useState(false)
+  const [passUsers, setPassUsers] = useState([])
+  const [passSearchTerm, setPassSearchTerm] = useState('')
+  const [passFilter, setPassFilter] = useState('all') // all, hasPass, noPass
+  const [passLoading, setPassLoading] = useState(false)
 
   // 检查管理员权限
   const isAdmin = user?.email === 'studiply.email@gmail.com'
@@ -89,13 +95,84 @@ const AdminPanel = () => {
       await Promise.all([
         loadTutors(),
         loadAllUsers(),
-        loadQuestRequests()
+        loadQuestRequests(),
+        loadPassUsers()
       ])
     } catch (error) {
       console.error('❌ Error loading data:', error)
       showError('Failed to load data', 'Error')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadPassUsers = async () => {
+    setPassLoading(true)
+    try {
+      const usersRef = collection(db, 'users')
+      const q = query(usersRef)
+      const querySnapshot = await getDocs(q)
+      
+      const usersList = []
+      for (const docSnapshot of querySnapshot.docs) {
+        const userData = docSnapshot.data()
+        
+        usersList.push({
+          id: docSnapshot.id,
+          name: userData.name || 'Unknown',
+          email: userData.email || 'No email',
+          hasStudiplyPass: userData.hasStudiplyPass || false,
+          subscription: userData.subscription || null,
+          subscriptionStartDate: userData.subscriptionStartDate || null,
+          avatar: userData.avatar || null,
+          createdAt: userData.createdAt
+        })
+      }
+      
+      setPassUsers(usersList)
+    } catch (error) {
+      console.error('Error loading pass users:', error)
+      showError('Failed to load users', 'Error')
+    } finally {
+      setPassLoading(false)
+    }
+  }
+
+  // 给予 Studiply Pass
+  const handleGrantPass = async (userId, passType = 'basic') => {
+    try {
+      const userRef = doc(db, 'users', userId)
+      await updateDoc(userRef, {
+        hasStudiplyPass: true,
+        subscription: passType,
+        subscriptionStartDate: new Date().toISOString(),
+        updatedAt: serverTimestamp()
+      })
+      
+      showSuccess(`Successfully granted Studiply Pass ${passType === 'pro' ? 'Pro' : ''} to user`, 'Success')
+      await loadPassUsers()
+    } catch (error) {
+      console.error('Error granting pass:', error)
+      showError('Failed to grant pass', 'Error')
+    }
+  }
+
+  // 移除 Studiply Pass
+  const handleRemovePass = async (userId) => {
+    try {
+      const userRef = doc(db, 'users', userId)
+      await updateDoc(userRef, {
+        hasStudiplyPass: false,
+        subscription: null,
+        subscriptionStartDate: null,
+        updatedAt: serverTimestamp()
+      })
+      
+      showSuccess('Successfully removed Studiply Pass from user', 'Success')
+      await loadPassUsers()
+    } catch (error) {
+      console.error('Error removing pass:', error)
+      showError('Failed to remove pass', 'Error')
     }
   }
 
@@ -609,6 +686,19 @@ const AdminPanel = () => {
             <div className="flex items-center justify-center space-x-2">
               <FileText className="w-5 h-5" />
               <span>Requests</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('studiply-pass')}
+            className={`flex-1 py-3 px-6 rounded-xl font-medium transition-all duration-200 ${
+              activeTab === 'studiply-pass'
+                ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+            }`}
+          >
+            <div className="flex items-center justify-center space-x-2">
+              <Crown className="w-5 h-5" />
+              <span>Studiply Pass</span>
             </div>
           </button>
         </div>
@@ -1272,6 +1362,208 @@ const AdminPanel = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Studiply Pass Management Tab */}
+        {activeTab === 'studiply-pass' && (
+          <>
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
+              <div className="flex flex-col lg:flex-row gap-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Search users by name or email..."
+                      value={passSearchTerm}
+                      onChange={(e) => setPassSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-4">
+                  <select
+                    value={passFilter}
+                    onChange={(e) => setPassFilter(e.target.value)}
+                    className="px-4 py-3 bg-white/80 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-200"
+                  >
+                    <option value="all">All Users</option>
+                    <option value="hasPass">Has Studiply Pass</option>
+                    <option value="noPass">No Studiply Pass</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-white/20 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  Studiply Pass Management
+                </h2>
+                <div className="flex items-center gap-4">
+                  <div className="text-sm text-gray-600">
+                    Total: {passUsers.length} | 
+                    With Pass: {passUsers.filter(u => u.hasStudiplyPass).length} | 
+                    Without Pass: {passUsers.filter(u => !u.hasStudiplyPass).length}
+                  </div>
+                </div>
+              </div>
+
+              {passLoading ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <Clock className="w-8 h-8 text-white animate-spin" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Loading users...</h3>
+                  <p className="text-gray-600">Please wait while we fetch the data.</p>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    // Filter users
+                    let filteredUsers = [...passUsers]
+                    
+                    // Search filter
+                    if (passSearchTerm) {
+                      const term = passSearchTerm.toLowerCase()
+                      filteredUsers = filteredUsers.filter(user =>
+                        user.name?.toLowerCase().includes(term) ||
+                        user.email?.toLowerCase().includes(term)
+                      )
+                    }
+                    
+                    // Pass filter
+                    if (passFilter === 'hasPass') {
+                      filteredUsers = filteredUsers.filter(user => user.hasStudiplyPass)
+                    } else if (passFilter === 'noPass') {
+                      filteredUsers = filteredUsers.filter(user => !user.hasStudiplyPass)
+                    }
+                    
+                    return filteredUsers.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-4">
+                        {filteredUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition-all duration-200"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4 flex-1">
+                                <Avatar
+                                  src={user.avatar}
+                                  name={user.name}
+                                  size="md"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <h3 className="text-lg font-semibold text-gray-900">
+                                      {user.name}
+                                    </h3>
+                                    {user.hasStudiplyPass && (
+                                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                        user.subscription === 'pro'
+                                          ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white'
+                                          : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                                      }`}>
+                                        <Crown className="w-3 h-3 inline mr-1" />
+                                        {user.subscription === 'pro' ? 'Pass Pro' : 'Pass Basic'}
+                                      </span>
+                                    )}
+                                    {!user.hasStudiplyPass && (
+                                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 text-gray-700">
+                                        No Pass
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600 mt-1">{user.email}</p>
+                                  {user.hasStudiplyPass && user.subscriptionStartDate && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Started: {formatTimestamp(user.subscriptionStartDate)}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-3">
+                                {user.hasStudiplyPass ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Upgrade ${user.name} to Pass Pro?`)) {
+                                          handleGrantPass(user.id, 'pro')
+                                        }
+                                      }}
+                                      disabled={user.subscription === 'pro'}
+                                      className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 flex items-center gap-2 ${
+                                        user.subscription === 'pro'
+                                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                          : 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:from-yellow-500 hover:to-orange-600'
+                                      }`}
+                                    >
+                                      <Star className="w-4 h-4" />
+                                      Upgrade to Pro
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Remove Studiply Pass from ${user.name}?`)) {
+                                          handleRemovePass(user.id)
+                                        }
+                                      }}
+                                      className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 flex items-center gap-2 font-medium"
+                                    >
+                                      <RemoveIcon className="w-4 h-4" />
+                                      Remove Pass
+                                    </button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Grant Studiply Pass Basic to ${user.name}?`)) {
+                                          handleGrantPass(user.id, 'basic')
+                                        }
+                                      }}
+                                      className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200 flex items-center gap-2 font-medium"
+                                    >
+                                      <Gift className="w-4 h-4" />
+                                      Grant Basic Pass
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(`Grant Studiply Pass Pro to ${user.name}?`)) {
+                                          handleGrantPass(user.id, 'pro')
+                                        }
+                                      }}
+                                      className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-xl hover:from-yellow-500 hover:to-orange-600 transition-all duration-200 flex items-center gap-2 font-medium"
+                                    >
+                                      <Crown className="w-4 h-4" />
+                                      Grant Pro Pass
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <User className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">No users found</h3>
+                        <p className="text-gray-600">
+                          {passSearchTerm
+                            ? 'Try adjusting your search terms'
+                            : 'No users match the current filter'}
+                        </p>
+                      </div>
+                    )
+                  })()}
+                </>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>
