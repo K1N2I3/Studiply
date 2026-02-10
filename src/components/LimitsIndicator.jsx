@@ -427,7 +427,11 @@ const LimitsIndicator = () => {
                       {remaining.videoCalls}
                     </span>
                     <span className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                      / {hasStudiplyPass ? '3' : '1'}
+                      / {hasStudiplyPass && user?.subscription === 'pro' 
+                        ? '∞' 
+                        : hasStudiplyPass 
+                        ? '3' 
+                        : '1'}
                     </span>
                   </div>
                 </div>
