@@ -209,6 +209,13 @@ const AdminPanel = () => {
     }
   }, [activeTab, questRequestStatus])
 
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    if (activeTab === 'studiply-pass') {
+      setPassCurrentPage(1)
+    }
+  }, [passSearchTerm, passFilter, activeTab])
+
   const loadTutors = async () => {
     console.log('🔍 Loading all tutors for admin...')
     
@@ -1449,11 +1456,6 @@ const AdminPanel = () => {
                     const startIndex = (passCurrentPage - 1) * passItemsPerPage
                     const endIndex = startIndex + passItemsPerPage
                     const paginatedUsers = filteredUsers.slice(startIndex, endIndex)
-                    
-                    // Reset to page 1 when search or filter changes
-                    useEffect(() => {
-                      setPassCurrentPage(1)
-                    }, [passSearchTerm, passFilter])
                     
                     return filteredUsers.length > 0 ? (
                       <>
