@@ -5,7 +5,7 @@ import nodemailer from 'nodemailer'
 let resend = null
 if (process.env.RESEND_API_KEY) {
   try {
-    resend = new Resend(process.env.RESEND_API_KEY)
+  resend = new Resend(process.env.RESEND_API_KEY)
     console.log('✅ Resend initialized successfully')
   } catch (error) {
     console.error('❌ Failed to initialize Resend:', error)

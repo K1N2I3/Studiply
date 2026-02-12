@@ -28,7 +28,9 @@ import {
   X,
   Crown,
   Gift,
-  XCircle as RemoveIcon
+  XCircle as RemoveIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import { useSimpleAuth } from '../contexts/SimpleAuthContext'
 import { useNotification } from '../contexts/NotificationContext'
@@ -78,8 +80,6 @@ const AdminPanel = () => {
   const [passSearchTerm, setPassSearchTerm] = useState('')
   const [passFilter, setPassFilter] = useState('all') // all, hasPass, noPass
   const [passLoading, setPassLoading] = useState(false)
-  const [passCurrentPage, setPassCurrentPage] = useState(1)
-  const [passItemsPerPage, setPassItemsPerPage] = useState(10)
   const [passCurrentPage, setPassCurrentPage] = useState(1)
   const [passItemsPerPage, setPassItemsPerPage] = useState(10)
 

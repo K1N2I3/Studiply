@@ -876,9 +876,9 @@ const Rewards = () => {
               <div className="p-8">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
-                      Reward Shop
-                    </h2>
+                  <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
+                    Reward Shop
+                  </h2>
                     {subscriptionStatus === 'none' && (
                       <p className={`text-sm mt-1 ${isDark ? 'text-white/60' : 'text-slate-600'}`}>
                         Upgrade to Studiply Pass for better discounts!

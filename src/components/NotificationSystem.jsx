@@ -268,19 +268,19 @@ const NotificationSystem = ({ events = [] }) => {
               </div>
             ) : currentQuiz && !quizScore ? (
               <>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className={`text-xl font-bold ${
-                    isDark ? 'text-white' : 'text-gray-800'
-                  }`}>
-                    {currentQuiz.subject} Quiz
-                  </h3>
-                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${
-                    isDark ? 'bg-white/10' : 'bg-gray-100'
-                  }`}>
-                    <Clock className="w-4 h-4" />
+            <div className="flex items-center justify-between mb-4">
+              <h3 className={`text-xl font-bold ${
+                isDark ? 'text-white' : 'text-gray-800'
+              }`}>
+                {currentQuiz.subject} Quiz
+              </h3>
+              <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${
+                isDark ? 'bg-white/10' : 'bg-gray-100'
+              }`}>
+                <Clock className="w-4 h-4" />
                     <span className="text-sm font-medium">{Math.floor(currentQuiz.timeLimit / 60)}m</span>
-                  </div>
-                </div>
+              </div>
+            </div>
 
                 {quizError && (
                   <div className={`mb-4 p-3 rounded-lg text-sm ${
@@ -291,7 +291,7 @@ const NotificationSystem = ({ events = [] }) => {
                 )}
 
                 <div className="space-y-6">
-                  {currentQuiz.questions.map((question, index) => (
+                {currentQuiz.questions.map((question, index) => (
                   <div key={index}>
                     <p className={`font-medium mb-2 ${
                       isDark ? 'text-white' : 'text-gray-800'
@@ -328,19 +328,19 @@ const NotificationSystem = ({ events = [] }) => {
                       ))}
                     </div>
                   </div>
-                  ))}
+                ))}
 
-                  <button
-                    onClick={submitQuiz}
-                    className={`w-full px-4 py-2 rounded-xl font-medium transition-colors ${
-                      isDark
-                        ? 'bg-blue-500 text-white hover:bg-blue-600'
-                        : 'bg-blue-500 text-white hover:bg-blue-600'
-                    }`}
-                  >
-                    Submit Quiz
-                  </button>
-                </div>
+                <button
+                  onClick={submitQuiz}
+                  className={`w-full px-4 py-2 rounded-xl font-medium transition-colors ${
+                    isDark
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                  }`}
+                >
+                  Submit Quiz
+                </button>
+              </div>
               </>
             ) : currentQuiz && quizScore !== null ? (
               <div className="text-center">
